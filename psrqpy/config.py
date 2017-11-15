@@ -2,41 +2,50 @@
 Configuration information
 """
 
-ATNF_VERSION = '1.56'
-ATNF_URL = r'http://www.atnf.csiro.au/people/pulsar/psrcat'
+ATNF_VERSION = '1.57'
+ATNF_URL = r'http://www.atnf.csiro.au/people/pulsar/psrcat/proc_form.php?version={}'.format(ATNF_VERSION)
+
+CONDITION_QUERY = '&condition={}'
+PSRNAMES_QUERY = '&pulsar_names={}'
+SORT_QUERY = '&sort_attr={sortattr}&sort_order={sortorder}'
+QUERY_FLUFF = '&ephemeris=selected&submit_ephemeris=Get+Ephemeris&coords_unit=raj%2Fdecj&radius=&coords_1=&coords_2=&style=Long+with+errors&no_value=0&nohead=nohead&state=query'
 
 # pulsar parameters (http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html) that can be queried
+# the dictionaries state whether the parameters have an associted reference and error in the output
 
 # general parameters (e.g., name, position, distance...)
-PSR_GENERAL = ['Name',        # Pulsar name.  The B name if exists, otherwise the J name.
-               'JName',       # Pulsar name based on J2000 coordinates
-               'RAJ',         # Right ascension (J2000) (hh:mm:ss.s)
-               'DecJ',        # Declination (J2000) (+dd:mm:ss)
-               'PMRA',        # Proper motion in the right ascension direction (mas/yr)
-               'PMDec',       # Proper motion in declination (mas/yr)
-               'PX',          # Annual parallax (mas)
-               'PosEpoch',    # Epoch of position, defaults to PEpoch (MJD)
-               'ELong',       # Ecliptic longitude (degrees)
-               'ELat',        # Ecliptic latitude (degrees)
-               'PMElong',     # Proper motion in the ecliptic longitude direction (mas/yr)
-               'PMElat',      # Proper motion in ecliptic latitude (mas/yr)
-               'GL',          # Galactic longitude (degrees)
-               'GB',          # Galactic latitude (degrees)
-               'RAJD',        # Right ascension (J2000) (degrees)
-               'DecJD',       # Declination (J2000) (degrees)
-               'Type',        # Type codes for the pulsar (http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#psr_types)
-               'Dist',        # Best estimate of the pulsar distance using the YMW16 DM-based distance as default (kpc)
-               'Dist_DM',     # Distance based on the YMW16 electron density model. In 'LONG' or 'PUBLICATION QUALITY' modes, lower limits from the distance model are preceded by a '+' sign.
-               'DMsinb',      # DM x sin(b) (cm-3 pc)
-               'ZZ',          # Distance from the Galactic plane, based on Dist
-               'XX',          # X-Distance in X-Y-Z Galactic coordinate system (kpc)
-               'YY',          # Y-Distance in X-Y-Z Galactic coordinate system (kpc)
-               'Assoc',       # Names of other objects, e.g., supernova remnant, globular cluster or gamma-ray source associated with the pulsar
-               'Survey',      # Surveys that detected the pulsar (discovery survey first) (http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#surveys)
-               'OSurvey',     # Surveys that detected the pulsar encoded as bits in integer
-               'Date',        # Date of discovery publication.
-               'NGlt'         # Number of glitches observed for the pulsar
-               ]
+PSR_GENERAL = {'Name':     {'ref': True, 'err': False, 'units': None, 'format', 'S32'},       # Pulsar name.  The B name if exists, otherwise the J name.
+               'JName':    {'ref': True, 'err': False, 'units': None, 'format', 'S32'},       # Pulsar name based on J2000 coordinates
+               'RAJ':      {'ref': True, 'err': True, 'units': None, 'format', 'S32'},        # Right ascension (J2000) (hh:mm:ss.s)
+               'DecJ':     {'ref': True, 'err': True, 'units': None, 'format', 'S32'},        # Declination (J2000) (+dd:mm:ss)
+               'PMRA':     {'ref': True, 'err': True, 'units': 'mas/yr', 'format', 'f8'},     # Proper motion in the right ascension direction (mas/yr)
+               'PMDec':    {'ref': True, 'err': True, 'units': 'mas/yr', 'format', 'f8'},     # Proper motion in declination (mas/yr)
+               'PX':       {'ref': True, 'err': True, 'units': 'mas', 'format', 'f8'},        # Annual parallax (mas)
+               'PosEpoch': {'ref': True, 'err': True, 'units': 'MJD', 'format', 'f8'},        # Epoch of position, defaults to PEpoch (MJD)
+               'ELong':    {'ref': True, 'err': True, 'units': 'deg', 'format', 'f8'},        # Ecliptic longitude (degrees)
+               'ELat':     {'ref': True, 'err': True, 'units': 'deg', 'format', 'f8'},        # Ecliptic latitude (degrees)
+               'PMElong':  {'ref': True, 'err': True, 'units': 'mas/yr', 'format', 'f8'},     # Proper motion in the ecliptic longitude direction (mas/yr)
+               'PMElat':   {'ref': True, 'err': True, 'units': 'mas/yr', 'format', 'f8'},     # Proper motion in ecliptic latitude (mas/yr)
+               'GL':       {'ref': False, 'err': False, 'units': 'deg', 'format', 'f8'},      # Galactic longitude (degrees)
+               'GB':       {'ref': False, 'err': False, 'units': 'deg', 'format', 'f8'},      # Galactic latitude (degrees)
+               'RAJD':     {'ref': False, 'err': False, 'units': 'deg', 'format', 'f8'},      # Right ascension (J2000) (degrees)
+               'DecJD':    {'ref': False, 'err': False, 'units': 'deg', 'format', 'f8'},      # Declination (J2000) (degrees)
+               'Type':     {'ref': True, 'err': False, 'units': None, 'format', 'S32'},       # Type codes for the pulsar (http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#psr_types)
+               'Dist':     {'ref': False, 'err': False, 'units': 'kpc', 'format', 'f8'},      # Best estimate of the pulsar distance using the YMW16 DM-based distance as default (kpc)
+               'Dist_DM':  {'ref': True, 'err': False, 'units': 'kpc', 'format', 'f8'},       # Distance based on the YMW16 electron density model. In 'LONG' or 'PUBLICATION QUALITY' modes, lower limits from the distance model are preceded by a '+' sign.
+               'DMsinb':   {'ref': False, 'err': False, 'units': 'cm^-3 pc', 'format', 'f8'}, # DM x sin(b) (cm-3 pc)
+               'ZZ':       {'ref': False, 'err': False, 'units': 'kpc', 'format', 'f8'},      # Distance from the Galactic plane, based on Dist
+               'XX':       {'ref': False, 'err': False, 'units': 'kpc', 'format', 'f8'},      # X-Distance in X-Y-Z Galactic coordinate system (kpc)
+               'YY':       {'ref': False, 'err': False, 'units': 'kpc', 'format', 'f8'},      # Y-Distance in X-Y-Z Galactic coordinate system (kpc)
+               'Assoc':    {'ref': False, 'err': False, 'units': None, 'format', 'S32'},      # Names of other objects, e.g., supernova remnant, globular cluster or gamma-ray source associated with the pulsar
+               'Survey':   {'ref': False, 'err': False, 'units': None, 'format', 'S32'},      # Surveys that detected the pulsar (discovery survey first) (http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#surveys)
+               'OSurvey':  {'ref': False, 'err': False, 'units': None, 'format', 'S32'},      # Surveys that detected the pulsar encoded as bits in integer
+               'Date':     {'ref': False, 'err': False, 'units': 'yr', 'format', 'i4'},       # Date of discovery publication.
+               'NGlt':     {'ref': False, 'err': False, 'units': None, 'format', 'i4'}        # Number of glitches observed for the pulsar
+              }
+
+
+PSR_GENERAL = {''}
 
 # timing solution and profile parameters
 PSR_TIMING = ['P0',           # Barycentric period of the pulsar (s)
@@ -76,7 +85,7 @@ PSR_BINARY = ['Binary',       # Binary model (usually one of several recognised 
 # derived parameters
 PSR_DERIVED = ['R_Lum',       # Radio luminosity at 400 MHz (mJy kpc2)
                'R_Lum14',     # Radio luminosity at 1400 MHz (mJy kpc2)
-               'Age',         # Spin down age (yr) [￼tau = P/(2 Pdot)]
+               'Age',         # Spin down age (yr) [tau = P/(2 Pdot)]
                'Bsurf',       # Surface magnetic flux density (Gauss) [B = 3.2e19 sqrt(P * Pdot)]
                'Edot',        # Spin down energy loss rate (ergs/s)
                'Edotd2',      # Energy flux at the Sun (ergs/kpc2/s)
