@@ -5,12 +5,15 @@ Search query
 from __future__ import print_function
 
 import warnings
+from collections import OrderedDict
 import six
 
+import numpy as np
 import requests
 from bs4 import BeautifulSoup
 
 from .config import *
+from .utils import *
 
 class pulsar(object):
     """
@@ -31,15 +34,13 @@ class pulsar(object):
     def items(self):
         return self._raw.items()
 
-
-PSR_ALL = PSR_GENERAL + PSR_TIMING + PSR_BINARY + PSR_DERIVED
-
 class QueryATNF(object):
     """
     Class to generate a query of the ATNF catalogue
     """
 
-    def __init__(self, params=None, condition=None, psrtype=None, assoc=None, sort_attr='jname', sort_order='asc', psrs=None, **kwargs):
+    def __init__(self, params=None, condition=None, psrtype=None, assoc=None, sort_attr='jname', sort_order='asc', psrs=None,
+                 include_errs=True, include_refs=False, version=None, adsref=False, **kwargs):
         """
         Set up and perform the query of the ATNF catalogue
 
@@ -50,7 +51,20 @@ class QueryATNF(object):
         :param sort_attr: the parameter on which with sort the returned pulsars
         :param sort_ord: the order of the sorting (defaults to ascending)
         :param psrs: a list of pulsar names to get the information for
+        :param include_errs: boolean to set whether to include parameter errors
+        :param include_refs: boolean to set whether to include parameter references
+        :param version: a string with the ATNF version to use (this will default to the current version if set as None)
+        :param adsref: boolean to set whether the python 'ads' module can be used to get reference information
         """
+
+        self._include_errs = include_errs
+        self._include_refs = include_refs
+        self._atnf_version = version
+        self._adsref = adsref
+        
+        self._psr = psrs
+
+        self._references = None # set of pulsar references
 
         # check parameters are allowed values
         if isinstance(params, list):
@@ -69,7 +83,7 @@ class QueryATNF(object):
                 raise Exception("'params' must be a list or string")
 
         for p in list(self._query_params):
-            if p not in PSR_ALL:
+            if p not in PSR_ALL_PARS:
                 warnings.warn("Parameter {} not recognised".format(p), UserWarning)
                 self._query_params.remove(p)
         if len(p) == 0:
@@ -112,7 +126,7 @@ class QueryATNF(object):
 
         sortquery = {'sortattr': sort_attr, 'sortorder': sort_order}
 
-        self.query_url = ATNF_URL + pquery + CONDITION_QUERY.format(conditionsquery) + \
+        self.query_url = ATNF_URL.format(self.get_version()) + pquery + CONDITION_QUERY.format(conditionsquery) + \
                          PSRNAMES_QUERY.format('') + SORT_QUERY.format(**sortquery) + QUERY_FLUFF
 
         print(self.query_url)
@@ -131,6 +145,25 @@ class QueryATNF(object):
 
         self.query_output = psrsoup.find('pre').text
 
+        # put the data in an ordered dictionary dictionary
+        self.query_output_dict = OrderedDict()
+        self.npulsars = 0
+        if len(self.query_output) > 0:
+            plist = self.query_output.strip().split('\n') # split output string
+            
+            self.npulsars = len(plist)
+
+            for p in self._query_params:
+                if p in PSR_ALL_PARS:
+                    self.query_output_dict[p] = np.zeros(self.npulsars, dtype=PSR_ALL[p]['format'])
+                    
+                    if PSR_ALL[p]['err'] and self._include_errs:
+                        self.query_output_dict[p+'_ERR'] = np.zeros(self.npulsars, dtype=PSR_ALL[p]['format'])
+                    
+                    if PSR_ALL[p]['ref'] and self._include_refs:
+                        self.query_output_dict[p+'_REF'] = np.zeros(self.npulsars, dtype='S1024')
+                
+
     def table(self):
         """
         Return an astropy table of the pulsar data
@@ -138,4 +171,12 @@ class QueryATNF(object):
         
         from astropy.table import Table
 
+    def get_version(self):
+        """
+        Return a string with the ATNF version number, or the default giving in ATNF_VERSION if not found
+        """
+
+        if self._atnf_version is None:
+            self._atnf_version = get_version()
         
+        return self._atnf_version
