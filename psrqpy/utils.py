@@ -5,9 +5,13 @@ Various useful functions
 import warnings
 import requests
 import re
+import datetime
 from bs4 import BeautifulSoup
 
 from .config import *
+
+# problematic references that are hard to parse
+prob_refs = ['bwck08', 'cls68', 'ht69', 'kom74', 'ls69', 'lh81', 'll76']
 
 def get_version():
     """
@@ -57,34 +61,79 @@ def get_references(useads=False):
             table = refsoup.find('h2', text=pattern).parent.find('table') # get the table in the same parent element as the 'References' header
 
             trows = table.find_all('tr')
-        except:
+        except IOError:
             warnings.warn("Could not get ATNF reference list", UserWarning)
             return refs
 
         # loop over rows
+        j = 0
         for tr in trows:
+            j = j + 1
             reftag = tr.b.text # the reference string is contained in a <b> tag
+
+            if reftag in prob_refs:
+                continue
 
             refs[reftag] = {}
             tds = tr.find_all('td') # get the two <td> tags - reference info is in the second
 
             refdata = tds[1].contents
 
-            # check that the tag contains a string (the paper title) within <i> - there are a few exceptions to this rule
-            if tds[1].find('i') is not None:
+            # change some journal refs that contain '.'
+            for ridx, rdf in enumerate(list(refdata)):
+                # subtitute some journal names to abbreviated versions
+                journalsubs = {'Chin. J. Astron. Astrophys.': 'ChJAA',
+                               'Astrophys. Lett.': 'ApJL',
+                               'Res. Astron. Astrophys.': 'RAA',
+                               'J. Astrophys. Astr.': 'JApA',
+                               'Curr. Sci.': 'Current Science',
+                               'Astrophys. Space Sci.': 'Ap&SS',
+                               'Nature Phys. Sci.': 'NPhS',
+                               'Sov. Astron. Lett.': 'SvAL',
+                               'ATel.': 'ATel'}
+
+                if isinstance(rdf, basestring): # only run on string values
+                    rdfs = re.sub(r'\s+', ' ', rdf) # make sure only single spaces are present
+                    for js in journalsubs:
+                        if js in rdfs:
+                            refdata[ridx] = re.sub(js, journalsubs[js], rdfs)
+
+            # check that the tag contains a string (the paper/book title) within <i> (paper) or <b> (book) - there are a few exceptions to this rule
+            print(j, reftag, tds[1])
+            titlestr = tds[1].find('i')
+            booktitlestr = tds[1].find('b')
+            if titlestr is not None or booktitlestr is not None:
                 authors = re.sub(r'\s+', ' ', refdata[0]).strip().strip('.') # remove line breaks and extra spaces (and final full-stop)
+                sepauthors = [a for a in authors.split('.,')]
             else:
-                authors = re.sub(r'\s+', ' ', refdata[0]).split('.,')[:-2]
-                # authors, year, and journal info are all together
-                rd = re.sub(r'\s+', ' ', refdata[0]).split('.,')[-1].split() # split on whitespace
-                
-            sepauthors = [a for a in authors.split('.,')]
-                
-            if tds[1].find('i') is not None:
-                year = int(''.join(filter(lambda x: x.isdigit(), sepauthors.pop(-1).strip('.')))) # strip any non-digit characters (e.g. from '1976a')
+                sepauthors = re.sub(r'\s+', ' ', refdata[0]).split('.,')[:-1]
+
+            if titlestr is not None or booktitlestr is not None:
+                print(j, reftag, sepauthors[-1])
+                try:
+                    year = int(''.join(filter(lambda x: x.isdigit(), sepauthors.pop(-1).strip('.')))) # strip any non-digit characters (e.g. from '1976a')
+                except ValueError:
+                    # get year from reftag
+                    year = int(''.join(filter(lambda x: x.isdigit(), reftag)))
+                    thisyear = int(str(datetime.datetime.now().year)[-2:])
+                    if year > thisyear:
+                        year += 2000
+                    else:
+                        year += 1900
             else:
                 rd = re.sub(r'\s+', ' ', refdata[0]).split('.,')[-1].split() # split on whitespace
-                year = int(''.join(filter(lambda x: x.isdigit(), rd[0].strip('.'))))
+                try:
+                    year = int(''.join(filter(lambda x: x.isdigit(), rd[0].strip('.'))))
+                except ValueError:
+                    # get year from reftag
+                    year = int(''.join(filter(lambda x: x.isdigit(), reftag)))
+                    thisyear = int(str(datetime.datetime.now().year)[-2:])
+                    if year > thisyear:
+                        year += 2000
+                    else:
+                        year += 1900
+
+            print(j, refdata[0], sepauthors)
 
             if '&' in sepauthors[-1]: # split any authors that are seperated by an ampersand
                 lastauthors = [a.strip() for a in sepauthors.pop(-1).split('&')]
@@ -98,13 +147,17 @@ def get_references(useads=False):
             refs[reftag]['authors'] = sepauthors
             refs[reftag]['year'] = year
 
-            if tds[1].find('i') is not None:
+            if titlestr is not None:
                 title = re.sub(r'\s+', ' ', tds[1].i.text)
             else:
                 title = ''
             refs[reftag]['title'] = title
 
-            if tds[1].find('i') is not None:
+            if booktitlestr is not None:
+                booktitle = re.sub(r'\s+', ' ', tds[1].b.text)
+                refs[reftag]['booktitle'] = booktitle
+
+            if titlestr is not None:
                 # seperate journal name, volume and pages
                 journalref = [a.strip() for a in refdata[-1].strip('.').split(',')]
                 if len(journalref) == 3:
@@ -114,12 +167,20 @@ def get_references(useads=False):
                 else:
                     if 'arxiv' in refdata[-1].strip('.').lower():
                         axvparts = refdata[-1].strip('.').split(':')
-                        axv = 'arXiv:{}:{}'.format(axvparts[0].split()[-1], axvparts[1].split()[0])
+                        if len(axvparts) == 2: # if an arXiv number of found
+                            axv = 'arXiv:{}'.format(re.split(', |. ', axvparts[1])[0])
+                        else:
+                            axv = 'arXiv' # no arXiv number can be set
                         refs[reftag]['journal'] = axv
                     else:
                         refs[reftag]['journal'] = ''
                     refs[reftag]['volume'] = ''
                     refs[reftag]['pages'] = ''
+            elif booktitlestr is not None:
+                # seperate book volume and other editorial/publisher info
+                bookref = [a.strip() for a in refdata[-1].strip('.').split('eds')]
+                refs[reftag]['volume'] = re.sub(r', |. |\s+', '', bookref[0])
+                refs[reftag]['eds'] = bookref[1]
             else:
                 refs[reftag]['year'] = year
                 refs[reftag]['journal'] = rd[1].strip(',')
@@ -138,7 +199,7 @@ def get_references(useads=False):
                     article = list(ads.SearchQuery(year=refs[reftag]['year'], first_author=refs[reftag]['authors'][0], title=refs[reftag]['title']))[0]
                     refs[reftag]['ADS'] = article
                     refs[reftag]['ADS URL'] = ADS_URL.format(article.bibcode)
-                except:
+                except IOError:
                     warnings.warn('Could not import ADS module, so no ADS information will be included', UserWarning)
 
     return refs
