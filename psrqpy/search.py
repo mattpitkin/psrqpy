@@ -6,6 +6,7 @@ from __future__ import print_function
 
 import warnings
 from collections import OrderedDict
+import re
 import six
 
 import numpy as np
@@ -289,10 +290,11 @@ class QueryATNF(object):
                             if reftag in self._refs:
                                 thisref = self._refs[reftag]
                                 refstring = '{authorlist}, {year}, {title}, {journal}, {volume}'
-                                self._query_output[p+'_REF'][idx] = refstring.format(**thisref)
+                                refstring2 = re.sub(r'\s+', ' ', refstring.format(**thisref)) # remove any superfluous whitespace
+                                self._query_output[p+'_REF'][idx] = ','.join([a for a in refstring2.split(',') if a.strip()]) # remove any superfluous empty ',' seperated values
 
                                 if self._adsref and 'ADS URL' in thisref:
-                                    self._query_output[p+'_REFURL'][idx] = thisref['ADS URL']
+                                    self._query_output[p+'_REFURL'][idx] = thisref['ADS URL'] # remove any superfluous whitespace
                             else:
                                 warnings.warn('Reference tag "{}" not found so omitting reference'.format(reftag), UserWarning)
                         vidx += 1
