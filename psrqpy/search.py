@@ -198,8 +198,6 @@ class QueryATNF(object):
         # generate query URL
         self._query_url = QUERY_URL.format(**query_dict)
 
-        print(self._query_url)
-
         # generate request
         psrrequest = requests.get(self._query_url)
 
@@ -319,8 +317,21 @@ class QueryATNF(object):
         """
         Return an astropy table of the pulsar data
         """
-        
+
         from astropy.table import Table
+
+        # make a table from the dictionary
+        psrtable = Table(data=self.get_dict())
+
+        # add units to columns
+        for p in self._query_params:
+            if PSR_ALL[p]['units']:
+                psrtable.columns[p].unit = PSR_ALL[p]['units']
+
+                if PSR_ALL[p]['err'] and self._include_errs:
+                    psrtable.columns[p+'_ERR'].unit = PSR_ALL[p]['units']
+
+        return psrtable
 
     def get_version(self):
         """

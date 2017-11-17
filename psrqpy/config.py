@@ -32,7 +32,7 @@ PSR_GENERAL = {'Name':     {'ref': True, 'err': False, 'units': None, 'format': 
                'PMRA':     {'ref': True, 'err': True, 'units': 'mas/yr', 'format': 'f8'},      # Proper motion in the right ascension direction (mas/yr)
                'PMDec':    {'ref': True, 'err': True, 'units': 'mas/yr', 'format': 'f8'},      # Proper motion in declination (mas/yr)
                'PX':       {'ref': True, 'err': True, 'units': 'mas', 'format': 'f8'},         # Annual parallax (mas)
-               'PosEpoch': {'ref': True, 'err': True, 'units': 'MJD', 'format': 'f8'},         # Epoch of position, defaults to PEpoch (MJD)
+               'PosEpoch': {'ref': True, 'err': True, 'units': 'd', 'format': 'f8'},           # Epoch of position, defaults to PEpoch (MJD)
                'ELong':    {'ref': True, 'err': True, 'units': 'deg', 'format': 'f8'},         # Ecliptic longitude (degrees)
                'ELat':     {'ref': True, 'err': True, 'units': 'deg', 'format': 'f8'},         # Ecliptic latitude (degrees)
                'PMElong':  {'ref': True, 'err': True, 'units': 'mas/yr', 'format': 'f8'},      # Proper motion in the ecliptic longitude direction (mas/yr)
@@ -65,7 +65,7 @@ PSR_TIMING = {'P0':        {'ref': True, 'err': True, 'units': 's', 'format': 'f
               'F1':        {'ref': True, 'err': True, 'units': 's^-2', 'format': 'f8'},        # Time derivative of barycentric rotation frequency (s-2)
               'F2':        {'ref': True, 'err': True, 'units': 's^-3', 'format': 'f8'},        # Second time derivative of barycentric rotation frequency (s-3)
               'F3':        {'ref': True, 'err': True, 'units': 's^-4', 'format': 'f8'},        # Third time derivative of barycentric rotation frequency (s-4)
-              'PEpoch':    {'ref': True, 'err': False, 'units': 'MJD', 'format': 'f8'},        # Epoch of period or frequency (MJD)
+              'PEpoch':    {'ref': True, 'err': False, 'units': 'd', 'format': 'f8'},          # Epoch of period or frequency (MJD)
               'DM':        {'ref': True, 'err': True, 'units': 'cm^-3 pc', 'format': 'f8'},    # Dispersion measure (cm-3 pc)
               'DM1':       {'ref': True, 'err': True, 'units': 'cm^-3 pc/yr', 'format': 'f8'}, # First time derivative of dispersion measure (cm-3 pc yr-1)
               'RM':        {'ref': True, 'err': True, 'units': 'rad m^-2', 'format': 'f8'},    # Rotation measure (rad m-2)
@@ -82,12 +82,12 @@ PSR_TIMING_PARS = PSR_TIMING.keys()
 
 # binary system parameters
 PSR_BINARY = {'Binary':    {'ref': True, 'err': False, 'units': None, 'format': 'S5'},         # Binary model (usually one of several recognised by the pulsar timing programs TEMPO or TEMPO2). Modified versions of standard models are often used - refer to the source paper for details of the binary model used.
-              'T0':        {'ref': True, 'err': True, 'units': 'MJD', 'format': 'f8'},         # Epoch of periastron (MJD)
-              'PB':        {'ref': True, 'err': True, 'units': 'days', 'format': 'f8'},        # Binary period of pulsar (days)
+              'T0':        {'ref': True, 'err': True, 'units': 'd', 'format': 'f8'},           # Epoch of periastron (MJD)
+              'PB':        {'ref': True, 'err': True, 'units': 'd', 'format': 'f8'},           # Binary period of pulsar (days)
               'A1':        {'ref': True, 'err': True, 'units': 's', 'format': 'f8'},           # Projected semi-major axis of orbit (lt s)
               'OM':        {'ref': True, 'err': True, 'units': 'deg', 'format': 'f8'},         # Longitude of periastron (degrees)
               'ECC':       {'ref': True, 'err': True, 'units': None, 'format': 'f8'},          # Eccentricity
-              'TASC':      {'ref': True, 'err': True, 'units': 'MJD', 'format': 'f8'},         # Epoch of ascending node(MJD) - ELL1 binary model
+              'TASC':      {'ref': True, 'err': True, 'units': 'd', 'format': 'f8'},           # Epoch of ascending node(MJD) - ELL1 binary model
               'EPS1':      {'ref': True, 'err': True, 'units': None, 'format': 'f8'},          # ECC x sin(OM) - ELL1 binary model
               'EPS2':      {'ref': True, 'err': True, 'units': None, 'format': 'f8'},          # ECC x cos(OM) - ELL1 binary model
               'MinMass':   {'ref': False, 'err': False, 'units': 'M_sun', 'format': 'f8'},     # Minimum companion mass assuming i=90 degrees and neutron star mass is 1.35 Mo
@@ -98,18 +98,18 @@ PSR_BINARY = {'Binary':    {'ref': True, 'err': False, 'units': None, 'format': 
 PSR_BINARY_PARS = PSR_BINARY.keys()
 
 # derived parameters
-PSR_DERIVED = {'R_Lum':    {'ref': False, 'err': False, 'units': 'mJy kpc^2', 'format': 'f8'},   # Radio luminosity at 400 MHz (mJy kpc2)
-               'R_Lum14':  {'ref': False, 'err': False, 'units': 'mJy kpc^2', 'format': 'f8'},   # Radio luminosity at 1400 MHz (mJy kpc2)
-               'Age':      {'ref': False, 'err': False, 'units': 'yr', 'format': 'f8'},          # Spin down age (yr) [tau = P/(2 Pdot)]
-               'Bsurf':    {'ref': False, 'err': False, 'units': 'G', 'format': 'f8'},           # Surface magnetic flux density (Gauss) [B = 3.2e19 sqrt(P * Pdot)]
-               'Edot':     {'ref': False, 'err': False, 'units': 'erg/s', 'format': 'f8'},       # Spin down energy loss rate (ergs/s)
-               'Edotd2':   {'ref': False, 'err': False, 'units': 'erg/s/kpc^2', 'format': 'f8'}, # Energy flux at the Sun (ergs/kpc2/s)
-               'PMTot':    {'ref': False, 'err': False, 'units': 'mas/yr', 'format': 'f8'},      # Total proper motion (mas/yr)
-               'VTrans':   {'ref': False, 'err': False, 'units': 'km/s', 'format': 'f8'},        # Transverse velocity - based on DIST (km/s)
-               'P1_i':     {'ref': False, 'err': False, 'units': None, 'format': 'f8'},          # Period derivative corrected for Shklovskii (proper motion) effect
-               'Age_i':    {'ref': False, 'err': False, 'units': 'yr', 'format': 'f8'},          # Spin down age from P1_i (yr)
-               'BSurf_i':  {'ref': False, 'err': False, 'units': 'G', 'format': 'f8'},           # Surface magnetic dipole from P1_i (gauss)
-               'B_LC':     {'ref': False, 'err': False, 'units': 'G', 'format': 'f8'}            # Magnetic field at light cylinder (gauss)
+PSR_DERIVED = {'R_Lum':    {'ref': False, 'err': False, 'units': 'mJy kpc^2', 'format': 'f8'},      # Radio luminosity at 400 MHz (mJy kpc2)
+               'R_Lum14':  {'ref': False, 'err': False, 'units': 'mJy kpc^2', 'format': 'f8'},      # Radio luminosity at 1400 MHz (mJy kpc2)
+               'Age':      {'ref': False, 'err': False, 'units': 'yr', 'format': 'f8'},             # Spin down age (yr) [tau = P/(2 Pdot)]
+               'Bsurf':    {'ref': False, 'err': False, 'units': 'G', 'format': 'f8'},              # Surface magnetic flux density (Gauss) [B = 3.2e19 sqrt(P * Pdot)]
+               'Edot':     {'ref': False, 'err': False, 'units': 'erg/s', 'format': 'f8'},          # Spin down energy loss rate (ergs/s)
+               'Edotd2':   {'ref': False, 'err': False, 'units': 'erg s^-1/kpc^2', 'format': 'f8'}, # Energy flux at the Sun (ergs/kpc2/s)
+               'PMTot':    {'ref': False, 'err': False, 'units': 'mas/yr', 'format': 'f8'},         # Total proper motion (mas/yr)
+               'VTrans':   {'ref': False, 'err': False, 'units': 'km/s', 'format': 'f8'},           # Transverse velocity - based on DIST (km/s)
+               'P1_i':     {'ref': False, 'err': False, 'units': None, 'format': 'f8'},             # Period derivative corrected for Shklovskii (proper motion) effect
+               'Age_i':    {'ref': False, 'err': False, 'units': 'yr', 'format': 'f8'},             # Spin down age from P1_i (yr)
+               'BSurf_i':  {'ref': False, 'err': False, 'units': 'G', 'format': 'f8'},              # Surface magnetic dipole from P1_i (gauss)
+               'B_LC':     {'ref': False, 'err': False, 'units': 'G', 'format': 'f8'}               # Magnetic field at light cylinder (gauss)
               }
 
 PSR_DERIVED_PARS = PSR_DERIVED.keys()
