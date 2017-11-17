@@ -131,6 +131,10 @@ class QueryATNF(object):
 
         print(self.query_url)
 
+        # get references is required
+        if self._include_refs:
+            self._refs = get_references(useads=self._adsref)
+
         # generate request
         psrrequest = requests.get(self.query_url)
 

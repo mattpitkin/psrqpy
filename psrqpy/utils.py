@@ -11,7 +11,7 @@ from bs4 import BeautifulSoup
 from .config import *
 
 # problematic references that are hard to parse
-prob_refs = ['bwck08', 'cls68', 'ht69', 'kom74', 'ls69', 'lh81', 'll76']
+prob_refs = ['bwck08']
 
 def get_version():
     """
@@ -77,9 +77,24 @@ def get_references(useads=False):
             refs[reftag] = {}
             tds = tr.find_all('td') # get the two <td> tags - reference info is in the second
 
-            refdata = tds[1].contents
+            # check if publication is 'awkward', i.e. if has a year surrounded by '.'s, e.g, '.1969.' or '.1969a.'
+            utext = re.sub(r'\s+', ' ', tds[1].text)
+            dotyeardot = re.compile(r'\.(\d+\D?)\.')
+            dotyeardotlist = dotyeardot.split(utext)
+            if len(dotyeardotlist) != 3:
+                utext = None
 
-            # change some journal refs that contain '.'
+            refdata = list(tds[1].contents) # copy list so contents of table aren't changed in the journal name substitution step below
+
+            # check that the tag contains a string (the paper/book title) within <i> (paper) or <b> (book) - there are a few exceptions to this rule
+            titlestr = None
+            booktitlestr = None
+            if tds[1].find('i') is not None:
+                titlestr = tds[1].i.text
+            if tds[1].find('b') is not None:
+                booktitlestr = tds[1].b.text
+
+            # change some journal refs that contain '.' (this causes issues when splitting authors based on '.,')
             for ridx, rdf in enumerate(list(refdata)):
                 # subtitute some journal names to abbreviated versions
                 journalsubs = {'Chin. J. Astron. Astrophys.': 'ChJAA',
@@ -98,18 +113,17 @@ def get_references(useads=False):
                         if js in rdfs:
                             refdata[ridx] = re.sub(js, journalsubs[js], rdfs)
 
-            # check that the tag contains a string (the paper/book title) within <i> (paper) or <b> (book) - there are a few exceptions to this rule
-            print(j, reftag, tds[1])
-            titlestr = tds[1].find('i')
-            booktitlestr = tds[1].find('b')
-            if titlestr is not None or booktitlestr is not None:
+            if (titlestr is not None or booktitlestr is not None) and utext is None:
                 authors = re.sub(r'\s+', ' ', refdata[0]).strip().strip('.') # remove line breaks and extra spaces (and final full-stop)
-                sepauthors = [a for a in authors.split('.,')]
+                sepauthors = authors.split('.,')
+            elif utext is not None:
+                year = int(re.sub('\D', '', dotyeardotlist[1])) # remove any non-number values
+                authors = dotyeardotlist[0]
+                sepauthors = authors.split('.,')
             else:
                 sepauthors = re.sub(r'\s+', ' ', refdata[0]).split('.,')[:-1]
 
-            if titlestr is not None or booktitlestr is not None:
-                print(j, reftag, sepauthors[-1])
+            if (titlestr is not None or booktitlestr is not None) and utext is None:
                 try:
                     year = int(''.join(filter(lambda x: x.isdigit(), sepauthors.pop(-1).strip('.')))) # strip any non-digit characters (e.g. from '1976a')
                 except ValueError:
@@ -117,11 +131,11 @@ def get_references(useads=False):
                     year = int(''.join(filter(lambda x: x.isdigit(), reftag)))
                     thisyear = int(str(datetime.datetime.now().year)[-2:])
                     if year > thisyear:
-                        year += 2000
-                    else:
                         year += 1900
-            else:
-                rd = re.sub(r'\s+', ' ', refdata[0]).split('.,')[-1].split() # split on whitespace
+                    else:
+                        year += 2000
+            elif utext is None:
+                rd = re.sub(r'\s+', ' ', refdata[0]).split('.,')[-1].split()
                 try:
                     year = int(''.join(filter(lambda x: x.isdigit(), rd[0].strip('.'))))
                 except ValueError:
@@ -129,17 +143,16 @@ def get_references(useads=False):
                     year = int(''.join(filter(lambda x: x.isdigit(), reftag)))
                     thisyear = int(str(datetime.datetime.now().year)[-2:])
                     if year > thisyear:
-                        year += 2000
-                    else:
                         year += 1900
+                    else:
+                        year += 2000
 
-            print(j, refdata[0], sepauthors)
-
-            if '&' in sepauthors[-1]: # split any authors that are seperated by an ampersand
-                lastauthors = [a.strip() for a in sepauthors.pop(-1).split('&')]
+            if '&' in sepauthors[-1] or 'and' in sepauthors[-1]: # split any authors that are seperated by an ampersand
+                lastauthors = [a.strip() for a in re.split(r'& | and ', sepauthors.pop(-1))]
                 sepauthors = sepauthors + lastauthors
                 for i in xrange(len(sepauthors)-2):
                     sepauthors[i] += '.' # re-add final full stops where needed
+                sepauthors[-1] += '.'
             else:
                 sepauthors = [a+'.' for a in sepauthors] # re-add final full stops
 
@@ -148,13 +161,13 @@ def get_references(useads=False):
             refs[reftag]['year'] = year
 
             if titlestr is not None:
-                title = re.sub(r'\s+', ' ', tds[1].i.text)
+                title = (re.sub(r'\s+', ' ', titlestr)).lstrip() # remove any leading spaces
             else:
                 title = ''
             refs[reftag]['title'] = title
 
             if booktitlestr is not None:
-                booktitle = re.sub(r'\s+', ' ', tds[1].b.text)
+                booktitle = (re.sub(r'\s+', ' ', booktitlestr)).lstrip()
                 refs[reftag]['booktitle'] = booktitle
 
             if titlestr is not None:
@@ -183,9 +196,23 @@ def get_references(useads=False):
                 refs[reftag]['eds'] = bookref[1]
             else:
                 refs[reftag]['year'] = year
-                refs[reftag]['journal'] = rd[1].strip(',')
-                refs[reftag]['volume'] = rd[2].strip(',')
-                refs[reftag]['pages'] = rd[3].strip('.')
+
+                # split on year
+                if utext is None:
+                    rd = re.sub(r'\s+', ' ', refdata[0]).split('{}'.format(year))[1].split(',')
+                else:
+                    rd = re.sub(r'\s+', ' ', dotyeardotlist[-1]).split(',')
+
+                if 'PhD thesis' in rd[0]:
+                    refs[reftag]['journal'] = 'PhD thesis'
+                    refs[reftag]['thesis pub. info.'] = ' '.join(rd[1:]).lstrip()
+                else:
+                    if len(rd) >= 1:
+                        refs[reftag]['journal'] = rd[0].strip()
+                    if len(rd) >= 2:
+                        refs[reftag]['volume'] = rd[1].strip()
+                    if len(rd) >= 3:
+                        refs[reftag]['pages'] = rd[2].strip().strip('.')
 
             # get ADS entry
             if useads:
