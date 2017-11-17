@@ -2,7 +2,8 @@
 
 This module aims to provide a python interface for querying the [ATNF pulsar catalogue](http://www.atnf.csiro.au/people/pulsar/psrcat/).
 It is inspired by, and has some minor similarities to, the [`ads`](https://ads.readthedocs.io) module for interfacing with the
-[NASA ADS](https://ui.adsabs.harvard.edu/) [API](https://github.com/adsabs/adsabs-dev-api).
+[NASA ADS](https://ui.adsabs.harvard.edu/) [API](https://github.com/adsabs/adsabs-dev-api). It is an unofficial
+package and is not endorsed or affiliated with the ATNF.
 
 Any comments or suggestions are welcome.
 
@@ -32,6 +33,41 @@ The requirements for installing the code are:
  * `numpy`
  * `astropy`
  * `datetime`
+
+The `ads` module is an optional requirement that is needed to get ADS URLs for references.
+
+## Example
+
+A simple query of the catalogue, e.g., to just return all pulsar frequencies, would be:
+
+```
+import psrqpy
+
+q = QueryATNF(params='F0')
+
+# get frequencies as an astropy table
+t = q.table()
+
+print t['F0']
+```
+
+You can query multiply parameters, e.g.:
+
+```
+import psrqpy
+
+q = QueryATNF(params=['F0', 'F1', 'RAJ', 'DecJ'])
+
+# get values as an astropy table
+t = q.table()
+
+print t['F0']
+```
+
+If you really want to query the catalogue many times in quick succession it is advisable not to use this module, as
+it could result in too much load on the ATNF catalogue's server. Instead it is probably preferable to [download
+the catalogue](http://www.atnf.csiro.au/research/pulsar/psrcat/download.html) and query it with the software
+provided.
 
 ## License
 
