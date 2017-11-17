@@ -159,6 +159,9 @@ def get_references(useads=False):
             refs[reftag]['authorlist'] = ', '.join(sepauthors)
             refs[reftag]['authors'] = sepauthors
             refs[reftag]['year'] = year
+            refs[reftag]['journal'] = ''
+            refs[reftag]['volume'] = ''
+            refs[reftag]['pages'] = ''
 
             if titlestr is not None:
                 title = (re.sub(r'\s+', ' ', titlestr)).lstrip() # remove any leading spaces
@@ -185,10 +188,6 @@ def get_references(useads=False):
                         else:
                             axv = 'arXiv' # no arXiv number can be set
                         refs[reftag]['journal'] = axv
-                    else:
-                        refs[reftag]['journal'] = ''
-                    refs[reftag]['volume'] = ''
-                    refs[reftag]['pages'] = ''
             elif booktitlestr is not None:
                 # seperate book volume and other editorial/publisher info
                 bookref = [a.strip() for a in refdata[-1].strip('.').split('eds')]

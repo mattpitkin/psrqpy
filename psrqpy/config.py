@@ -6,12 +6,16 @@ import itertools
 
 ATNF_VERSION = '1.57' # default ATNF version
 ATNF_BASE_URL = r'http://www.atnf.csiro.au/people/pulsar/psrcat/'
-ATNF_URL = ATNF_BASE_URL + r'proc_form.php?version={}'
+ATNF_URL = ATNF_BASE_URL + r'proc_form.php?version={version}'
 
-CONDITION_QUERY = '&condition={}'
-PSRNAMES_QUERY = '&pulsar_names={}'
+PARAMS_QUERY = '{params}'
+USERDEFINED_QUERY = '&startUserDefined=true&c1_val=&c2_val=&c3_val=&c4_val='
+CONDITION_QUERY = '&condition={condition}'
+PSRNAMES_QUERY = '&pulsar_names={psrnames}'
 SORT_QUERY = '&sort_attr={sortattr}&sort_order={sortorder}'
 QUERY_FLUFF = '&ephemeris=selected&submit_ephemeris=Get+Ephemeris&coords_unit=raj%2Fdecj&radius=&coords_1=&coords_2=&style=Long+with+errors&no_value=0&nohead=nohead&state=query'
+
+QUERY_URL = ATNF_URL + PARAMS_QUERY + USERDEFINED_QUERY + SORT_QUERY + CONDITION_QUERY + PSRNAMES_QUERY + QUERY_FLUFF
 
 # pulsar parameters (http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html) that can be queried
 # For each parameter there is a dictionary giving:
