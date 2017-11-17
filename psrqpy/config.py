@@ -13,9 +13,10 @@ USERDEFINED_QUERY = '&startUserDefined=true&c1_val=&c2_val=&c3_val=&c4_val='
 CONDITION_QUERY = '&condition={condition}'
 PSRNAMES_QUERY = '&pulsar_names={psrnames}'
 SORT_QUERY = '&sort_attr={sortattr}&sort_order={sortorder}'
-QUERY_FLUFF = '&ephemeris=selected&submit_ephemeris=Get+Ephemeris&coords_unit=raj%2Fdecj&radius=&coords_1=&coords_2=&style=Long+with+errors&no_value=0&nohead=nohead&state=query'
+EPHEMERIS_QUERY = '&submit_ephemeris={getephemeris}'
+QUERY_FLUFF = '&ephemeris=long&coords_unit=raj%2Fdecj&radius=&coords_1=&coords_2=&style=Long+with+errors&no_value=*&nohead=nohead&state=query'
 
-QUERY_URL = ATNF_URL + PARAMS_QUERY + USERDEFINED_QUERY + SORT_QUERY + CONDITION_QUERY + PSRNAMES_QUERY + QUERY_FLUFF
+QUERY_URL = ATNF_URL + PARAMS_QUERY + USERDEFINED_QUERY + SORT_QUERY + CONDITION_QUERY + PSRNAMES_QUERY + EPHEMERIS_QUERY + QUERY_FLUFF
 
 # pulsar parameters (http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html) that can be queried
 # For each parameter there is a dictionary giving:

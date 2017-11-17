@@ -58,6 +58,9 @@ class QueryATNF(object):
         :param adsref: boolean to set whether the python 'ads' module can be used to get reference information
         """
 
+        self._psrs = psrs
+        print(self._psrs)
+
         self._include_errs = include_errs
         self._include_refs = include_refs
         self._atnf_version = version
@@ -65,8 +68,6 @@ class QueryATNF(object):
         self._adsref = adsref
         self._sort_order = sort_order
         self._sort_attr = sort_attr
-        
-        self._psrs = psrs
 
         self._refs = None # set of pulsar references
         self._query_output = None
@@ -134,7 +135,7 @@ class QueryATNF(object):
         # parse the query with BeautifulSoup into a dictionary
         self._query_output = self.parse_query()
 
-    def generate_query(self, version='', params=None, condition='', sortorder='asc', sortattr='JName', psrnames=None):
+    def generate_query(self, version='', params=None, condition='', sortorder='asc', sortattr='JName', psrnames=None, getephemeris=False):
         """
         Generate a query URL and return the content of the request from that URL. If set the class attributes are
         used for generating the query, otherwise arguments can be given.
@@ -184,6 +185,8 @@ class QueryATNF(object):
                     raise Exception('Error... input "psrnames" for generate_query() must be a list')
                 self._psrs = list(psrnames) # reset self._psrs
 
+        print(self._psrs)
+
         qpulsars = '' # pulsar name query string
         if self._psrs is not None:
             for psr in self._psrs:
@@ -192,12 +195,21 @@ class QueryATNF(object):
                 else:
                     qpulsars += psr
                 qpulsars += '+' # seperator between pulsars
-            qpulsars.strip('+') # remove the trailing '+'
-
+            print(qpulsars)
+            qpulsars = qpulsars.strip('+') # remove the trailing '+'
+        print(qpulsars)
         query_dict['psrnames'] = qpulsars
+
+        # get pulsar ephemeris rather than table (parsing of this is not implemented yet)
+        if getephemeris:
+            query_dict['getephemeris'] = 'Get+Ephemeris'
+        else:
+            query_dict['getephemeris'] = ''
 
         # generate query URL
         self._query_url = QUERY_URL.format(**query_dict)
+
+        print(self._query_url)
 
         # generate request
         psrrequest = requests.get(self._query_url)
