@@ -91,3 +91,5 @@ provided.
 This code is licensed under the [MIT License](http://opensource.org/licenses/MIT).
 
 &copy; Matt Pitkin, 2017
+
+[![PyPI version](https://badge.fury.io/py/psrqpy.svg)](https://badge.fury.io/py/psrqpy)
