@@ -59,8 +59,6 @@ class QueryATNF(object):
         """
 
         self._psrs = psrs
-        print(self._psrs)
-
         self._include_errs = include_errs
         self._include_refs = include_refs
         self._atnf_version = version
@@ -185,8 +183,6 @@ class QueryATNF(object):
                     raise Exception('Error... input "psrnames" for generate_query() must be a list')
                 self._psrs = list(psrnames) # reset self._psrs
 
-        print(self._psrs)
-
         qpulsars = '' # pulsar name query string
         if self._psrs is not None:
             for psr in self._psrs:
@@ -195,9 +191,7 @@ class QueryATNF(object):
                 else:
                     qpulsars += psr
                 qpulsars += '+' # seperator between pulsars
-            print(qpulsars)
             qpulsars = qpulsars.strip('+') # remove the trailing '+'
-        print(qpulsars)
         query_dict['psrnames'] = qpulsars
 
         # get pulsar ephemeris rather than table (parsing of this is not implemented yet)
@@ -208,8 +202,6 @@ class QueryATNF(object):
 
         # generate query URL
         self._query_url = QUERY_URL.format(**query_dict)
-
-        print(self._query_url)
 
         # generate request
         psrrequest = requests.get(self._query_url)

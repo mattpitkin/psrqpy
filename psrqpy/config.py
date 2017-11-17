@@ -14,7 +14,7 @@ CONDITION_QUERY = '&condition={condition}'
 PSRNAMES_QUERY = '&pulsar_names={psrnames}'
 SORT_QUERY = '&sort_attr={sortattr}&sort_order={sortorder}'
 EPHEMERIS_QUERY = '&submit_ephemeris={getephemeris}'
-QUERY_FLUFF = '&ephemeris=long&coords_unit=raj%2Fdecj&radius=&coords_1=&coords_2=&style=Long+with+errors&no_value=*&nohead=nohead&state=query'
+QUERY_FLUFF = '&ephemeris=long&coords_unit=raj%2Fdecj&radius=&coords_1=&coords_2=&style=Long+with+errors&no_value=*&nohead=nohead&state=query&table_bottom.x=30&table_bottom.y=22'
 
 QUERY_URL = ATNF_URL + PARAMS_QUERY + USERDEFINED_QUERY + SORT_QUERY + CONDITION_QUERY + PSRNAMES_QUERY + EPHEMERIS_QUERY + QUERY_FLUFF
 
