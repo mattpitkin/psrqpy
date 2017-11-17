@@ -64,6 +64,17 @@ t = q.table()
 print t['F0']
 ```
 
+You can query specific pulsars, e.g.:
+
+```
+import psrqpy
+
+q = psrqpy.QueryATNF(params=['JName', 'F0', 'F1', 'RAJ', 'DecJ'], psrs=['J0534+2200', 'J0537-6910'])
+
+# get values as an astropy table
+t = q.table()
+```
+
 If you really want to query the catalogue many times in quick succession it is advisable not to use this module, as
 it could result in too much load on the ATNF catalogue's server. Instead it is probably preferable to [download
 the catalogue](http://www.atnf.csiro.au/research/pulsar/psrcat/download.html) and query it with the software
