@@ -23,6 +23,12 @@ sudo python setup.py install --user
 
 to install as root.
 
+The module can also be installed using `pip` with:
+
+```
+pip install psrqpy
+```
+
 ### Requirements
 
 The requirements for installing the code are:
@@ -43,7 +49,7 @@ A simple query of the catalogue, e.g., to just return all pulsar frequencies, wo
 ```
 import psrqpy
 
-q = QueryATNF(params='F0')
+q = psrqpy.QueryATNF(params='F0')
 
 # get frequencies as an astropy table
 t = q.table()
@@ -56,7 +62,7 @@ You can query multiply parameters, e.g.:
 ```
 import psrqpy
 
-q = QueryATNF(params=['F0', 'F1', 'RAJ', 'DecJ'])
+q = psrqpy.QueryATNF(params=['F0', 'F1', 'RAJ', 'DecJ'])
 
 # get values as an astropy table
 t = q.table()
