@@ -50,7 +50,7 @@ class QueryATNF(object):
         :param psrtype: a list of strings, or single string, of conditions on the 'type' of pulsars to return (logical AND will be used for any listed types)
         :param assoc: a condition on the associations of pulsars to return ()
         :param sort_attr: the parameter on which with sort the returned pulsars
-        :param sort_ord: the order of the sorting (defaults to ascending)
+        :param sort_ord: the order of the sorting, either 'asc' or 'desc' (defaults to ascending)
         :param psrs: a list of pulsar names to get the information for
         :param include_errs: boolean to set whether to include parameter errors
         :param include_refs: boolean to set whether to include parameter references
@@ -64,7 +64,16 @@ class QueryATNF(object):
         self._atnf_version = version
         self._atnf_version = self.get_version() # if no version is set this will return the current or default value
         self._adsref = adsref
-        self._sort_order = sort_order
+
+        # check sort order is either 'asc' or 'desc' (or some synonyms)
+        if sort_order.lower() not in ['asc', 'up', '^']:
+            self._sort_order = 'asc'
+        elif sort_order.lower() in ['desc', 'descending', 'v']:
+            self._sort_order = 'desc'
+        else:
+            warnings.warn('Unrecognised sort order "{}", defaulting to "ascending"'.format(sort_order), UserWarning)
+            self._sort_order = 'asc'
+
         self._sort_attr = sort_attr
 
         self._refs = None # set of pulsar references
