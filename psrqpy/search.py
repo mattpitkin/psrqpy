@@ -40,7 +40,8 @@ class QueryATNF(object):
     Class to generate a query of the ATNF catalogue
     """
 
-    def __init__(self, params=None, condition=None, psrtype=None, assoc=None, sort_attr='jname', sort_order='asc', psrs=None,
+    def __init__(self, params=None, condition=None, psrtype=None, assoc=None, bincomp=None,
+                 exactmatch=False, sort_attr='jname', sort_order='asc', psrs=None,
                  include_errs=True, include_refs=False, version=None, adsref=False, **kwargs):
         """
         Set up and perform the query of the ATNF catalogue
@@ -48,7 +49,9 @@ class QueryATNF(object):
         :param params: a list of strings with the pulsar parameters to return
         :param condition: a string with conditions for the returned parameters
         :param psrtype: a list of strings, or single string, of conditions on the 'type' of pulsars to return (logical AND will be used for any listed types)
-        :param assoc: a condition on the associations of pulsars to return ()
+        :param assoc: a condition on the associations of pulsars to return (logical AND will be used for any listed associations)
+        :parsm bincomp: a list of strings, or single string, of conditions on the binary companiion types of pulsars to return (logical AND will be used for any listed associations)
+        :param extractmatch: a boolean stating whether assciations and types given as the condition should be an exact match
         :param sort_attr: the parameter on which with sort the returned pulsars
         :param sort_ord: the order of the sorting, either 'asc' or 'desc' (defaults to ascending)
         :param psrs: a list of pulsar names to get the information for
@@ -101,36 +104,9 @@ class QueryATNF(object):
                 self._query_params.remove(p)
         if len(p) == 0:
             raise Exception("No parameters left in list")
-
+        
         # set conditions
-        self._conditions_query = ''
-        if condition is not None:
-            self._conditions_query = condition
-
-        if psrtype is not None:
-            if isinstance(psrtype, list):
-                if len(psrtype) == 0:
-                    raise Exception("No pulsar types in list")
-
-                for p in psrtype:
-                    if not isinstance(p, str):
-                        raise Exception("Non-string value '{}' found in params list".format(p))
-                self._query_psr_types = psrtype
-            else:
-                if isinstance(psrtype, str):
-                    self._query_psr_types = [psrtype]
-                else:
-                    raise Exception("'psrtype' must be a list or string")
-
-            for p in list(self._query_psr_types):
-                if p.upper() not in PSR_TYPES:
-                    warnings.warn("Pulsar type '{}' is not recognised, no type will be required")
-                    self._query_psr_types.remove(p)
-                else:
-                    if not self._conditions_query:
-                        self._conditions_query = 'type({})'.format(p.upper())
-                    else:
-                        self._conditions_query += '+&&+type({})'.format(p.upper())
+        self._conditions_query = self.parse_conditions(condition, psrtype=psrtype, assoc=assoc, bincomp=bincomp, exactmatch=exactmatch)
 
         # get references is required
         if self._include_refs:
@@ -359,8 +335,146 @@ class QueryATNF(object):
 
         if self._atnf_version is None:
             self._atnf_version = get_version()
-        
+
         return self._atnf_version
+
+    def parse_conditions(self, condition, psrtype=None, assoc=None, bincomp=None, exactmatch=False):
+        """
+        Parse a string on conditions, i.e., logical statements on with to perform a search, like
+        condition = 'f0 > 2.5 && assoc(GC)'
+
+        :param condition: a string of conditional statements
+        :param psrtype: a list of strings, or single string, of conditions on the 'type' of pulsars to return (logical AND will be used for any listed types)
+        :param assoc: a list of strings, or single string, of conditions on the associations of pulsars to return (logical AND will be used for any listed associations)
+        :parsm bincomp: a list of strings, or single string, of conditions on the binary companiion types of pulsars to return (logical AND will be used for any listed associations)
+        :param extractmatch: a boolean stating whether assciations and types given as the condition should be an exact match
+        """
+
+        if not condition:
+            conditionparse = ''
+        else:
+            if not isinstance(condition, basestring):
+                warnings.warn('Condition "{}" must be a string. No condition being set'.format(condition), UserWarning)
+                return ''
+
+            # split condition on >, <, &&, ||, ==, <=, >=, !=, (, ), and whitespace
+            splitvals = r'(&&)|(\|\|)|(>=)|>|(<=)|<|\(|\)|(==)|(!=)|!' # perform splitting by substitution and then splitting on whitespace
+            condvals = re.sub(splitvals, ' ', condition).split()
+
+            # check values are numbers, parameter, names, assocition names, etc
+            for cv in condvals:
+                if cv.upper() not in PSR_ALL_PARS + PSR_TYPES + PSR_BINARY_TYPE + PSR_ASSOC_TYPE:
+                    # check if it's a number
+                    try:
+                        float(cv)
+                    except ValueError:
+                        warnings.warn('Unknown value "{}" in condition string "{}". No condition being set'.format(cv, condition), UserWarning)
+                        return ''
+
+            # remove spaces (turn into '+'), and convert values in condition
+            conditionparse = condition.strip() # string preceeding and trailing whitespace
+            conditionparse = re.sub(r'\s+', '+', conditionparse) # change whitespace to '+'
+
+            # substitute && for %26%26
+            conditionparse = re.sub(r'(&&)', '%26%26', conditionparse)
+
+            # substitute || for %7C%7C
+            conditionparse = re.sub(r'(\|\|)', '%7C%7C', conditionparse)
+
+            # substitute '==' for %3D%3D
+            conditionparse = re.sub(r'(==)', '%3D%3D', conditionparse)
+
+            # substitute '!=' for %21%3D
+            conditionparse = re.sub(r'(!=)', '%21%3D', conditionparse)
+
+            # substitute '>=' for >%3D
+            conditionparse = re.sub(r'(>=)', '>%3D', conditionparse)
+
+            # substitute '<=' for <%3D
+            conditionparse = re.sub(r'(<=)', '>%3D', conditionparse)
+
+        # add on any extra given pulsar types
+        if psrtype is not None:
+            if isinstance(psrtype, list):
+                if len(psrtype) == 0:
+                    raise Exception("No pulsar types in list")
+
+                for p in psrtype:
+                    if not isinstance(p, basestring):
+                        raise Exception("Non-string value '{}' found in pulsar type list".format(p))
+                self._query_psr_types = psrtype
+            else:
+                if isinstance(psrtype, basestring):
+                    self._query_psr_types = [psrtype]
+                else:
+                    raise Exception("'psrtype' must be a list or string")
+
+            for p in list(self._query_psr_types):
+                if p.upper() not in PSR_TYPES:
+                    warnings.warn("Pulsar type '{}' is not recognised, no type will be required".format(p))
+                    self._query_psr_types.remove(p)
+                else:
+                    if not conditionparse:
+                        conditionparse = 'type({})'.format(p.upper())
+                    else:
+                        conditionparse += '+%26%26+type({})'.format(p.upper())
+
+        # add on any extra given associations
+        if assoc is not None:
+            if isinstance(assoc, list):
+                if len(assoc) == 0:
+                    raise Exception("No pulsar types in list")
+
+                for p in assoc:
+                    if not isinstance(p, basestring):
+                        raise Exception("Non-string value '{}' found in associations list".format(p))
+                self._query_assocs = assoc
+            else:
+                if isinstance(assoc, basestring):
+                    self._query_assocs = [assoc]
+                else:
+                    raise Exception("'assoc' must be a list or string")
+
+            for p in list(self._query_assocs):
+                if p.upper() not in PSR_ASSOC_TYPE:
+                    warnings.warn("Pulsar association '{}' is not recognised, no type will be required".format(p))
+                    self._query_assocs.remove(p)
+                else:
+                    if not conditionparse:
+                        conditionparse = 'assoc({})'.format(p.upper())
+                    else:
+                        conditionparse += '+%26%26+assoc({})'.format(p.upper())
+
+        # add on any extra given binary companion types
+        if bincomp is not None:
+            if isinstance(bincomp, list):
+                if len(assoc) == 0:
+                    raise Exception("No pulsar types in list")
+
+                for p in bincomp:
+                    if not isinstance(p, basestring):
+                        raise Exception("Non-string value '{}' found in binary companions list".format(p))
+                self._query_bincomps = bincomp
+            else:
+                if isinstance(bincomp, basestring):
+                    self._query_bincomps = [bincomp]
+                else:
+                    raise Exception("'bincomp' must be a list or string")
+
+            for p in list(self._query_bincomps):
+                if p.upper() not in PSR_BINARY_TYPE:
+                    warnings.warn("Pulsar binary companion '{}' is not recognised, no type will be required".format(p))
+                    self._query_bincomps.remove(p)
+                else:
+                    if not conditionparse:
+                        conditionparse = 'bincomp({})'.format(p.upper())
+                    else:
+                        conditionparse += '+%26%26+bincomp({})'.format(p.upper())
+
+        if exactmatch and conditionparse:
+            conditionparse += '&exact_match=match'
+
+        return conditionparse
 
     def __len__(self):
         """
