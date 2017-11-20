@@ -60,20 +60,32 @@ class Pulsar(object):
         if hasattr(self, ukey):
             param = getattr(self, ukey)
         else:
-            if ukey not in PSR_ALL_PARS:
-                raise Exception('"{}" is not a recognised pulsar parameter'.format(ukey))
+            if ukey[-4:] == '_ERR': # an error parameter
+                tkey = ukey[:-4] # parameter name without error
+            else:
+                tkey = ukey
+          
+            if tkey not in PSR_ALL_PARS:
+                raise Exception('"{}" is not a recognised pulsar parameter'.format(tkey))
             else:
                 # generate a query for the key and add it
                 try:
-                    q = QueryATNF(params=ukey, psrs=pulsarname, version=self._version)
+                    q = QueryATNF(params=tkey, psrs=pulsarname, version=self._version, include_errs=True)
                 except IOError:
                     raise Exception('Problem querying ATNF catalogue')
 
             if q.num_pulsars != 1:
-                raise Exception('Problem getting parameter "{}"'.format(ukey))
+                raise Exception('Problem getting parameter "{}"'.format(tkey))
 
-            param = q.get_dict()[ukey][0]
-            setattr(self, ukey, param)
+            param = q.get_dict()[ukey][0] # required output parameter
+            setattr(self, ukey, param)    # set output parameter value
+
+            # set parameter value if an error value was requested
+            if PSR_ALL[tkey]['err']:
+                if tkey != ukey: # asking for error, so set actual value
+                    setattr(self, tkey, q.get_dict()[tkey][0]) # set parameter value
+                else: # asking for value, so set error
+                    setattr(self, tkey+'_ERR', q.get_dict()[tkey+'_ERR'][0]) # set error value
 
         return param
       
