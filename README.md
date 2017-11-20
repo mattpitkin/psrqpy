@@ -81,6 +81,16 @@ q = psrqpy.QueryATNF(params=['JName', 'F0', 'F1', 'RAJ', 'DecJ'], psrs=['J0534+2
 t = q.table()
 ```
 
+You can set [conditions](http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=normal#condition) for the searches,
+e.g.:
+
+```
+import psrqpy
+q = psrqpy.QueryATNF(params=['Jname', 'f0'], condition='f0 > 100 && f0 < 200', assoc='GC')
+```
+
+where `assoc=GC` looks for all pulsars in globular clusters.
+
 If you really want to query the catalogue many times in quick succession it is advisable not to use this module, as
 it could result in too much load on the ATNF catalogue's server. Instead it is probably preferable to [download
 the catalogue](http://www.atnf.csiro.au/research/pulsar/psrcat/download.html) and query it with the software
