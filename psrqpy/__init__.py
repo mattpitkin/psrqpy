@@ -4,5 +4,5 @@
 
 __version__ = "0.1.2"
 
-from .search import QueryATNF
+from .search import QueryATNF, Pulsar
 from .utils import *

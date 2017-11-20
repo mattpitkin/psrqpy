@@ -16,21 +16,20 @@ from bs4 import BeautifulSoup
 from .config import *
 from .utils import *
 
-class pulsar(object):
+
+class Pulsar(object):
     """
     An object to hold a single pulsar
     """
 
-    def __init__(self, version=None, **kwargs):
+    def __init__(self, psrname, version=None, **kwargs):
         """
         Set object attributes from kwargs
         """
         
+        self._name = psrname
         self._raw = kwargs
         self._version = version if not version else get_version()
-
-        if 'JNAME' not in self._raw and 'NAME' not in self._raw:
-            raise Exception('Pulsar must have a name!')
 
         for key, value in six.iteritems(kwargs):
             setattr(self, key, value)
@@ -47,12 +46,7 @@ class pulsar(object):
         Return the pulsar name
         """
 
-        if hasattr(self, 'JNAME'):
-            return getattr(self, 'JNAME')
-        elif hasattr(self, 'NAME'):
-            return getattr(self, 'NAME')
-        else:
-            raise Exception('Pulsar has no name!')
+        return self._name
 
     def __getitem__(self, key):
         """
@@ -74,10 +68,20 @@ class pulsar(object):
                     q = QueryATNF(params=ukey, psrs=pulsarname, version=self._version)
                 except IOError:
                     raise Exception('Problem querying ATNF catalogue')
-            param = q.get_dict()[ukey]
+
+            if q.num_pulsars != 1:
+                raise Exception('Problem getting parameter "{}"'.format(ukey))
+
+            param = q.get_dict()[ukey][0]
             setattr(self, ukey, param)
 
         return param
+      
+    def get_ephemeris(self):
+        """
+        Query the ATNF to get the ephemeris for the given pulsar
+        """
+
 
 class QueryATNF(object):
     """
@@ -132,12 +136,12 @@ class QueryATNF(object):
                 raise Exception("No parameters in list")
 
             for p in params:
-                if not isinstance(p, str):
+                if not isinstance(p, basestring):
                     raise Exception("Non-string value '{}' found in params list".format(p))
 
             self._query_params = [p.upper() for p in params] # make sure parameter names are all upper case
         else:
-            if isinstance(params, str):
+            if isinstance(params, basestring):
                 self._query_params = [params.upper()] # make sure parameter is all upper case
             else:
                 raise Exception("'params' must be a list or string")
@@ -214,6 +218,9 @@ class QueryATNF(object):
 
         qpulsars = '' # pulsar name query string
         if self._psrs is not None:
+            if isinstance(self._psrs, basestring):
+                self._psrs = [self._psrs] # if a string pulsar name then convert to list
+
             for psr in self._psrs:
                 if '+' in psr: # convert '+'s in pulsar names to '%2B' for the query string
                     qpulsars += psr.replace('+', '%2B')
