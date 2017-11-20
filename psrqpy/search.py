@@ -21,11 +21,17 @@ class pulsar(object):
     An object to hold a single pulsar
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, version=None, **kwargs):
         """
         Set object attributes from kwargs
         """
+        
         self._raw = kwargs
+        self._version = version if not version else get_version()
+
+        if 'JNAME' not in self._raw and 'NAME' not in self._raw:
+            raise Exception('Pulsar must have a name!')
+
         for key, value in six.iteritems(kwargs):
             setattr(self, key, value)
 
@@ -34,6 +40,44 @@ class pulsar(object):
 
     def items(self):
         return self._raw.items()
+
+    @property
+    def name(self):
+        """
+        Return the pulsar name
+        """
+
+        if hasattr(self, 'JNAME'):
+            return getattr(self, 'JNAME')
+        elif hasattr(self, 'NAME'):
+            return getattr(self, 'NAME')
+        else:
+            raise Exception('Pulsar has no name!')
+
+    def __getitem__(self, key):
+        """
+        If the class has a attribute given by the key then return it, otherwise generate a
+        query for that key to set it
+        """
+        
+        ukey = key.upper()
+        pulsarname = self.name
+
+        if hasattr(self, ukey):
+            param = getattr(self, ukey)
+        else:
+            if ukey not in PSR_ALL_PARS:
+                raise Exception('"{}" is not a recognised pulsar parameter'.format(ukey))
+            else:
+                # generate a query for the key and add it
+                try:
+                    q = QueryATNF(params=ukey, psrs=pulsarname, version=self._version)
+                except IOError:
+                    raise Exception('Problem querying ATNF catalogue')
+            param = q.get_dict()[ukey]
+            setattr(self, ukey, param)
+
+        return param
 
 class QueryATNF(object):
     """
@@ -328,6 +372,7 @@ class QueryATNF(object):
 
         # add catalogue version to metadata
         psrtable.meta['version'] = self.get_version()
+        psrtable.meta['ATNF Pulsar Catalogue'] = ATNF_BASE_URL
 
         return psrtable
 
