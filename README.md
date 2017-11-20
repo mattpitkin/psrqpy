@@ -3,7 +3,7 @@
 This module aims to provide a python interface for querying the [ATNF pulsar catalogue](http://www.atnf.csiro.au/people/pulsar/psrcat/).
 It is inspired by, and has some minor similarities to, the [`ads`](https://ads.readthedocs.io) module for interfacing with the
 [NASA ADS](https://ui.adsabs.harvard.edu/) [API](https://github.com/adsabs/adsabs-dev-api). It is an unofficial
-package and is not endorsed or affiliated with the ATNF.
+package and is not endorsed by or affiliated with the ATNF.
 
 Any comments or suggestions are welcome.
 
