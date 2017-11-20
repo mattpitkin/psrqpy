@@ -268,7 +268,10 @@ class QueryATNF(object):
                             self._query_output[p+'_REFURL'] = np.zeros(self._npulsars, dtype='S1024')
 
             for idx, line in enumerate(plist):
-                pvals = line.split()[1:] # ignore the first entry as it is always in index
+                # split the line on whitespace or \xa0 using re (if just using split it ignores \xa0,
+                # which may be present for, e.g., empty reference fields, and results in the wrong
+                # number of line entries, also ignore the first entry as it is always in index
+                pvals = [lv.strip() for lv in re.split(r'\s+| \xa0 | \D\xa0', line)][1:] # strip removes '\xa0' now
 
                 vidx = 0 # index of current value
                 for p in self._query_params:
