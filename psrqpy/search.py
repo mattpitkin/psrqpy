@@ -79,10 +79,10 @@ class QueryATNF(object):
                 if not isinstance(p, str):
                     raise Exception("Non-string value '{}' found in params list".format(p))
 
-            self._query_params = params
+            self._query_params = [p.upper() for p in params] # make sure parameter names are all upper case
         else:
             if isinstance(params, str):
-                self._query_params = [params]
+                self._query_params = [params.upper()] # make sure parameter is all upper case
             else:
                 raise Exception("'params' must be a list or string")
 
@@ -158,10 +158,10 @@ class QueryATNF(object):
                     raise Exception('Error... input "params" for generate_query() must be a list')
             qparams = list(params)
             for p in params:
-                if p not in PSR_ALL_PARS:
+                if p.upper() not in PSR_ALL_PARS:
                     warnings.warn("Parameter {} not recognised".format(p), UserWarning)
                     qparams.remove(p)
-            self._query_params = qparams
+            self._query_params = [qp.upper() for qp in qparams] # convert parameter names to all be upper case
 
         pquery = ''
         for p in self._query_params:
