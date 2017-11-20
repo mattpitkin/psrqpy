@@ -326,6 +326,9 @@ class QueryATNF(object):
                 if PSR_ALL[p]['err'] and self._include_errs:
                     psrtable.columns[p+'_ERR'].unit = PSR_ALL[p]['units']
 
+        # add catalogue version to metadata
+        psrtable.meta['version'] = self.get_version()
+
         return psrtable
 
     def get_version(self):
