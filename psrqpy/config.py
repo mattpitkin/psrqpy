@@ -33,7 +33,7 @@ PSR_GENERAL = {'NAME':     {'ref': True, 'err': False, 'units': None, 'format': 
                'PMRA':     {'ref': True, 'err': True, 'units': 'mas/yr', 'format': 'f8'},      # Proper motion in the right ascension direction (mas/yr)
                'PMDEC':    {'ref': True, 'err': True, 'units': 'mas/yr', 'format': 'f8'},      # Proper motion in declination (mas/yr)
                'PX':       {'ref': True, 'err': True, 'units': 'mas', 'format': 'f8'},         # Annual parallax (mas)
-               'POSEPOCH': {'ref': True, 'err': True, 'units': 'd', 'format': 'f8'},           # Epoch of position, defaults to PEpoch (MJD)
+               'POSEPOCH': {'ref': True, 'err': False, 'units': 'd', 'format': 'f8'},           # Epoch of position, defaults to PEpoch (MJD)
                'ELONG':    {'ref': True, 'err': True, 'units': 'deg', 'format': 'f8'},         # Ecliptic longitude (degrees)
                'ELAT':     {'ref': True, 'err': True, 'units': 'deg', 'format': 'f8'},         # Ecliptic latitude (degrees)
                'PMELONG':  {'ref': True, 'err': True, 'units': 'mas/yr', 'format': 'f8'},      # Proper motion in the ecliptic longitude direction (mas/yr)
