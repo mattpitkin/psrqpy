@@ -324,6 +324,7 @@ class QueryATNF(object):
 
         return self._query_output
 
+    @property
     def num_pulsars(self):
         """
         Return the number of pulsars found in with query
@@ -360,3 +361,30 @@ class QueryATNF(object):
             self._atnf_version = get_version()
         
         return self._atnf_version
+
+    def __len__(self):
+        """
+        Length method returns the number of pulsars
+        """
+
+        return self._npulsars
+
+    def __str__(self):
+        """
+        String method returns string method of astropy table
+        """
+        
+        if self._npulsars > 0:
+            return str(self.table())
+        else:
+            return str(self._query_output) # should be empty dict
+
+    def __repr__(self):
+        """
+        repr method returns repr method of astropy table
+        """
+        
+        if self._npulsars > 0:
+            return repr(self.table())
+        else:
+            return repr(self._query_output) # should be empty dict
