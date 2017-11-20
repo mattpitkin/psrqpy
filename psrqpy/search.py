@@ -66,7 +66,7 @@ class QueryATNF(object):
         self._adsref = adsref
 
         # check sort order is either 'asc' or 'desc' (or some synonyms)
-        if sort_order.lower() not in ['asc', 'up', '^']:
+        if sort_order.lower() in ['asc', 'up', '^']:
             self._sort_order = 'asc'
         elif sort_order.lower() in ['desc', 'descending', 'v']:
             self._sort_order = 'desc'
