@@ -2,10 +2,14 @@
 Various useful functions
 """
 
+from __future__ import division
+
 import warnings
-import requests
 import re
 import datetime
+import numpy as np
+import requests
+
 from bs4 import BeautifulSoup
 
 from .config import *
@@ -32,7 +36,7 @@ def get_version():
 
             version = vsoup.find(attrs={'name': 'version'})
             atnfversion = version['value']
-        except:
+        except IOError:
             warnings.warn("Could not get ATNF version number, defaulting to {}".format(ATNF_VERSION), UserWarning)
             atnfversion = ATNF_VERSION
 
@@ -229,3 +233,53 @@ def get_references(useads=False):
                     warnings.warn('Could not import ADS module, so no ADS information will be included', UserWarning)
 
     return refs
+
+
+def characteristic_age(period, pdot, braking_idx=3.):
+    """
+    Function defining the characteristic age of a pulsar
+
+    :param p: the pulsar period in seconds
+    :param pdot: the pulsar period derivative
+    :param braking_idx: the pulsar braking index (defaults to n=3)
+    """
+
+    assert isinstance(period, float) or isinstance(period, int), "Period '{}' must be a number".format(period)
+    assert isinstance(pdot, float) or isinstance(pdot, int), "Period derivtaive '{}' must be a number".format(pdot)
+    assert isinstance(braking_idx, float) or isinstance(braking_idx, int), "Braking index '{}' must be a number".format(braking_idx)
+
+    # check everything is positive, otherwise return 0
+    if period < 0.:
+        warnings.warn("The period must be positive to define a characteristic age", UserWarning)
+        return 0.
+
+    if pdot < 0.:
+        warnings.warn("The period derivative must be positive to define a characteristic age", UserWarning)
+        return 0.
+
+    if braking_idx < 0.:
+        warnings.warn("The braking index must be positive to define a characteristic age", UserWarning)
+        return 0.
+
+    return period/(pdot * (braking_idx - 1.))
+
+
+def B_field(period, pdot):
+    """
+    Function defining the polar magnetic field strength at the surface of the pulsar
+    in gauss (Eqn 5.12 of Lyne & Graham-Smith, Pulsar Astronmy, 2nd edition)
+    """
+
+    assert isinstance(period, float) or isinstance(period, int), "Period '{}' must be a number".format(period)
+    assert isinstance(pdot, float) or isinstance(pdot, int), "Period derivtaive '{}' must be a number".format(pdot)
+
+    # check everything is positive, otherwise return 0
+    if period < 0.:
+        warnings.warn("The period must be positive to define a magnetic field strength", UserWarning)
+        return 0.
+
+    if pdot < 0.:
+        warnings.warn("The period derivative must be positive to define a magnetic field streng", UserWarning)
+        return 0.
+
+    return 3.3e19 * np.sqrt(period * pdot)
