@@ -8,13 +8,13 @@ ATNF_VERSION = '1.57' # default ATNF version
 ATNF_BASE_URL = r'http://www.atnf.csiro.au/people/pulsar/psrcat/'
 ATNF_URL = ATNF_BASE_URL + r'proc_form.php?version={version}'
 
-PARAMS_QUERY = '{params}'
-USERDEFINED_QUERY = '&startUserDefined=true&c1_val=&c2_val=&c3_val=&c4_val='
-CONDITION_QUERY = '&condition={condition}'
-PSRNAMES_QUERY = '&pulsar_names={psrnames}'
-SORT_QUERY = '&sort_attr={sortattr}&sort_order={sortorder}'
-EPHEMERIS_QUERY = '&submit_ephemeris={getephemeris}'
-QUERY_FLUFF = '&ephemeris=long&coords_unit=raj%2Fdecj&radius=&coords_1=&coords_2=&style=Long+with+errors&no_value=*&nohead=nohead&state=query&table_bottom.x=30&table_bottom.y=22'
+PARAMS_QUERY = r'{params}'
+USERDEFINED_QUERY = r'&startUserDefined=true&c1_val=&c2_val=&c3_val=&c4_val='
+CONDITION_QUERY = r'&condition={condition}'
+PSRNAMES_QUERY = r'&pulsar_names={psrnames}'
+SORT_QUERY = r'&sort_attr={sortattr}&sort_order={sortorder}'
+EPHEMERIS_QUERY = r'&submit_ephemeris={getephemeris}'
+QUERY_FLUFF = r'&ephemeris=long&coords_unit=raj%2Fdecj&radius=&coords_1=&coords_2=&style=Long+with+errors&no_value=*&nohead=nohead&state=query&table_bottom.x=30&table_bottom.y=22'
 
 QUERY_URL = ATNF_URL + PARAMS_QUERY + USERDEFINED_QUERY + SORT_QUERY + CONDITION_QUERY + PSRNAMES_QUERY + EPHEMERIS_QUERY + QUERY_FLUFF
 
@@ -33,7 +33,7 @@ PSR_GENERAL = {'NAME':     {'ref': True, 'err': False, 'units': None, 'format': 
                'PMRA':     {'ref': True, 'err': True, 'units': 'mas/yr', 'format': 'f8'},      # Proper motion in the right ascension direction (mas/yr)
                'PMDEC':    {'ref': True, 'err': True, 'units': 'mas/yr', 'format': 'f8'},      # Proper motion in declination (mas/yr)
                'PX':       {'ref': True, 'err': True, 'units': 'mas', 'format': 'f8'},         # Annual parallax (mas)
-               'POSEPOCH': {'ref': True, 'err': False, 'units': 'd', 'format': 'f8'},           # Epoch of position, defaults to PEpoch (MJD)
+               'POSEPOCH': {'ref': True, 'err': False, 'units': 'd', 'format': 'f8'},          # Epoch of position, defaults to PEpoch (MJD)
                'ELONG':    {'ref': True, 'err': True, 'units': 'deg', 'format': 'f8'},         # Ecliptic longitude (degrees)
                'ELAT':     {'ref': True, 'err': True, 'units': 'deg', 'format': 'f8'},         # Ecliptic latitude (degrees)
                'PMELONG':  {'ref': True, 'err': True, 'units': 'mas/yr', 'format': 'f8'},      # Proper motion in the ecliptic longitude direction (mas/yr)
