@@ -384,3 +384,13 @@ class Pulsars(object):
 
         # return list of ephemerides
         return [self._psrs[psr].get_ephemeris() for psr in self._psrs]
+
+    def __str__(self):
+        """
+        Define string method
+        """
+
+        if self.have_ephemerides():
+            return '\n'.join(self.get_ephemerides())
+        else:
+            return '\n'.join([self._psrs[psr].name for psr in self._psrs])

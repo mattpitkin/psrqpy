@@ -66,6 +66,8 @@ class QueryATNF(object):
         self._query_output = None
         self._get_ephemeris = get_ephemeris
 
+        self._pulsars = None # gets set to a Pulsars object by get_pulsars()
+
         # check parameters are allowed values
         if isinstance(params, list):
             if len(params) == 0:
@@ -235,6 +237,7 @@ class QueryATNF(object):
         qoutput = pretags[-1].text
         self._query_output = OrderedDict()
         self._npulsars = 0
+        self._pulsars = None # reset to None in case a previous query had already been performed
 
         if not self._get_ephemeris: # not getting ephemeris values
             # put the data in an ordered dictionary dictionary
@@ -370,34 +373,35 @@ class QueryATNF(object):
         for a Pulsar object
         """
 
-        from .pulsar import Pulsar, Pulsars
+        if not self._pulsars:
+            from .pulsar import Pulsar, Pulsars
 
-        # check if JNAME or NAME was queried
-        if 'JNAME' not in self._query_params and 'NAME' not in self._query_params:
-            self._query_params.append('JNAME') # add JNAME parameter
+            # check if JNAME or NAME was queried
+            if 'JNAME' not in self._query_params and 'NAME' not in self._query_params:
+                self._query_params.append('JNAME') # add JNAME parameter
 
-            # re-do query
-            self._query_content = self.generate_query()
+                # re-do query
+                self._query_content = self.generate_query()
 
-            # parse the query with BeautifulSoup into a dictionary
-            self._query_output = self.parse_query()
-            nameattr = 'JNAME'
-        elif 'JNAME' in self._query_params:
-            nameattr = 'JNAME'
-        else:
-            nameattr = 'NAME'
+                # parse the query with BeautifulSoup into a dictionary
+                self._query_output = self.parse_query()
+                nameattr = 'JNAME'
+            elif 'JNAME' in self._query_params:
+                nameattr = 'JNAME'
+            else:
+                nameattr = 'NAME'
 
-        self._pulsars = Pulsars()
+            self._pulsars = Pulsars()
 
-        # add pulsars one by one
-        psrtable = self.table()
-        for row in psrtable:
-            attrs = {}
-            for key in psrtable.colnames:
-                attrs[key] = row[key]
+            # add pulsars one by one
+            psrtable = self.table()
+            for row in psrtable:
+                attrs = {}
+                for key in psrtable.colnames:
+                    attrs[key] = row[key]
 
-            P = Pulsar(attrs[nameattr], version=self.get_version, **attrs)
-            self._pulsars.add_pulsar(P)
+                P = Pulsar(attrs[nameattr], version=self.get_version, **attrs)
+                self._pulsars.add_pulsar(P)
 
         return self._pulsars
 
