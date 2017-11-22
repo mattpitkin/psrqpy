@@ -12,10 +12,10 @@ import requests
 
 from bs4 import BeautifulSoup
 
-from .config import *
+from .config import ATNF_BASE_URL, ATNF_VERSION, ADS_URL
 
 # problematic references that are hard to parse
-prob_refs = ['bwck08']
+PROB_REFS = ['bwck08']
 
 def get_version():
     """
@@ -75,7 +75,7 @@ def get_references(useads=False):
             j = j + 1
             reftag = tr.b.text # the reference string is contained in a <b> tag
 
-            if reftag in prob_refs:
+            if reftag in PROB_REFS:
                 continue
 
             refs[reftag] = {}
