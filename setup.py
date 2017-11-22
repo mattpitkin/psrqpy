@@ -13,24 +13,24 @@ try:
 except ImportError:
     from distutils.core import setup
 
-major, minor1, minor2, release, serial =  sys.version_info
+MAJOR, MINOR1, MINOR2, RELEASE, SERIAL = sys.version_info
 
-readfile_kwargs = {"encoding": "utf-8"} if major >= 3 else {}
+READFILE_KWARGS = {"encoding": "utf-8"} if MAJOR >= 3 else {}
 
 def readfile(filename):
-    with open(filename, **readfile_kwargs) as fp:
-        contents = fp.read()
-    return contents
+    with open(filename, **READFILE_KWARGS) as fp:
+        filecontents = fp.read()
+    return filecontents
 
-version_regex = re.compile("__version__ = \"(.*?)\"")
-contents = readfile(os.path.join(
+VERSION_REGEX = re.compile("__version__ = \"(.*?)\"")
+CONTENTS = readfile(os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
     "psrqpy", "__init__.py"))
 
-version = version_regex.findall(contents)[0]
+VERSION = VERSION_REGEX.findall(CONTENTS)[0]
 
 setup(name="psrqpy",
-      version=version,
+      version=VERSION,
       author="Matthew Pitkin",
       author_email="matthew.pitkin@glasgow.ac.uk",
       packages=["psrqpy"],
