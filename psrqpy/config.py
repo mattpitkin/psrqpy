@@ -49,7 +49,7 @@ PSR_GENERAL = {'NAME':     {'ref': True, 'err': False, 'units': None, 'format': 
                'ZZ':       {'ref': False, 'err': False, 'units': 'kpc', 'format': 'f8'},       # Distance from the Galactic plane, based on Dist
                'XX':       {'ref': False, 'err': False, 'units': 'kpc', 'format': 'f8'},       # X-Distance in X-Y-Z Galactic coordinate system (kpc)
                'YY':       {'ref': False, 'err': False, 'units': 'kpc', 'format': 'f8'},       # Y-Distance in X-Y-Z Galactic coordinate system (kpc)
-               'ASSOC':    {'ref': False, 'err': False, 'units': None, 'format': 'S32'},       # Names of other objects, e.g., supernova remnant, globular cluster or gamma-ray source associated with the pulsar
+               'ASSOC':    {'ref': False, 'err': False, 'units': None, 'format': 'S64'},       # Names of other objects, e.g., supernova remnant, globular cluster or gamma-ray source associated with the pulsar
                'SURVEY':   {'ref': False, 'err': False, 'units': None, 'format': 'S32'},       # Surveys that detected the pulsar (discovery survey first) (http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#surveys)
                'OSURVEY':  {'ref': False, 'err': False, 'units': None, 'format': 'S32'},       # Surveys that detected the pulsar encoded as bits in integer
                'DATE':     {'ref': False, 'err': False, 'units': 'yr', 'format': 'i4'},        # Date of discovery publication.

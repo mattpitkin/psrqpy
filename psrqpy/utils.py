@@ -282,4 +282,30 @@ def B_field(period, pdot):
         warnings.warn("The period derivative must be positive to define a magnetic field streng", UserWarning)
         return 0.
 
-    return 3.3e19 * np.sqrt(period * pdot)
+    return 3.2e19 * np.sqrt(period * pdot)
+
+def death_line((logP, linemodel='Ip', rho6=1.):
+    """
+    Pulsar death line. Returns log10 period derivative at the given
+    values of the period. The death line models can be:
+      'I' - Equation 3 of Zhang, Harding & Muslimov, 2000, ApJ (astro-ph/0001341)
+      'Ip' - Equation 4 of ZHM
+      'II' - Equation 5 of ZHM
+      'IIp' - Equation 6 of ZHM
+      'III' - Equation 8 of ZHM
+      'IIIp' - Equation 9 of ZHM
+      'IV' - Equation 10 of ZHM
+      'IVp' - Equation 11 of ZHM
+      
+    The default rho6 of 1 is 10^6 cm.
+    """
+    
+    gradvals = {'I': (11./4), 'Ip': (9./4.), 'II': (2./11.), 'IIp': -(2./11.), 'III': (5./2.), 'IIIp': 2., 'IV': -(3./11.), 'IVp': -(7./11.)}
+    intercept = {'I': 14.62, 'Ip': 16.58, 'II': 13.07, 'IIp': 14.50, 'III': 14.56, 'IIIp': 16.52, 'IV': 15.36, 'IVp': 16.79}
+    rho = {'I': 0., 'Ip': 1., 'II': 0., 'IIp': (8./11.), 'III': 0., 'IIIp': 1., 'IV': 0., 'IVp': (8./11.)}
+    
+    lp = logP
+    if not isinstance(lp, np.ndarray):
+        lp = np.array(lp)
+
+    return lp*gradvals[linemodel] - intercept[linemodel] + rho[linemodel]*np.log10(rho6)
