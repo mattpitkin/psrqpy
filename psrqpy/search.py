@@ -390,10 +390,11 @@ class QueryATNF(object):
         self._pulsars = Pulsars()
 
         # add pulsars one by one
-        for pidx, psr in enumerate(self._query_output[nameattr]):
+        psrtable = self.table()
+        for row in psrtable:
             attrs = {}
-            for key in self._query_output:
-                attrs[key] = self._query_output[key][pidx]
+            for key in psrtable.colnames:
+                attrs[key] = row[key]
 
             P = Pulsar(attrs[nameattr], version=self.get_version, **attrs)
             self._pulsars.add_pulsar(P)
