@@ -566,7 +566,7 @@ class QueryATNF(object):
         """
         String method returns string method of astropy table
         """
-        
+
         if self._npulsars > 0:
             return str(self.table())
         else:
@@ -576,8 +576,291 @@ class QueryATNF(object):
         """
         repr method returns repr method of astropy table
         """
-        
+
         if self._npulsars > 0:
             return repr(self.table())
         else:
             return repr(self._query_output) # should be empty dict
+
+    def ppdot(self, intrinsicpdot=False, excludeGCs=False, showtypes=[], showGCs=False, showSNRs=False,
+              markertypes={}, deathline=True, deathmodel='Ip', filldeath=True, filldeathtype={},
+              showtau=True, brakingidx=3, tau=None, showB=True, Bfield=None, rcparams={}):
+        """
+        Draw a lovely period vs period derivative diagram
+
+        Args:
+            intrinsicpdot (bool): use the intrinsic period derivative corrected for the
+                Shlovskii effect rather than the observed value. Defaults to False
+            excludeGCs (bool): exclude globular cluster pulsars as their period
+                derivatives can be contaminated by intra-cluster accelerations. Defaults
+                to False.
+            showtypes (:obj:`list` or str): a list of pulsar types to highlight with
+                markers in the plot. These can contain any of the following: `BINARY`,
+                `HE`, `NRAD`, `RRAT`, `XINS`, `AXP` or `SGR`, or `ALL` to show all
+                types. Default to showing no types.
+            showGCs (bool): show markers to denote the pulsars in globular clusters.
+                Defaults to False.
+            showSNRs (bool): show markers to denote the pulsars with supernova
+                remnants associated with them. Defaults to False.
+            markertypes (dict): a dictionary of marker styles and colors keyed to the
+                pulsar types above
+            deathline (bool): draw the pulsar death line. Defaults to True.
+            deathmodel (str): the type of death line to draw based on the models in
+                `:utils:death_line()`. Defaults to 'Ip'.
+            filldeath (bool): set whether to fill the pulsar graveyard under the
+                death line. Defaults to True.
+            filldeathtype (dict): a dictionary of keyword arguments for the fill style
+                of the pulsar graveyard.
+            showtau (bool): show lines for a selection of characteritic ages. Defaults
+                to True, and shows lines for 10^5, 10^6, 10^7, 10^8 and 10^9 yrs.
+            brakingidx (int): a braking index to use for the calculation of the
+                characteristic age lines. Defaults to 3 for magnetic dipole radiation.
+            tau (:obj:`list`) a list of characteristic ages to show on the plot.
+            showB (bool): show lines of constant magnetic field strength. Defaults to
+                True, and shows lines for 10^10 through to 10^14 gauss.
+            Bfield (:obj:`list`): a list of magnetic field strengths to plot.
+            rcparams (dict): a dictionary of Matplotlib setup parameters for the plot.
+        """
+
+        try:
+            import matplotlib as mpl
+            from matplotlib import pyplot as pl
+        except ImportError:
+            raise Exception('Cannot produce P-Pdot plot as Matplotlib is not available')
+
+        # check the we have periods and period derivatives
+        nparams = len(self._query_params)
+        if 'P0' not in self._query_params:
+            self._query_params.append('P0')
+        if 'P1' not in self._query_params:
+            self._query_params.append('P1')
+
+        # check if we want to use intrinsic period derivatives
+        if intrinsicpdot and 'P1_I' not in self._query_params:
+            self._query_params.append('P1_I')
+
+        if isinstance(showtypes, basestring):
+            nshowtypes = [showtypes]
+        else:
+            nshowtypes = showtypes
+
+        for stype in nshowtypes:
+            if 'ALL' == stype.upper():
+                nshowtypes = PSR_TYPES
+                del nshowtypes[nshowtypes.index('RADIO')] # remove radio as none are returned as this 
+                break
+            if 'SGR' == stype.upper(): # synonym for AXP
+                nshowtypes[nshowtypes.index(stype)] = 'AXP'
+
+        if nshowtypes and 'TYPE' not in self._query_param:
+            self._query_params.append('TYPE')
+
+        if 'BINARY' in nshowtypes and 'BINARY' not in self._query_params:
+            self._query_params.append('BINARY')
+
+        if showGCs or showSNRs:
+            if 'ASSOC' not in self._query_params:
+                self._query_params.append('ASSOC')
+
+        # redo query if required
+        if len(self._query_params) != nparams:
+            # perform query
+            self._query_content = self.generate_query()
+            self._query_output = self.parse_query()
+
+        if not self.num_pulsars:
+            print("No pulsars found, so no P-Pdot plot has been produced")
+            return None
+
+        # set plot parameters
+        if not rcparams:
+            # set default parameters
+            rcparams = {
+                'figure.figsize': (8, 10),
+                'text.usetex': True,    # use LaTeX for all text
+                'axes.linewidth': 0.5,  # set axes linewidths to 0.5
+                'axes.grid': False,     # add a grid
+                'font.family': 'sans-serif',
+                'font.sans-serif': 'Avant Garde, Helvetica, Computer Modern Sans serif',
+                'font.size': 15,
+                'legend.fontsize': 'medium',
+                'legend.frameon': False}
+
+        mpl.rcParams.update(rcparams)
+
+        fig, ax = pl.subplots()
+
+        # get astropy table of parameters
+        t = self.table()
+
+        # extract periods and period derivatives
+        periods = t['P0']
+        pdots = t['P1']
+        if intrinsicpdot: # use instrinsic period derivatives if requested
+            ipdotidx = np.isfinite(t['P1_I'])
+            pdots[ipdotidx] = t['P1_I'][ipdotidx]
+
+        # get only finite values
+        pidx = (np.isfinite(periods)) & (np.isfinite(pdots))
+        periods = periods[pidx]
+        pdots = pdots[pidx]
+
+        if 'ASSOC' in self._query_params:
+            assocs = t['ASSOC'][pidx]   # associations
+        if 'TYPE' in self._query_params:
+            types = t['TYPE'][pidx]     # pulsar types
+        if 'BINARY' in nshowtypes:
+            binaries = t['BINARY'][pidx] # binary pulsars
+
+        # now get only positive pdot values
+        pidx = pdots > 0.
+        periods = periods[pidx]
+        pdots = pdots[pidx]
+        if 'ASSOC' in self._query_params:
+            assocs = assocs[pidx]   # associations
+        if 'TYPE' in self._query_params:
+            types = types[pidx]     # pulsar types
+        if 'BINARY' in nshowtypes:
+            binaries = binaries[pidx] # binary pulsars
+
+        # check whether to exclude globular cluster pulsars that could have contaminated spin-down value
+        if excludeGCs:
+            nongcidxs = np.flatnonzero(np.char.find(assocs,'GC:')==-1) # use '!=' to find GC indexes
+            periods = periods[nongcidxs]
+            pdots = pdots[nongcidxs]
+            if 'ASSOC' in self._query_params:
+                assocs = assocs[nongcidxs]
+            if 'TYPE' in self._query_params:
+                types = types[nongcidxs]
+            if 'BINARY' in nshowtypes:
+                binaries = binaries[nongcidxs]
+
+        # plot pulsars
+        ax.loglog(periods, pdots, marker='.', color='dimgrey', linestyle='none')
+        ax.set_xlabel(r'Period (s)')
+        ax.set_ylabel(r'Period Derivative')
+
+        # get limits
+        periodlims = [10**np.floor(np.min(np.log10(periods))), 10.*int(np.ceil(np.max(pdots)/10.))]
+        pdotlims = [10**np.floor(np.min(np.log10(pdots))), 10**np.ceil(np.max(np.log10(pdots)))]
+        ax.set_xlim(periodlims);
+        ax.set_ylim(pdotlims);
+
+        if deathline:
+            deathpdots = 10**death_line(np.log10(periodlims), linemodel=deathmodel)
+            ax.loglog(periodlims, deathpdots, 'k--', linewidth=0.5)
+
+            if filldeath:
+                if not filldeathtype:
+                    filldeathtype = {}
+
+                filldeathtype['linestype'] = filldeathtype['linestyle'] if 'linestyle' in filldeathtype else '-'
+                filldeathtype['alpha'] = filldeathtype['alpha'] if 'alpha' in filldeathtype else 0.15
+                filldeathtype['facecolor'] = filldeathtype['facecolor'] if 'facecolor' in filldeathtype else 'bisque'
+                filldeathtype['hatch'] = filldeathtype['hatch'] if 'hatch' in filldeathtype else 'none'
+                ax.fill_between(periodlims, deathpdots, pdotlims[0], **filldeathtype)
+
+        # add markers for each pulsar type
+        if not markertypes:
+            markertypes = {}
+    
+        # check if markers have been defined by the user or not
+        markertypes['AXP'] = {'marker': 's', 'color': 'red', 'markerfacecolor': 'none', 'linestyle': 'none'} if 'AXP' not in markertypes else markertypes['AXP']
+        markertypes['BINARY'] = {'marker': 'o', 'color': 'grey', 'markerfacecolor': 'none', 'linestyle': 'none'} if 'BINARY' not in markertypes else markertypes['BINARY']
+        markertypes['HE'] = {'marker': 'D', 'color': 'orange', 'markerfacecolor': 'none', 'linestyle': 'none'} if 'HE' not in markertypes else markertypes['HE']
+        markertypes['RRAT'] = {'marker': 'h', 'color': 'green', 'markerfacecolor': 'none', 'linestyle': 'none'} if 'RRAT' not in markertypes else markertypes['RRAT']
+        markertypes['NRAD'] = {'marker': 'v', 'color': 'blue', 'markerfacecolor': 'none', 'linestyle': 'none'} if 'NRAD' not in markertypes else markertypes['NRAD']
+        markertypes['XINS'] = {'marker': '^', 'color': 'magenta', 'markerfacecolor': 'none', 'linestyle': 'none'} if 'XINS' not in markertypes else markertypes['XINS']
+        markertypes['GC'] = {'marker': '8', 'color': 'cyan', 'markerfacecolor': 'none', 'linestyle': 'none'} if 'GC' not in markertypes else markertypes['GC']
+        markertypes['SNR'] = {'marker': '*', 'color': 'darkorchid', 'markerfacecolor': 'none', 'linestyle': 'none'} if 'SNR' not in markertypes else markertypes['SNR']
+
+        # legend strings for different types
+        typelegstring = {}
+        typelegstring['AXP'] = r'SGR/AXP'
+        typelegstring['NRAD'] = r'"Radio-Quiet"'
+        typelegstring['XINS'] = r'Pulsed Thermal X-ray'
+        typelegstring['BINARY'] = r'Binary'
+        typelegstring['HE'] = r'Radio-IR Emission'
+        typelegstring['GC'] = r'Globular Cluster'
+
+        # show globular cluster pulsars
+        if showGCs and not excludeGCs:
+            nshowtypes += ['GC']
+
+        # show pulsars with associated supernova remnants
+        if showSNRs:
+            nshowtypes += ['SNR']
+
+        handles = OrderedDict()
+
+        for stype in nshowtypes:
+            if stype.upper() in psrqpy.config.PSR_TYPES + ['GC', 'SNR']:
+                thistype = stype.upper()
+                if thistype == 'BINARY':
+                    # for binaries used the 'BINARY' column in the table
+                    typeidx = np.flatnonzero(np.char.find(binaries, '*')==-1)
+                elif thistype in ['GC', 'SNR']:
+                    typeidx = np.flatnonzero(np.char.find(assocs, thistype)!=-1)
+                else:
+                    typeidx = np.flatnonzero(np.char.find(types, thistype)!=-1)
+
+                if len(typeidx) == 0:
+                    continue
+
+                typehandle, = ax.loglog(periods[typeidx], pdots[typeidx], **markertypes[thistype])
+                if thistype in typelegstring:
+                    handles[typelegstring[thistype]] = typehandle
+                else:
+                    handles[thistype] = typehandle
+
+                ax.legend(handles.values(), handles.keys());
+
+        # add characteristic age lines
+        tlines = OrderedDict()
+        if showtau:
+            if tau is None:
+                taus = [1e5, 1e6, 1e7, 1e8, 1e9] # default characteristic ages
+            else:
+                taus = tau
+
+            nbrake = brakingidx
+            for tauv in taus:
+                pdots_tc = age_pdot(periodlims, tau=tauv, braking_idx=nbrake)
+                tline, = ax.loglog(periodlims, pdots_tc, 'k-.', linewidth=0.5)
+                # check if taus are powers of 10
+                taupow = np.floor(np.log10(tauv))
+                numv = tauv/10**taupow
+                if numv == 1.:
+                    tlines[r'$10^{{{0:d}}}\,$yr'.format(int(taupow))] = tline
+                else:
+                    tlines[r'${0:.1f}!\times\!10^{{{1:d}}}\,$yr'.format(numv, taupow)] = tline
+
+        # add magnetic field lines
+        Blines = OrderedDict()
+        if showB:
+            if Bfield is None:
+                Bs = [1e10, 1e11, 1e12, 1e13, 1e14]
+            else:
+                Bs = Bfield
+            for B in Bs:
+                pdots_B = B_field_pdot(periodlims, Bfield=B)
+                bline, = ax.loglog(periodlims, pdots_B, 'k:', linewidth=0.5)
+                # check if Bs are powers of 10
+                Bpow = np.floor(np.log10(B))
+                numv = B/10**Bpow
+                if numv == 1.:
+                    Blines[r'$10^{{{0:d}}}\,$yr'.format(int(Bpow))] = bline
+                else:
+                    Blines[r'${0:.1f}!\times\!10^{{1:d}}\,$yr'.format(numv, Bpow)] = bline
+
+        fig.tight_layout()
+
+        # add text for characteristic age lines and magnetic field strength lines
+        for l in tlines:
+            ttext = label_line(ax, tlines[l], l, color='k', frachoffset=0.1)
+
+        for l in Blines:
+            ttext = label_line(ax, Blines[l], l, color='k', frachoffset=0.85)
+
+        # return the figure
+        return fig
