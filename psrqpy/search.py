@@ -1,5 +1,10 @@
 """
-Search query
+.. module:: search
+   :platform: Unix, Windows
+
+.. moduleauthor:: Matthew Pitkin <matthew.pitkin@glasgow.ac.uk>
+
+
 """
 
 from __future__ import print_function, division
@@ -7,6 +12,7 @@ from __future__ import print_function, division
 import warnings
 from collections import OrderedDict
 import re
+import cPickle as pickle
 import six
 
 import numpy as np
@@ -24,7 +30,7 @@ class QueryATNF(object):
     def __init__(self, params=None, condition=None, psrtype=None, assoc=None, bincomp=None,
                  exactmatch=False, sort_attr='jname', sort_order='asc', psrs=None,
                  include_errs=True, include_refs=False, get_ephemeris=False, version=None,
-                 adsref=False):
+                 adsref=False, loadfromfile=None):
         """
         Set up and perform the query of the ATNF catalogue
 
@@ -42,6 +48,7 @@ class QueryATNF(object):
         :param get_ephemeris: boolean to set whether to get pulsar ephemerides (only works if `psrs` have been specified)
         :param version: a string with the ATNF version to use (this will default to the current version if set as None)
         :param adsref: boolean to set whether the python 'ads' module can be used to get reference information
+        :param loadfromfile: load an instance of this class from a file, rather than performing a new query
         """
 
         self._psrs = psrs
@@ -50,6 +57,13 @@ class QueryATNF(object):
         self._atnf_version = version
         self._atnf_version = self.get_version # if no version is set this will return the current or default value
         self._adsref = adsref
+
+        self._savefile = None # file to save class to
+        self._loadfile = None # file class loaded from
+
+        if loadfromfile:
+            self.load(loadfromfile)
+            return
 
         # check sort order is either 'asc' or 'desc' (or some synonyms)
         if sort_order.lower() in ['asc', 'up', '^']:
@@ -106,6 +120,41 @@ class QueryATNF(object):
 
         # parse the query with BeautifulSoup into a dictionary
         self._query_output = self.parse_query()
+
+    def save(self, fname):
+        """
+        Output the class instance to a pickle file for future loading.
+        
+        Args:
+            fname (str): the filename to output the class pickle to
+        """
+
+        try:
+            fp = open(fname, 'wb')
+            self._savefile = fname
+            pickle.dump(self.__dict__, fp, 2)
+            fp.close()
+            self._savefile = fname
+        except IOError:
+            raise Exception("Error outputing class to pickle file")
+          
+    def load(self, fname):
+        """
+        Load a previouslt saved pickle of this class into self.
+        
+        Args:
+            fname (str): the filename of the pickled object
+        """
+
+        try:
+            fp = open(fname, 'rb')
+            tmp_dict = pickle.load(fp)
+            fp.close()          
+            self.__dict__.clear() # clear current self
+            self.__dict__.update(tmp_dict)
+            self._loadfile = fname
+        except IOError:
+            raise Exception("Error reading in pickle")
 
     def generate_query(self, version='', params=None, condition='', sortorder='asc', sortattr='JName', psrnames=None, **kwargs):
         """
@@ -620,6 +669,9 @@ class QueryATNF(object):
                 True, and shows lines for 10^10 through to 10^14 gauss.
             Bfield (:obj:`list`): a list of magnetic field strengths to plot.
             rcparams (dict): a dictionary of Matplotlib setup parameters for the plot.
+
+        Returns:
+            A :class:`matplotlib.figure.Figure` object
         """
 
         try:
@@ -652,7 +704,7 @@ class QueryATNF(object):
             if 'SGR' == stype.upper(): # synonym for AXP
                 nshowtypes[nshowtypes.index(stype)] = 'AXP'
 
-        if nshowtypes and 'TYPE' not in self._query_param:
+        if nshowtypes and 'TYPE' not in self._query_params:
             self._query_params.append('TYPE')
 
         if 'BINARY' in nshowtypes and 'BINARY' not in self._query_params:
@@ -765,14 +817,14 @@ class QueryATNF(object):
             markertypes = {}
     
         # check if markers have been defined by the user or not
-        markertypes['AXP'] = {'marker': 's', 'color': 'red', 'markerfacecolor': 'none', 'linestyle': 'none'} if 'AXP' not in markertypes else markertypes['AXP']
-        markertypes['BINARY'] = {'marker': 'o', 'color': 'grey', 'markerfacecolor': 'none', 'linestyle': 'none'} if 'BINARY' not in markertypes else markertypes['BINARY']
-        markertypes['HE'] = {'marker': 'D', 'color': 'orange', 'markerfacecolor': 'none', 'linestyle': 'none'} if 'HE' not in markertypes else markertypes['HE']
-        markertypes['RRAT'] = {'marker': 'h', 'color': 'green', 'markerfacecolor': 'none', 'linestyle': 'none'} if 'RRAT' not in markertypes else markertypes['RRAT']
-        markertypes['NRAD'] = {'marker': 'v', 'color': 'blue', 'markerfacecolor': 'none', 'linestyle': 'none'} if 'NRAD' not in markertypes else markertypes['NRAD']
-        markertypes['XINS'] = {'marker': '^', 'color': 'magenta', 'markerfacecolor': 'none', 'linestyle': 'none'} if 'XINS' not in markertypes else markertypes['XINS']
-        markertypes['GC'] = {'marker': '8', 'color': 'cyan', 'markerfacecolor': 'none', 'linestyle': 'none'} if 'GC' not in markertypes else markertypes['GC']
-        markertypes['SNR'] = {'marker': '*', 'color': 'darkorchid', 'markerfacecolor': 'none', 'linestyle': 'none'} if 'SNR' not in markertypes else markertypes['SNR']
+        markertypes['AXP'] = {'marker': 's', 'markeredgecolor': 'red'} if 'AXP' not in markertypes else markertypes['AXP']
+        markertypes['BINARY'] = {'marker': 'o', 'markeredgecolor': 'grey'} if 'BINARY' not in markertypes else markertypes['BINARY']
+        markertypes['HE'] = {'marker': 'D', 'markeredgecolor': 'orange'} if 'HE' not in markertypes else markertypes['HE']
+        markertypes['RRAT'] = {'marker': 'h', 'markeredgecolor': 'green'} if 'RRAT' not in markertypes else markertypes['RRAT']
+        markertypes['NRAD'] = {'marker': 'v', 'markeredgecolor': 'blue'} if 'NRAD' not in markertypes else markertypes['NRAD']
+        markertypes['XINS'] = {'marker': '^', 'markeredgecolor': 'magenta'} if 'XINS' not in markertypes else markertypes['XINS']
+        markertypes['GC'] = {'marker': '8', 'markeredgecolor': 'cyan'} if 'GC' not in markertypes else markertypes['GC']
+        markertypes['SNR'] = {'marker': '*', 'markeredgecolor': 'darkorchid'} if 'SNR' not in markertypes else markertypes['SNR']
 
         # legend strings for different types
         typelegstring = {}
@@ -785,16 +837,16 @@ class QueryATNF(object):
 
         # show globular cluster pulsars
         if showGCs and not excludeGCs:
-            nshowtypes += ['GC']
+            nshowtypes.append('GC')
 
         # show pulsars with associated supernova remnants
         if showSNRs:
-            nshowtypes += ['SNR']
+            nshowtypes.append('SNR')
 
         handles = OrderedDict()
 
         for stype in nshowtypes:
-            if stype.upper() in psrqpy.config.PSR_TYPES + ['GC', 'SNR']:
+            if stype.upper() in PSR_TYPES + ['GC', 'SNR']:
                 thistype = stype.upper()
                 if thistype == 'BINARY':
                     # for binaries used the 'BINARY' column in the table
@@ -807,13 +859,18 @@ class QueryATNF(object):
                 if len(typeidx) == 0:
                     continue
 
+                # default to empty markers with no lines between them
+                if 'markerfacecolor' not in markertypes[thistype]:
+                    markertypes[thistype]['markerfacecolor'] = 'none'
+                if 'linestyle' not in markertypes[thistype]:
+                    markertypes[thistype]['linestyle'] = 'none'
                 typehandle, = ax.loglog(periods[typeidx], pdots[typeidx], **markertypes[thistype])
                 if thistype in typelegstring:
                     handles[typelegstring[thistype]] = typehandle
                 else:
                     handles[thistype] = typehandle
 
-                ax.legend(handles.values(), handles.keys());
+                ax.legend(handles.values(), handles.keys(), loc='upper left', numpoints=1);
 
         # add characteristic age lines
         tlines = OrderedDict()
@@ -831,9 +888,9 @@ class QueryATNF(object):
                 taupow = np.floor(np.log10(tauv))
                 numv = tauv/10**taupow
                 if numv == 1.:
-                    tlines[r'$10^{{{0:d}}}\,$yr'.format(int(taupow))] = tline
+                    tlines[r'$10^{{{0:d}}}\,{{\rm yr}}$'.format(int(taupow))] = tline
                 else:
-                    tlines[r'${0:.1f}!\times\!10^{{{1:d}}}\,$yr'.format(numv, taupow)] = tline
+                    tlines[r'${{0:.1f}}!\times\!10^{{{1:d}}}\,{{\rm yr}}$'.format(numv, taupow)] = tline
 
         # add magnetic field lines
         Blines = OrderedDict()
@@ -849,18 +906,18 @@ class QueryATNF(object):
                 Bpow = np.floor(np.log10(B))
                 numv = B/10**Bpow
                 if numv == 1.:
-                    Blines[r'$10^{{{0:d}}}\,$yr'.format(int(Bpow))] = bline
+                    Blines[r'$10^{{{0:d}}}\,{{\rm G}}$'.format(int(Bpow))] = bline
                 else:
-                    Blines[r'${0:.1f}!\times\!10^{{1:d}}\,$yr'.format(numv, Bpow)] = bline
+                    Blines[r'${{0:.1f}}!\times\!10^{{{1:d}}}\,{{\rm G}}$'.format(numv, Bpow)] = bline
 
         fig.tight_layout()
 
         # add text for characteristic age lines and magnetic field strength lines
         for l in tlines:
-            ttext = label_line(ax, tlines[l], l, color='k', frachoffset=0.1)
+            ttext = label_line(ax, tlines[l], l, color='k', fs=16, frachoffset=0.05)
 
         for l in Blines:
-            ttext = label_line(ax, Blines[l], l, color='k', frachoffset=0.85)
+            ttext = label_line(ax, Blines[l], l, color='k', fs=16, frachoffset=0.90)
 
         # return the figure
         return fig
