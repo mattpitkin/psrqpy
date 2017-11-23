@@ -754,10 +754,10 @@ class QueryATNF(object):
                 if not filldeathtype:
                     filldeathtype = {}
 
-                filldeathtype['linestype'] = filldeathtype['linestyle'] if 'linestyle' in filldeathtype else '-'
+                filldeathtype['linestyle'] = filldeathtype['linestyle'] if 'linestyle' in filldeathtype else '-'
                 filldeathtype['alpha'] = filldeathtype['alpha'] if 'alpha' in filldeathtype else 0.15
-                filldeathtype['facecolor'] = filldeathtype['facecolor'] if 'facecolor' in filldeathtype else 'bisque'
-                filldeathtype['hatch'] = filldeathtype['hatch'] if 'hatch' in filldeathtype else 'none'
+                filldeathtype['facecolor'] = filldeathtype['facecolor'] if 'facecolor' in filldeathtype else 'darkorange'
+                filldeathtype['hatch'] = filldeathtype['hatch'] if 'hatch' in filldeathtype else ''
                 ax.fill_between(periodlims, deathpdots, pdotlims[0], **filldeathtype)
 
         # add markers for each pulsar type
