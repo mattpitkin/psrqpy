@@ -1,10 +1,5 @@
 """
-.. module:: search
-   :platform: Unix, Windows
-
-.. moduleauthor:: Matthew Pitkin <matthew.pitkin@glasgow.ac.uk>
-
-
+Search module
 """
 
 from __future__ import print_function, division
