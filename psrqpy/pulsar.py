@@ -1,5 +1,6 @@
 """
-classes defining pulsar objects
+The classes defined here are hold information on an individual pulsar
+or an interable list of pulsars.
 """
 
 from __future__ import print_function, division
@@ -72,12 +73,12 @@ class Pulsar(object):
         ukey = key.upper()
         pulsarname = self.name
 
-        param = getattr(self, key, None) # try to get value, and default to None if not present
-
-        if not param:
-            param = getattr(self, ukey, None) # try uppercase version
-
-        if not param:
+        param = None
+        if key in self.__dict__:
+            return self.__dict__[key]
+        elif ukey in self.__dict__:
+            return self.__dict__[ukey]
+        else:
             if ukey[-4:] == '_ERR': # an error parameter
                 tkey = ukey[:-4] # parameter name without error
             else:
@@ -184,8 +185,6 @@ class Pulsar(object):
 
         # get ephemeris values
         ephemvals = [ev.split() for ev in ephem.split('\n') if len(ev.split()) > 1]
-
-        print(ephemvals)
 
         for ev in ephemvals:
             if ev[0].upper() in PSR_ALL_PARS and not hasattr(self, ev[0].upper()):

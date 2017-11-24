@@ -791,13 +791,14 @@ class QueryATNF(object):
         if not rcparams:
             # set default parameters
             rcparams = {
-                'figure.figsize': (8, 10),
+                'figure.figsize': (10, 12),
+                'figure.dpi': 250,
                 'text.usetex': True,    # use LaTeX for all text
                 'axes.linewidth': 0.5,  # set axes linewidths to 0.5
                 'axes.grid': False,     # add a grid
                 'font.family': 'sans-serif',
                 'font.sans-serif': 'Avant Garde, Helvetica, Computer Modern Sans serif',
-                'font.size': 15,
+                'font.size': 18,
                 'legend.fontsize': 'medium',
                 'legend.frameon': False}
 
@@ -977,10 +978,10 @@ class QueryATNF(object):
 
         # add text for characteristic age lines and magnetic field strength lines
         for l in tlines:
-            ttext = label_line(ax, tlines[l], l, color='k', fs=16, frachoffset=0.05)
+            ttext = label_line(ax, tlines[l], l, color='k', fs=18, frachoffset=0.05)
 
         for l in Blines:
-            ttext = label_line(ax, Blines[l], l, color='k', fs=16, frachoffset=0.90)
+            ttext = label_line(ax, Blines[l], l, color='k', fs=18, frachoffset=0.90)
 
         # return the figure
         return fig

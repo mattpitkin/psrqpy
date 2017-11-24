@@ -5,6 +5,8 @@ It is inspired by, and has some minor similarities to, the [`ads`](https://ads.r
 [NASA ADS](https://ui.adsabs.harvard.edu/) [API](https://github.com/adsabs/adsabs-dev-api). It is an unofficial
 package and is not endorsed by or affiliated with the ATNF.
 
+Full documentation of the module can be found [here](http://psrqpy.readthedocs.io/).
+
 Any comments or suggestions are welcome.
 
 ## Installation

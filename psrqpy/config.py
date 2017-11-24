@@ -116,7 +116,7 @@ PSR_DERIVED = {'R_LUM':    {'ref': False, 'err': False, 'units': 'mJy kpc^2', 'f
 PSR_DERIVED_PARS = PSR_DERIVED.keys()
 
 # a list of all allowed parameters for querying
-
+PSR_ALL = dict(itertools.chain(PSR_GENERAL.items(), PSR_TIMING.items(), PSR_BINARY.items(), PSR_DERIVED.items()))
 """: a dict of allowed pulsars parameters (e.g., name, position, distance...)
 
 Each parameter name key gives a dictionary containing the keys:
@@ -131,10 +131,9 @@ Each parameter name key gives a dictionary containing the keys:
 The allowed parameters and their units are given
 `here <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=normal#par_list>`_.
 """
-PSR_ALL = dict(itertools.chain(PSR_GENERAL.items(), PSR_TIMING.items(), PSR_BINARY.items(), PSR_DERIVED.items()))
+
 PSR_ALL_PARS = PSR_GENERAL_PARS + PSR_TIMING_PARS + PSR_BINARY_PARS + PSR_DERIVED_PARS
 
-#: `"types" <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#psr_types>`_ of pulsar for use in ``type()`` when setting logical conditions
 PSR_TYPES = ['AXP',           # Anomalous X-ray Pulsar or Soft Gamma-ray Repeater with detected pulsations
              'BINARY',        # Pulsar has one or more stellar companion(s)
              'HE',            # Spin-powered pulsar with pulsed emission from radio to infrared or higher frequencies
@@ -143,14 +142,20 @@ PSR_TYPES = ['AXP',           # Anomalous X-ray Pulsar or Soft Gamma-ray Repeate
              'RRAT',          # Pulsars with intermittently pulsed radio emission
              'XINS'           # Isolated neutron stars with pulsed thermal X-ray emission but no detectable radio emission
              ]
+""": `types <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#psr_types>`_ of
+pulsar for use in ``type()`` when setting logical conditions.
+"""
 
-#: binary companion `types <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=normal#bincomp_type>`_ for use in ``bincomp()`` when setting logical conditions
 PSR_BINARY_TYPE = ['MS',      # Main-sequence star
                    'NS',      # Neutron star
                    'CO',      # CO or ONeMg White Dwarf
                    'He',      # Helium White Dwarf
                    'UL'       # Ultra-light companion or planet (mass < 0.08 solar masses)
                   ]
+""": binary companion
+`types <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=normal#bincomp_type>`_
+for use in ``bincomp()`` when setting logical conditions.
+"""
 
 #: other objects associated with the pulsar (this is not an exhaustive list for use in ``assoc()`` when setting logical conditions)
 PSR_ASSOC_TYPE = ['GC',  # globular cluster

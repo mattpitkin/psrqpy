@@ -329,7 +329,7 @@ def death_line(logP, linemodel='Ip', rho6=1.):
     Args:
         logP (list, :class:`~numpy.ndarray`): the base-10 log values of period.
         linemodel (str): a string with one of the above model names. Defaults to ``'Ip'``.
-        rho6 (float): the value of the :math:`\rho_6` parameter from [ZHM]_ . Defaults to 1 is,
+        rho6 (float): the value of the :math:`\\rho_6` parameter from [ZHM]_ . Defaults to 1 is,
             which is equivalent to :math:`10^6` cm.
 
     Returns:
