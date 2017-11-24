@@ -1,5 +1,5 @@
 """
-Various useful functions
+A selection of useful functions used by the module.
 """
 
 from __future__ import print_function, division
@@ -237,31 +237,51 @@ def get_references(useads=False):
 
 def characteristic_age(period, pdot, braking_idx=3.):
     """
-    Function defining the characteristic age of a pulsar
+    Function defining the characteristic age of a pulsar. Returns the characteristic
+    age in years
 
-    :param p: the pulsar period in seconds
+
+    :param period: the pulsar period in seconds
     :param pdot: the pulsar period derivative
     :param braking_idx: the pulsar braking index (defaults to n=3)
     """
 
-    assert isinstance(period, float) or isinstance(period, int), "Period '{}' must be a number".format(period)
-    assert isinstance(pdot, float) or isinstance(pdot, int), "Period derivtaive '{}' must be a number".format(pdot)
-    assert isinstance(braking_idx, float) or isinstance(braking_idx, int), "Braking index '{}' must be a number".format(braking_idx)
-
-    # check everything is positive, otherwise return 0
+    # check everything is positive, otherwise return NaN
     if period < 0.:
         warnings.warn("The period must be positive to define a characteristic age", UserWarning)
-        return 0.
+        return np.nan
 
     if pdot < 0.:
         warnings.warn("The period derivative must be positive to define a characteristic age", UserWarning)
-        return 0.
+        return np.nan
 
     if braking_idx < 0.:
         warnings.warn("The braking index must be positive to define a characteristic age", UserWarning)
-        return 0.
+        return np.nan
 
-    return period/(pdot * (braking_idx - 1.))
+    return (period/(pdot * (braking_idx - 1.)))/(365.25*86400.)
+
+
+def age_pdot(period, tau=1e6, braking_idx=3.):
+    """
+    Function returning the period derivative for a pulsar with a given period
+    and characteristic age
+
+    :param period: the pulsar period in seconds
+    :param tau: the characteristic age in years
+    :param braking_idx: the pulsar braking index (defaults to n=3)
+    """
+
+    periods = period
+    if not isinstance(periods, np.ndarray):
+        periods = np.array(periods)
+
+    taus = tau*365.25*86400. # tau in seconds
+
+    pdots = (periods/(taus * (braking_idx - 1.)))
+    pdots[pdots < 0] = np.nan # set any non zero values to NaN
+
+    return pdots
 
 
 def B_field(period, pdot):
@@ -282,4 +302,130 @@ def B_field(period, pdot):
         warnings.warn("The period derivative must be positive to define a magnetic field streng", UserWarning)
         return 0.
 
-    return 3.3e19 * np.sqrt(period * pdot)
+    return 3.2e19 * np.sqrt(period * pdot)
+
+
+def B_field_pdot(period, Bfield=1e10):
+    """
+    Function to get the period derivative from a given pulsar period and magnetic
+    field strength
+    """
+
+    periods = period
+    if not isinstance(periods, np.ndarray):
+        periods = np.array(periods)
+
+    pdots = (Bfield/3.2e19)**2/periods
+    pdots[pdots < 0] = np.nan # set any non zero values to NaN
+
+    return pdots
+
+
+def death_line(logP, linemodel='Ip', rho6=1.):
+    """
+    The pulsar death line. Returns the base-10 logarithm of the period derivative for the given
+    values of the period.
+
+    Args:
+        logP (list, :class:`~numpy.ndarray`): the base-10 log values of period.
+        linemodel (str): a string with one of the above model names. Defaults to ``'Ip'``.
+        rho6 (float): the value of the :math:`\\rho_6` parameter from [ZHM]_ . Defaults to 1 is,
+            which is equivalent to :math:`10^6` cm.
+
+    Returns:
+        :class:`numpy.ndarray`: a vector of period derivative values
+
+    .. note::
+
+        The death line models can be:
+
+        * 'I' - Equation 3 of [ZHM]
+        * 'Ip' - Equation 4 of [ZHM]
+        * 'II' - Equation 5 of [ZHM]
+        * 'IIp' - Equation 6 of [ZHM]
+        * 'III' - Equation 8 of [ZHM]
+        * 'IIIp' - Equation 9 of [ZHM]
+        * 'IV' - Equation 10 of [ZHM]
+        * 'IVp' - Equation 11 of [ZHM]
+
+    .. [ZHM] Zhang, Harding & Muslimov, *ApJ*, **531**, L135-L138 (2000),
+        `arXiv:astro-ph/0001341 <https://arxiv.org/abs/astro-ph/0001341>`_
+
+    """
+
+    gradvals = {'I': (11./4), 'Ip': (9./4.), 'II': (2./11.), 'IIp': -(2./11.), 'III': (5./2.), 'IIIp': 2., 'IV': -(3./11.), 'IVp': -(7./11.)}
+    intercept = {'I': 14.62, 'Ip': 16.58, 'II': 13.07, 'IIp': 14.50, 'III': 14.56, 'IIIp': 16.52, 'IV': 15.36, 'IVp': 16.79}
+    rho = {'I': 0., 'Ip': 1., 'II': 0., 'IIp': (8./11.), 'III': 0., 'IIIp': 1., 'IV': 0., 'IVp': (8./11.)}
+
+    lp = logP
+    if not isinstance(lp, np.ndarray):
+        lp = np.array(lp)
+
+    return lp*gradvals[linemodel] - intercept[linemodel] + rho[linemodel]*np.log10(rho6)
+
+
+def label_line(ax, line, label, color='k', fs=14, frachoffset=0.1):
+    """
+    Add an annotation to the given line with appropriate placement and rotation.
+
+    Based on code from `"How to rotate matplotlib annotation to match a line?"
+    <http://stackoverflow.com/a/18800233/230468>`_ and `this
+    <https://stackoverflow.com/a/38414616/1862861>`_ answer.
+
+    Args:
+        ax (:class:`matplotlib.axes.Axes`): Axes on which the label should be added.
+        line (:class:`matplotlib.lines.Line2D`): Line which is being labeled.
+        label (str): Text which should be drawn as the label.
+        color (str): a color string for the label text. Defaults to ``'k'``
+        fs (int): the font size for the label text. Defaults to 14.
+        frachoffset (float): a number between 0 and 1 giving the fractional offset of the label
+           text along the x-axis. Defaults to 0.1, i.e. 10%.
+
+    Returns:
+        :class:`matplotlib.text.Text`: a :class:`~matplotlib.text.Text` object containing the label
+            information
+
+    """
+    xdata, ydata = line.get_data()
+    x1 = xdata[0]
+    x2 = xdata[-1]
+    y1 = ydata[0]
+    y2 = ydata[-1]
+
+    # use fractional horizontal offset frachoffset to set the x position of the label by default
+    # other wise use the halign value
+    if frachoffset >= 0 and frachoffset <= 1:
+        if ax.get_xscale() == 'log':
+            xx = np.log10(x1) + frachoffset*(np.log10(x2) - np.log10(x1))
+        else:
+            xx = x1 + frachoffset*(x2 - x1)
+    else:
+        raise ValueError("frachoffset must be between 0 and 1".format(halign))
+
+    if ax.get_xscale() == 'log' and ax.get_yscale() == 'log':
+        yy = np.interp(xx, np.log10(xdata), np.log10(ydata))
+        xx = 10**xx
+        yy = 10**yy
+    elif ax.get_xscale() == 'log' and ax.get_yscale() != 'log':
+        yy = np.interp(xx, np.log10(xdata), ydata)
+        xx = 10**xx
+    else:
+        yy = np.interp(xx, xdata, ydata)
+
+    ylim = ax.get_ylim()
+    xytext = (0, 5)
+    text = ax.annotate(label, xy=(xx, yy), xytext=xytext, textcoords='offset points',
+                       size=fs, color=color, zorder=1,
+                       horizontalalignment='left', verticalalignment='center_baseline')
+
+    sp1 = ax.transData.transform_point((x1, y1))
+    sp2 = ax.transData.transform_point((x2, y2))
+
+    rise = (sp2[1] - sp1[1])
+    run = (sp2[0] - sp1[0])
+
+    slope_degrees = np.degrees(np.arctan2(rise, run))
+    text.set_rotation_mode('anchor')
+    text.set_rotation(slope_degrees)
+    ax.set_ylim(ylim)
+    return text

@@ -1,12 +1,13 @@
 """
-Configuration information
+This submodules sets up common constants for use, such as the allowed pulsar parameters and various
+URLs used for queries.
 """
 
 import itertools
 
-ATNF_VERSION = '1.57' # default ATNF version
-ATNF_BASE_URL = r'http://www.atnf.csiro.au/people/pulsar/psrcat/'
-ATNF_URL = ATNF_BASE_URL + r'proc_form.php?version={version}'
+ATNF_VERSION = '1.57' #: the default ATNF catalogue version
+ATNF_BASE_URL = r'http://www.atnf.csiro.au/people/pulsar/psrcat/' #: the ATNF pulsar catalogue base URL
+ATNF_URL = ATNF_BASE_URL + r'proc_form.php?version={version}' #: the ATNF pulsar catalogue base URL for queries
 
 PARAMS_QUERY = r'{params}'
 USERDEFINED_QUERY = r'&startUserDefined=true&c1_val=&c2_val=&c3_val=&c4_val='
@@ -16,6 +17,7 @@ SORT_QUERY = r'&sort_attr={sortattr}&sort_order={sortorder}'
 EPHEMERIS_QUERY = r'&submit_ephemeris={getephemeris}'
 QUERY_FLUFF = r'&ephemeris=long&coords_unit=raj%2Fdecj&radius=&coords_1=&coords_2=&style=Long+with+errors&no_value=*&nohead=nohead&state=query&table_bottom.x=30&table_bottom.y=22'
 
+#: the full ATNF catalogue query URL
 QUERY_URL = ATNF_URL + PARAMS_QUERY + USERDEFINED_QUERY + SORT_QUERY + CONDITION_QUERY + PSRNAMES_QUERY + EPHEMERIS_QUERY + QUERY_FLUFF
 
 # pulsar parameters (http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html) that can be queried
@@ -24,8 +26,6 @@ QUERY_URL = ATNF_URL + PARAMS_QUERY + USERDEFINED_QUERY + SORT_QUERY + CONDITION
 #  - 'err': True if the parameter can have an associated error value
 #  - 'unit': a string giving the units for the parameter (to be used if generating an astropy table)
 #  - 'format': a string giving the parameter format (to be used if generating an astropy table)
-
-# general parameters (e.g., name, position, distance...)
 PSR_GENERAL = {'NAME':     {'ref': True, 'err': False, 'units': None, 'format': 'S32'},        # Pulsar name.  The B name if exists, otherwise the J name.
                'JNAME':    {'ref': True, 'err': False, 'units': None, 'format': 'S32'},        # Pulsar name based on J2000 coordinates
                'RAJ':      {'ref': True, 'err': True, 'units': None, 'format': 'S32'},         # Right ascension (J2000) (hh:mm:ss.s)
@@ -49,7 +49,7 @@ PSR_GENERAL = {'NAME':     {'ref': True, 'err': False, 'units': None, 'format': 
                'ZZ':       {'ref': False, 'err': False, 'units': 'kpc', 'format': 'f8'},       # Distance from the Galactic plane, based on Dist
                'XX':       {'ref': False, 'err': False, 'units': 'kpc', 'format': 'f8'},       # X-Distance in X-Y-Z Galactic coordinate system (kpc)
                'YY':       {'ref': False, 'err': False, 'units': 'kpc', 'format': 'f8'},       # Y-Distance in X-Y-Z Galactic coordinate system (kpc)
-               'ASSOC':    {'ref': False, 'err': False, 'units': None, 'format': 'S32'},       # Names of other objects, e.g., supernova remnant, globular cluster or gamma-ray source associated with the pulsar
+               'ASSOC':    {'ref': False, 'err': False, 'units': None, 'format': 'S64'},       # Names of other objects, e.g., supernova remnant, globular cluster or gamma-ray source associated with the pulsar
                'SURVEY':   {'ref': False, 'err': False, 'units': None, 'format': 'S32'},       # Surveys that detected the pulsar (discovery survey first) (http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#surveys)
                'OSURVEY':  {'ref': False, 'err': False, 'units': None, 'format': 'S32'},       # Surveys that detected the pulsar encoded as bits in integer
                'DATE':     {'ref': False, 'err': False, 'units': 'yr', 'format': 'i4'},        # Date of discovery publication.
@@ -117,10 +117,23 @@ PSR_DERIVED_PARS = PSR_DERIVED.keys()
 
 # a list of all allowed parameters for querying
 PSR_ALL = dict(itertools.chain(PSR_GENERAL.items(), PSR_TIMING.items(), PSR_BINARY.items(), PSR_DERIVED.items()))
+""": a dict of allowed pulsars parameters (e.g., name, position, distance...)
+
+Each parameter name key gives a dictionary containing the keys:
+
+* ``ref`` (bool) - True if the parameter has an associated reference with it
+* ``err`` (bool) - True if the parameter has an associated error value
+* ``units`` (str) - a string with the parameters units that can be parsed by
+  :class:`~astropy.units.core.Unit`
+* ``format`` (str) - a string with a :class:`numpy.dtype` for storing the parameter in an
+  :class:`~astropy.table.Table`
+
+The allowed parameters and their units are given
+`here <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=normal#par_list>`_.
+"""
+
 PSR_ALL_PARS = PSR_GENERAL_PARS + PSR_TIMING_PARS + PSR_BINARY_PARS + PSR_DERIVED_PARS
 
-# "types" of pulsar http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#psr_types
-# for use in 'type()' when setting logical conditions
 PSR_TYPES = ['AXP',           # Anomalous X-ray Pulsar or Soft Gamma-ray Repeater with detected pulsations
              'BINARY',        # Pulsar has one or more stellar companion(s)
              'HE',            # Spin-powered pulsar with pulsed emission from radio to infrared or higher frequencies
@@ -129,21 +142,25 @@ PSR_TYPES = ['AXP',           # Anomalous X-ray Pulsar or Soft Gamma-ray Repeate
              'RRAT',          # Pulsars with intermittently pulsed radio emission
              'XINS'           # Isolated neutron stars with pulsed thermal X-ray emission but no detectable radio emission
              ]
+""": `types <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#psr_types>`_ of
+pulsar for use in ``type()`` when setting logical conditions.
+"""
 
-# binary companion types http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=normal#bincomp_type
-# for use in 'bincomp()' when setting logical conditions
 PSR_BINARY_TYPE = ['MS',      # Main-sequence star
                    'NS',      # Neutron star
                    'CO',      # CO or ONeMg White Dwarf
                    'He',      # Helium White Dwarf
                    'UL'       # Ultra-light companion or planet (mass < 0.08 solar masses)
                   ]
+""": binary companion
+`types <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=normal#bincomp_type>`_
+for use in ``bincomp()`` when setting logical conditions.
+"""
 
-# other objects associated with the pulsar (this is not an exhaustive list
-# # for use in 'assoc()' when setting logical conditions)
+#: other objects associated with the pulsar (this is not an exhaustive list for use in ``assoc()`` when setting logical conditions)
 PSR_ASSOC_TYPE = ['GC',  # globular cluster
                   'SNR'  # supernova remnant
                  ]
 
-# URL for the NASA ADS
+#: URL for the NASA ADS
 ADS_URL = 'https://ui.adsabs.harvard.edu/#abs/{}/'
