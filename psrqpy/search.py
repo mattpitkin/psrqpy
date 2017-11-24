@@ -456,10 +456,10 @@ class QueryATNF(object):
         """
         Returns:
             :class:`psrqpy.pulsar.Pulsars`: the queried pulsars returned as a
-            :class:`~psrqpy.pulsar.Pulsars` object, which is a dictionary of
-            :class:`~psrqpy.pulsar.Pulsar` objects. If ``JNAME`` or ``NAME`` was not in the
-            original query, it will be performed again, so that a name is present, which is
-            required for a :class:`~psrqpy.pulsar.Pulsar` object
+                :class:`~psrqpy.pulsar.Pulsars` object, which is a dictionary of
+                :class:`~psrqpy.pulsar.Pulsar` objects. If ``JNAME`` or ``NAME`` was not in the
+                original query, it will be performed again, so that a name is present, which is
+                required for a :class:`~psrqpy.pulsar.Pulsar` object
         """
 
         if not self._pulsars:
@@ -497,8 +497,9 @@ class QueryATNF(object):
     @property
     def get_version(self):
         """
-        Return a string with the ATNF version number, or the default giving in
-        ATNF_VERSION if not found
+        Returns:
+            str: seturn a string with the ATNF version number, or the default giving in
+                :attr:`~psrqpy.config.ATNF_VERSION` if not found.
         """
 
         if self._atnf_version is None:
@@ -508,14 +509,30 @@ class QueryATNF(object):
 
     def parse_conditions(self, condition, psrtype=None, assoc=None, bincomp=None, exactmatch=False):
         """
-        Parse a string on conditions, i.e., logical statements on with to perform a search, like
-        condition = 'f0 > 2.5 && assoc(GC)'
+        Parse a string of `conditions
+        <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#condition>`_, i.e.,
+        logical statements with which to apply to a catalogue query, e.g.,
+        ``condition = 'f0 > 2.5 && assoc(GC)'``, so that they are in the format required for the
+        query URL.
 
-        :param condition: a string of conditional statements
-        :param psrtype: a list of strings, or single string, of conditions on the 'type' of pulsars to return (logical AND will be used for any listed types)
-        :param assoc: a list of strings, or single string, of conditions on the associations of pulsars to return (logical AND will be used for any listed associations)
-        :parsm bincomp: a list of strings, or single string, of conditions on the binary companiion types of pulsars to return (logical AND will be used for any listed associations)
-        :param extractmatch: a boolean stating whether assciations and types given as the condition should be an exact match
+        Args:
+            condition (str): a string of `conditional <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#condition>`_
+                statements
+            psrtype (list, str): a list of strings, or single string, of conditions on the
+                `type <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#psr_types>`_ of
+                pulsars to return (logical AND will be used for any listed types)
+            assoc (list, str): a list of strings, or single string, of conditions on the
+                associations of pulsars to return (logical AND will be used for any listed
+                associations)
+            bincomp (list, str): a list of strings, or single string, of conditions on the
+                `binary companion <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=normal#bincomp_type>`_
+                types of pulsars to return (logical AND will be used for any listed associations)
+            exactmatch (bool): a boolean stating whether assciations and types given as the
+                condition should be an exact match
+
+        Returns:
+            str: a string with the format required for use in :attr:`~psrqpy.config.QUERY_URL`
+
         """
 
         if not condition:
@@ -646,14 +663,16 @@ class QueryATNF(object):
 
     def __len__(self):
         """
-        Length method returns the number of pulsars
+        Returns:
+            int: :func:`len` method returns the number of pulsars
         """
 
         return self._npulsars
 
     def __str__(self):
         """
-        String method returns string method of astropy table
+        Returns:
+            str: :func:`str` method returns the str method of an :class:`astropy.table.Table`.
         """
 
         if self._npulsars > 0:
@@ -663,7 +682,8 @@ class QueryATNF(object):
 
     def __repr__(self):
         """
-        repr method returns repr method of astropy table
+        Returns:
+            str: :func:`repr` method returns the repr method of an :class:`astropy.table.Table`.
         """
 
         if self._npulsars > 0:
@@ -671,46 +691,47 @@ class QueryATNF(object):
         else:
             return repr(self._query_output) # should be empty dict
 
-    def ppdot(self, intrinsicpdot=False, excludeGCs=False, showtypes=[], showGCs=False, showSNRs=False,
-              markertypes={}, deathline=True, deathmodel='Ip', filldeath=True, filldeathtype={},
-              showtau=True, brakingidx=3, tau=None, showB=True, Bfield=None, rcparams={}):
+    def ppdot(self, intrinsicpdot=False, excludeGCs=False, showtypes=[], showGCs=False,
+              showSNRs=False, markertypes={}, deathline=True, deathmodel='Ip', filldeath=True,
+              filldeathtype={}, showtau=True, brakingidx=3, tau=None, showB=True, Bfield=None,
+              rcparams={}):
         """
         Draw a lovely period vs period derivative diagram.
 
         Args:
             intrinsicpdot (bool): use the intrinsic period derivative corrected for the
-                Shlovskii effect rather than the observed value. Defaults to False
-            excludeGCs (bool): exclude globular cluster pulsars as their period
-                derivatives can be contaminated by intra-cluster accelerations. Defaults
-                to False.
-            showtypes (list or str): a list of pulsar types to highlight with
-                markers in the plot. These can contain any of the following: ``BINARY``,
-                ``HE``, ``NRAD``, ``RRAT``, ``XINS``, ``AXP`` or ``SGR``, or ``ALL`` to
-                show all types. Default to showing no types.
-            showGCs (bool): show markers to denote the pulsars in globular clusters.
-                Defaults to False.
-            showSNRs (bool): show markers to denote the pulsars with supernova
-                remnants associated with them. Defaults to False.
-            markertypes (dict): a dictionary of marker styles and colors keyed to the
-                pulsar types above
+                `Shklovskii effect <https://en.wikibooks.org/wiki/Pulsars_and_neutron_stars/Pulsar_properties#Pulse_period>`_
+                rather than the observed value. Defaults to False.
+            excludeGCs (bool): exclude globular cluster pulsars as their period derivatives can be
+                contaminated by intra-cluster accelerations. Defaults to False.
+            showtypes (list, str): a list of pulsar types to highlight with markers in the plot.
+                These can contain any of the following: ``BINARY``, ``HE``, ``NRAD``, ``RRAT``,
+                ``XINS``, ``AXP`` or ``SGR``, or ``ALL`` to show all types. Default to showing no
+                types.
+            showGCs (bool): show markers to denote the pulsars in globular clusters. Defaults to
+                False.
+            showSNRs (bool): show markers to denote the pulsars with supernova remnants associated
+                with them. Defaults to False.
+            markertypes (dict): a dictionary of marker styles and colors keyed to the pulsar types
+                above
             deathline (bool): draw the pulsar death line. Defaults to True.
             deathmodel (str): the type of death line to draw based on the models in
-                :func:`psrqpy.utils.death_line`. Defaults to 'Ip'.
-            filldeath (bool): set whether to fill the pulsar graveyard under the
-                death line. Defaults to True.
-            filldeathtype (dict): a dictionary of keyword arguments for the fill style
-                of the pulsar graveyard.
-            showtau (bool): show lines for a selection of characteritic ages. Defaults
-                to True, and shows lines for $10^5$ through to $10^9$ yrs with steps
-                in powers of 10.
-            brakingidx (int): a braking index to use for the calculation of the
-                characteristic age lines. Defaults to 3 for magnetic dipole radiation.
+                :func:`psrqpy.utils.death_line`. Defaults to ``'Ip'``.
+            filldeath (bool): set whether to fill the pulsar graveyard under the death line.
+                Defaults to True.
+            filldeathtype (dict): a dictionary of keyword arguments for the fill style of the
+                pulsar graveyard.
+            showtau (bool): show lines for a selection of characteritic ages. Defaults to True,
+                and shows lines for :math:`10^5` through to :math:`10^9` yrs with steps in powers
+                of 10.
+            brakingidx (int): a braking index to use for the calculation of the characteristic age
+                lines. Defaults to 3 for magnetic dipole radiation.
             tau (list): a list of characteristic ages to show on the plot.
-            showB (bool): show lines of constant magnetic field strength. Defaults to
-                True, and shows lines for :math:`10^{10}` through to :math:`10^{14}` gauss with
-                steps in powers of 10.
-            Bfield (:obj:`list`): a list of magnetic field strengths to plot.
-            rcparams (dict): a dictionary of Matplotlib setup parameters for the plot.
+            showB (bool): show lines of constant magnetic field strength. Defaults to True, and
+                shows lines for :math:`10^{10}` through to :math:`10^{14}` gauss with steps in
+                powers of 10.
+            Bfield (:py:obj:`list`): a list of magnetic field strengths to plot.
+            rcparams (dict): a dictionary of :py:obj:`matplotlib.rcParams` setup parameters for the plot.
 
         Returns:
             A :class:`matplotlib.figure.Figure` object

@@ -328,7 +328,7 @@ def death_line(logP, linemodel='Ip', rho6=1.):
 
     Args:
         logP (list, :class:`~numpy.ndarray`): the base-10 log values of period.
-        linemodel (str): a string with one of the above model names. Defaults to ``Ip``.
+        linemodel (str): a string with one of the above model names. Defaults to ``'Ip'``.
         rho6 (float): the value of the :math:`\rho_6` parameter from [ZHM]_ . Defaults to 1 is,
             which is equivalent to :math:`10^6` cm.
 
@@ -376,6 +376,10 @@ def label_line(ax, line, label, color='k', fs=14, frachoffset=0.1):
         ax (:class:`matplotlib.axes.Axes`): Axes on which the label should be added.
         line (:class:`matplotlib.lines.Line2D`): Line which is being labeled.
         label (str): Text which should be drawn as the label.
+        color (str): a color string for the label text. Defaults to ``'k'``
+        fs (int): the font size for the label text. Defaults to 14.
+        frachoffset (float): a number between 0 and 1 giving the fractional offset of the label
+           text along the x-axis. Defaults to 0.1, i.e. 10%.
 
     Returns:
         :class:`matplotlib.text.Text`: a :class:`~matplotlib.text.Text` object containing the label
