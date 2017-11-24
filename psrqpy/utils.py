@@ -47,7 +47,12 @@ def get_references(useads=False):
     Return a dictionary of paper reference in the ATNF catalogue. The keys are the ref strings given
     in the ATNF catalogue.
 
-    :param useads: boolean to set whether to use the python 'ads' module to get the NASA ADS URL for the references
+    Args:
+        useads (bool): boolean to set whether to use the python mod:`ads` module to get
+            the NASA ADS URL for the references
+
+    Returns:
+        dict: a dictionary of references.
     """
 
     refs = {}
@@ -238,12 +243,19 @@ def get_references(useads=False):
 def characteristic_age(period, pdot, braking_idx=3.):
     """
     Function defining the characteristic age of a pulsar. Returns the characteristic
-    age in years
+    age in using
 
+    .. math::
+    
+       \\tau = \\frac{P}{\dot{P}(n-1)}
 
-    :param period: the pulsar period in seconds
-    :param pdot: the pulsar period derivative
-    :param braking_idx: the pulsar braking index (defaults to n=3)
+    Args:
+        period (float): the pulsar period in seconds
+        pdot (float): the pulsar period derivative
+        braking_idx (float): the pulsar braking index (defaults to :math:`n=3`)
+
+    Returns:
+        float: the characteristic age in years
     """
 
     # check everything is positive, otherwise return NaN
@@ -265,11 +277,19 @@ def characteristic_age(period, pdot, braking_idx=3.):
 def age_pdot(period, tau=1e6, braking_idx=3.):
     """
     Function returning the period derivative for a pulsar with a given period
-    and characteristic age
+    and characteristic age, using
 
-    :param period: the pulsar period in seconds
-    :param tau: the characteristic age in years
-    :param braking_idx: the pulsar braking index (defaults to n=3)
+    .. math::
+
+       \dot{P} = \\frac{\dot{P}}{\\tau(n - 1)}
+
+    Args:
+        period (list, :class:`numpy.ndarray`): the pulsar period in seconds
+        tau (float): the characteristic age in years
+        braking_idx (float): the pulsar braking index (defaults to :math:`n=3`)
+
+    Returns:
+        :class:`numpy.ndarray`: an array of period derivatives.
     """
 
     periods = period
@@ -287,7 +307,18 @@ def age_pdot(period, tau=1e6, braking_idx=3.):
 def B_field(period, pdot):
     """
     Function defining the polar magnetic field strength at the surface of the pulsar
-    in gauss (Eqn 5.12 of Lyne & Graham-Smith, Pulsar Astronmy, 2nd edition)
+    in gauss (Equation 5.12 of Lyne & Graham-Smith, Pulsar Astronmy, 2nd edition) with
+    
+    .. math::
+
+       B = 3.2\!\\times\!10^{19} \\sqrt{P\dot{P}}
+
+    Args:
+        period (float): a pulsar period (s)
+        pdot (float): a period derivative
+
+    Returns:
+        float: the magnetic field strength in gauss.
     """
 
     assert isinstance(period, float) or isinstance(period, int), "Period '{}' must be a number".format(period)
@@ -308,7 +339,18 @@ def B_field(period, pdot):
 def B_field_pdot(period, Bfield=1e10):
     """
     Function to get the period derivative from a given pulsar period and magnetic
-    field strength
+    field strength using
+    
+    .. math::
+    
+       \dot{P} = \\frac{1}{P}\left( \\frac{B}{3.2\!\\times\!10^{19}} \\right)^2
+
+    Args:
+        period (list, :class:`~numpy.ndarray`): a list of period values
+        Bfield (float): the polar magnetic field strength (Defaults to :math:`10^{10}` G)
+        
+    Returns:
+        :class:`numpy.ndarray`: an array of period derivatives
     """
 
     periods = period
@@ -379,7 +421,7 @@ def label_line(ax, line, label, color='k', fs=14, frachoffset=0.1):
         color (str): a color string for the label text. Defaults to ``'k'``
         fs (int): the font size for the label text. Defaults to 14.
         frachoffset (float): a number between 0 and 1 giving the fractional offset of the label
-           text along the x-axis. Defaults to 0.1, i.e. 10%.
+            text along the x-axis. Defaults to 0.1, i.e. 10%.
 
     Returns:
         :class:`matplotlib.text.Text`: a :class:`~matplotlib.text.Text` object containing the label

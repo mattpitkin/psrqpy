@@ -182,8 +182,7 @@ class QueryATNF(object):
 
         Args:
             version (str): a string containing the ATNF version.
-            params (list, str): a list of `parameters
-                <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#par_list>`_ to
+            params (list, str): a list of `parameters <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#par_list>`_ to
                 query.
             condition (str): the logical `condition
                 <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#condition>`_
@@ -788,19 +787,16 @@ class QueryATNF(object):
             return None
 
         # set plot parameters
-        if not rcparams:
-            # set default parameters
-            rcparams = {
-                'figure.figsize': (10, 12),
-                'figure.dpi': 250,
-                'text.usetex': True,    # use LaTeX for all text
-                'axes.linewidth': 0.5,  # set axes linewidths to 0.5
-                'axes.grid': False,     # add a grid
-                'font.family': 'sans-serif',
-                'font.sans-serif': 'Avant Garde, Helvetica, Computer Modern Sans serif',
-                'font.size': 18,
-                'legend.fontsize': 'medium',
-                'legend.frameon': False}
+        rcparams['figure.figsize'] = rcparams['figure.figsize'] if 'figure.figsize' in rcparams else (9, 9.5)
+        rcparams['figure.dpi'] = rcparams['figure.dpi'] if 'figure.dpi' in rcparams else 250
+        rcparams['text.usetex'] = rcparams['text.usetex'] if 'text.usetex' in rcparams else True
+        rcparams['axes.linewidth'] = rcparams['axes.linewidth'] if 'axes.linewidth' in rcparams else 0.5
+        rcparams['axes.grid'] = rcparams['axes.grid'] if 'axes.grid' in rcparams else False
+        rcparams['font.family'] = rcparams['font.family'] if 'font.family' in rcparams else 'sans-serif'
+        rcparams['font.sans-serif'] = rcparams['font.sans-serif'] if 'font.sans-serif' in rcparams else 'Avant Garde, Helvetica, Computer Modern Sans serif'
+        rcparams['font.size'] = rcparams['font.size'] if 'font.size' in rcparams else 20
+        rcparams['legend.fontsize'] = rcparams['legend.fontsize'] if 'legend.fontsize' in rcparams else 16
+        rcparams['legend.frameon'] = rcparams['legend.frameon'] if 'legend.frameon' in rcparams else False
 
         mpl.rcParams.update(rcparams)
 

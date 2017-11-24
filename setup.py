@@ -29,6 +29,13 @@ CONTENTS = readfile(os.path.join(
 
 VERSION = VERSION_REGEX.findall(CONTENTS)[0]
 
+# 'setup.py publish' shortcut for publishing (e.g. setup.py from requests https://github.com/requests/requests/blob/master/setup.py)
+# 'setup.py publish' shortcut.
+if sys.argv[-1] == 'publish':
+    os.system('python setup.py sdist bdist_wheel --universal')
+    os.system('twine upload dist/*')
+    sys.exit()
+
 setup(name="psrqpy",
       version=VERSION,
       author="Matthew Pitkin",

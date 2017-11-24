@@ -13,20 +13,17 @@ from .utils import get_version
 
 class Pulsar(object):
     """
-    An object to hold a single pulsar
+    An object to hold a single pulsar. The class requires a pulsar name is required.
+
+    Args:
+        psrname (str): a string containing a pulsar name
+        version (str): a string with the ATNF version to use for queries
+
+    Additional keyword arguments are any of the valid queriable pulsar parameters.
+
     """
 
     def __init__(self, psrname, version=None, **kwargs):
-        """
-        Set object attributes. A pulsar name is required.
-
-        :param psrname: a string containing a pulsar name
-        :param version: a string with the ATNF version to use for queries
-
-        Additional keyword arguments are any of the valid queriable pulsar
-        parameters.
-        """
-
         self._name = psrname
         self._version = version if not version else get_version()
         self._ephemeris = None
@@ -67,7 +64,10 @@ class Pulsar(object):
     def __getitem__(self, key):
         """
         If the class has a attribute given by the key then return it, otherwise generate a
-        query for that key to set it
+        query for that key to set it.
+        
+        Args:
+            key (str): an item to get
         """
 
         ukey = key.upper()
@@ -132,15 +132,18 @@ class Pulsar(object):
 
     def __dir__(self):
         """
-        Set this to what ipython is returned for ipython's autocomplete (otherwise the custom
-        __getattr__ caused problems!)
+        Set this to what is returned for ipython's autocomplete (otherwise the custom
+        ``__getattr__`` caused problems!)
         """
 
         return self.keys()
 
     def have_ephemeris(self):
         """
-        Check whether we already have an ephemeris
+        Check whether we already have an ephemeris.
+        
+        Returns:
+            bool: True if an ephemeris has already be downloaded.
         """
 
         if self._ephemeris:
@@ -175,7 +178,8 @@ class Pulsar(object):
         """
         Set attributes from the returned ephemeris
 
-        :param ephem: the ephemeris string
+        Args:
+            ephem (str): the ephemeris string
         """
 
         if not self._ephemeris and ephem:
@@ -297,7 +301,10 @@ class Pulsars(object):
         """
         Add a pulsar into the object.
 
-        :param psr: a Pulsar object, or Pulsars object 
+        Args:
+            psr (:class:`~psrqpy.pulsar.Pulsar`, :class:`~psrqpy.pulsar.Pulsars`): a
+                :class:`~psrqpy.pulsar.Pulsar` object, or :class:`~psrqpy.pulsar.Pulsars`
+                object 
         """
 
         assert isinstance(psr, Pulsar) or isinstance(psr, Pulsars), 'psr is not a Pulsar type'
@@ -325,7 +332,8 @@ class Pulsars(object):
         """
         Remove a pulsar from the object. Only do one at a time.
 
-        :param psrname: a string with the name of a pulsar
+        Args:
+            psrname (str): a string with the name of a pulsar
         """
 
         assert isinstance(psrname, basestring), 'psrname is not a string'
@@ -337,7 +345,8 @@ class Pulsars(object):
         """
         Remove a pulsar from the object and return the removed pulsar.
 
-        :param psrname: a string with the name of a pulsar
+        Args:
+            psrname (str): a string with the name of a pulsar
         """
         assert isinstance(psrname, basestring), 'psrname is not a string'
 
@@ -358,7 +367,10 @@ class Pulsars(object):
 
     def get_ephemerides(self, version=None):
         """
-        Query the ATNF to get the ephemerides for all pulsars in the object
+        Query the ATNF to get the ephemerides for all pulsars in the object.
+
+        Args:
+            version (str): the ATNF pulsar catalogue version to use.
         """
 
         if not self.have_ephemerides():

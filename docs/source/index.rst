@@ -18,7 +18,7 @@ Installation
 ============
 
 This package can be installed using ``pip`` via ``pip install psrqpy``. Alternatively
-the source code can be obtained from `here <https://github.com/mattpitkin/psrqpy>`_, and installed using::
+the source code can be obtained from `github <https://github.com/mattpitkin/psrqpy>`_, and installed using::
 
     python setup.py install
 
