@@ -1,5 +1,7 @@
 """
-Search module
+The classes defined here are for querying the `ATNF pulsar catalogue
+<http://www.atnf.csiro.au/people/pulsar/psrcat/>`_ and viewing the resulting
+information.
 """
 
 from __future__ import print_function, division
@@ -19,33 +21,53 @@ from .utils import *
 
 class QueryATNF(object):
     """
-    Class to generate a query of the ATNF catalogue
+    A class to generate a query of the
+    `ATNF pulsar catalogue <http://www.atnf.csiro.au/people/pulsar/psrcat/>`_.
+
+    Args:
+        params (str, :obj:`list`, required): a list of strings with the pulsar `parameters
+            <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#par_list>`_
+            to query. The parameter names are case insensitive.
+        condition (str): a string with logical conditions for the returned parameters. The allowed
+            format of the condition string is given `here
+            <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#condition>`_.
+            Defaults to None.
+        psrtype (:obj:`list`): a list of strings, or single string, of conditions on the `type
+            <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#psr_types>`_ of
+            pulsars to return (logical AND will be used for any listed types). Defaults to None.
+        assoc (:obj:`list`, str): a condition on the associations of pulsars to return (logical AND
+            will be used for any listed associations). Currently this can contain either ``GC`` for
+            pulsars in globular clusters or ``SNR`` for pulsars with associated supernova remnants.
+            Defaults to None.
+        bincomp (str, :obj:`list`): a list of strings, or single string, of conditions on the
+            `binary
+            <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#bincomp_type>`_
+            companion types of pulsars to return (logical AND will be used for any listed
+            associations). Defaults to None.
+        extractmatch (bool): a boolean stating whether assciations and types given as the condition
+            should be an exact match. Defaults to False.
+        sort_attr (str): the (case insensitive) parameter name on which with sort the returned
+            pulsars. Defaults to ``JName``.
+        sort_ord (str): the order of the sorting, can be either ``asc`` or ``desc``. Defaults to
+            ascending.
+        psrs (:obj:`list`): a list of pulsar names for which to get the requested parameters.
+            Defaults to None.
+        include_errs (bool): Set if wanting parameter errors to be returned. Defaults to True.
+        include_refs (bool): Set if wanting parameter references to be returned. Defaults to False.
+        get_ephemeris (bool): Set if wanting to get pulsar ephemerides (only works if `psrs` have
+            been specified). Defaults to False.
+        version (str): a string with the ATNF version to use (this will default to the current
+            version if set as None)
+        adsref (bool): Set if wanting to use an :class:`ads.search.SearchQuery` to get reference
+            information. Defaults to False.
+        loadfromfile (str): load an instance of :class:`~psrqpy.search.QueryATNF` from the given
+            file, rather than performing a new query. Defaults to None.
     """
 
     def __init__(self, params=None, condition=None, psrtype=None, assoc=None, bincomp=None,
                  exactmatch=False, sort_attr='jname', sort_order='asc', psrs=None,
                  include_errs=True, include_refs=False, get_ephemeris=False, version=None,
                  adsref=False, loadfromfile=None):
-        """
-        Set up and perform the query of the ATNF catalogue
-
-        :param params: a list of strings with the pulsar parameters to return
-        :param condition: a string with conditions for the returned parameters
-        :param psrtype: a list of strings, or single string, of conditions on the 'type' of pulsars to return (logical AND will be used for any listed types)
-        :param assoc: a condition on the associations of pulsars to return (logical AND will be used for any listed associations)
-        :parsm bincomp: a list of strings, or single string, of conditions on the binary companiion types of pulsars to return (logical AND will be used for any listed associations)
-        :param extractmatch: a boolean stating whether assciations and types given as the condition should be an exact match
-        :param sort_attr: the parameter on which with sort the returned pulsars
-        :param sort_ord: the order of the sorting, either 'asc' or 'desc' (defaults to ascending)
-        :param psrs: a list of pulsar names to get the information for
-        :param include_errs: boolean to set whether to include parameter errors
-        :param include_refs: boolean to set whether to include parameter references
-        :param get_ephemeris: boolean to set whether to get pulsar ephemerides (only works if `psrs` have been specified)
-        :param version: a string with the ATNF version to use (this will default to the current version if set as None)
-        :param adsref: boolean to set whether the python 'ads' module can be used to get reference information
-        :param loadfromfile: load an instance of this class from a file, rather than performing a new query
-        """
-
         self._psrs = psrs
         self._include_errs = include_errs
         self._include_refs = include_refs
@@ -118,10 +140,10 @@ class QueryATNF(object):
 
     def save(self, fname):
         """
-        Output the class instance to a pickle file for future loading.
-        
+        Output the :class:`~psrqpy.search.QueryATNF` instance to a pickle file for future loading.
+
         Args:
-            fname (str): the filename to output the class pickle to
+            fname (str): the filename to output the pickle to
         """
 
         try:
@@ -135,8 +157,8 @@ class QueryATNF(object):
           
     def load(self, fname):
         """
-        Load a previouslt saved pickle of this class into self.
-        
+        Load a previously saved pickle of this class.
+
         Args:
             fname (str): the filename of the pickled object
         """
@@ -151,18 +173,31 @@ class QueryATNF(object):
         except IOError:
             raise Exception("Error reading in pickle")
 
-    def generate_query(self, version='', params=None, condition='', sortorder='asc', sortattr='JName', psrnames=None, **kwargs):
+    def generate_query(self, version='', params=None, condition='', sortorder='asc',
+                       sortattr='JName', psrnames=None, **kwargs):
         """
-        Generate a query URL and return the content of the request from that URL. If set the class attributes are
-        used for generating the query, otherwise arguments can be given.
+        Generate a query URL and return the content of the :class:`~requests.Response` from that
+        URL. If the required class attributes are set then they are used for generating the query,
+        otherwise arguments can be given to override those set when initialising the class.
 
-        :param version: a string containing the ATNF version
-        :param params: a list of parameters to query
-        :param condition: the condition string for the query
-        :param sortorder: the order for sorting the results
-        :param sortattr: the attribute on which to perform the sorting
-        :param psrnames: a list of pulsar names to get
-        :param get_ephemeris: boolean stating whether to get pulsar ephemerides rather than a table of parameter values (only works if pulsar names are given)
+        Args:
+            version (str): a string containing the ATNF version.
+            params (list, str): a list of `parameters
+                <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#par_list>`_ to
+                query.
+            condition (str): the logical `condition
+                <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#condition>`_
+                string for the query.
+            sortorder (str): the order for sorting the results.
+            sortattr (str): the parameter on which to perform the sorting.
+            psrnames (list, str): a list of pulsar names to get parameters for
+            get_ephemeris (bool): a boolean stating whether to get pulsar ephemerides rather than
+                a table of parameter values (only works if pulsar names are given)
+
+        Returns:
+            str: A string with the content of a :class:`~requests.Response` returned by
+                :func:`~requests.get`
+
         """
 
         # get_ephemeris is the only keyword argument at the moment
@@ -246,7 +281,13 @@ class QueryATNF(object):
         """
         Parse the query returned by requests
 
-        :param requestcontent: the content of a request returned by the requests module
+        Args:
+            requestcontent (str): The content of a :class:`~requests.Response` returned by
+                :func:`~requests.get`
+
+        Returns:
+            :class:`collections.OrderedDict`: an ordered dictionary of requested parameter values
+
         """
 
         # update request if required
@@ -372,7 +413,8 @@ class QueryATNF(object):
 
     def get_dict(self):
         """
-        Return the output dictionary generated from the query
+        Returns:
+            :class:`~collections.OrderedDict`: the output dictionary generated by the query.
         """
 
         return self._query_output
@@ -387,7 +429,8 @@ class QueryATNF(object):
 
     def table(self):
         """
-        Return an astropy table of the pulsar data
+        Returns:
+             :class:`astropy.table.Table`: a table of the pulsar data returned by the query.
         """
 
         from astropy.table import Table
@@ -411,10 +454,12 @@ class QueryATNF(object):
 
     def get_pulsars(self):
         """
-        Return the queried pulsars as a Pulsars object, which is a dictionary
-        of Pulsar objects. If 'JNAME' or 'NAME' was not in the original query,
-        it will be performed again, so that a name is present, which is required
-        for a Pulsar object
+        Returns:
+            :class:`psrqpy.pulsar.Pulsars`: the queried pulsars returned as a
+            :class:`~psrqpy.pulsar.Pulsars` object, which is a dictionary of
+            :class:`~psrqpy.pulsar.Pulsar` objects. If ``JNAME`` or ``NAME`` was not in the
+            original query, it will be performed again, so that a name is present, which is
+            required for a :class:`~psrqpy.pulsar.Pulsar` object
         """
 
         if not self._pulsars:
@@ -630,7 +675,7 @@ class QueryATNF(object):
               markertypes={}, deathline=True, deathmodel='Ip', filldeath=True, filldeathtype={},
               showtau=True, brakingidx=3, tau=None, showB=True, Bfield=None, rcparams={}):
         """
-        Draw a lovely period vs period derivative diagram
+        Draw a lovely period vs period derivative diagram.
 
         Args:
             intrinsicpdot (bool): use the intrinsic period derivative corrected for the
@@ -638,10 +683,10 @@ class QueryATNF(object):
             excludeGCs (bool): exclude globular cluster pulsars as their period
                 derivatives can be contaminated by intra-cluster accelerations. Defaults
                 to False.
-            showtypes (:obj:`list` or str): a list of pulsar types to highlight with
-                markers in the plot. These can contain any of the following: `BINARY`,
-                `HE`, `NRAD`, `RRAT`, `XINS`, `AXP` or `SGR`, or `ALL` to show all
-                types. Default to showing no types.
+            showtypes (list or str): a list of pulsar types to highlight with
+                markers in the plot. These can contain any of the following: ``BINARY``,
+                ``HE``, ``NRAD``, ``RRAT``, ``XINS``, ``AXP`` or ``SGR``, or ``ALL`` to
+                show all types. Default to showing no types.
             showGCs (bool): show markers to denote the pulsars in globular clusters.
                 Defaults to False.
             showSNRs (bool): show markers to denote the pulsars with supernova
@@ -650,18 +695,20 @@ class QueryATNF(object):
                 pulsar types above
             deathline (bool): draw the pulsar death line. Defaults to True.
             deathmodel (str): the type of death line to draw based on the models in
-                `:utils:death_line()`. Defaults to 'Ip'.
+                :func:`psrqpy.utils.death_line`. Defaults to 'Ip'.
             filldeath (bool): set whether to fill the pulsar graveyard under the
                 death line. Defaults to True.
             filldeathtype (dict): a dictionary of keyword arguments for the fill style
                 of the pulsar graveyard.
             showtau (bool): show lines for a selection of characteritic ages. Defaults
-                to True, and shows lines for 10^5, 10^6, 10^7, 10^8 and 10^9 yrs.
+                to True, and shows lines for $10^5$ through to $10^9$ yrs with steps
+                in powers of 10.
             brakingidx (int): a braking index to use for the calculation of the
                 characteristic age lines. Defaults to 3 for magnetic dipole radiation.
-            tau (:obj:`list`) a list of characteristic ages to show on the plot.
+            tau (list): a list of characteristic ages to show on the plot.
             showB (bool): show lines of constant magnetic field strength. Defaults to
-                True, and shows lines for 10^10 through to 10^14 gauss.
+                True, and shows lines for :math:`10^{10}` through to :math:`10^{14}` gauss with
+                steps in powers of 10.
             Bfield (:obj:`list`): a list of magnetic field strengths to plot.
             rcparams (dict): a dictionary of Matplotlib setup parameters for the plot.
 

@@ -63,17 +63,14 @@ More complex queries
 Contents:
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
    query
-   test
+   pulsar
+   config
+   utils
 
-.. include:: references.rst
+References
+----------
 
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
-
+.. [1] Manchester, Hobbs, Teoh & Hobbs, *AJ*, **129**, 1993-2006 (2005), `arXiv:astro-ph/0412641 <https://arxiv.org/abs/astro-ph/0412641>`_

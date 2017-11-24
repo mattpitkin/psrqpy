@@ -1,10 +1,14 @@
 """
-Configuration information
+This submodules sets up common constants for use, such as the allowed pulsar parameters and various
+URLs used for queries.
 """
 
 import itertools
 
-ATNF_VERSION = '1.57' # default ATNF version
+#: the default ATNF version
+ATNF_VERSION = '1.57'
+
+#: the ATNF pulsar catalogue base URL
 ATNF_BASE_URL = r'http://www.atnf.csiro.au/people/pulsar/psrcat/'
 ATNF_URL = ATNF_BASE_URL + r'proc_form.php?version={version}'
 
@@ -25,7 +29,7 @@ QUERY_URL = ATNF_URL + PARAMS_QUERY + USERDEFINED_QUERY + SORT_QUERY + CONDITION
 #  - 'unit': a string giving the units for the parameter (to be used if generating an astropy table)
 #  - 'format': a string giving the parameter format (to be used if generating an astropy table)
 
-# general parameters (e.g., name, position, distance...)
+#: general parameters (e.g., name, position, distance...)
 PSR_GENERAL = {'NAME':     {'ref': True, 'err': False, 'units': None, 'format': 'S32'},        # Pulsar name.  The B name if exists, otherwise the J name.
                'JNAME':    {'ref': True, 'err': False, 'units': None, 'format': 'S32'},        # Pulsar name based on J2000 coordinates
                'RAJ':      {'ref': True, 'err': True, 'units': None, 'format': 'S32'},         # Right ascension (J2000) (hh:mm:ss.s)

@@ -33,7 +33,8 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
-    'numpydoc',
+    'sphinx.ext.napoleon',
+    'sphinxcontrib.fulltoc'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -176,10 +177,10 @@ html_static_path = ['_static']
 #html_additional_pages = {}
 
 # If false, no module index is generated.
-html_domain_indices = True
+#html_domain_indices = True
 
 # If false, no index is generated.
-html_use_index = True
+html_use_index = False
 
 # If true, the index is split into individual pages for each letter.
 #html_split_index = False
@@ -305,5 +306,7 @@ intersphinx_mapping = {'python': ('http://docs.python.org/', None),
                        'numpy': ('http://docs.scipy.org/doc/numpy/', None),
                        'scipy': ('http://docs.scipy.org/doc/scipy/reference/', None),
                        'matplotlib': ('http://matplotlib.org/', None),
-                       'astropy': ('http://docs.astropy.org/en/latest/', None)}
+                       'astropy': ('http://docs.astropy.org/en/latest/', None),
+                       'requests': ('http://docs.python-requests.org/en/master/', None),
+                       'ads': ('https://ads.readthedocs.io/en/latest/', None)}
 

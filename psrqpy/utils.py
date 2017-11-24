@@ -1,5 +1,5 @@
 """
-Various useful functions
+A selection of useful functions used by the module.
 """
 
 from __future__ import print_function, division
@@ -323,19 +323,33 @@ def B_field_pdot(period, Bfield=1e10):
 
 def death_line(logP, linemodel='Ip', rho6=1.):
     """
-    Pulsar death line. Returns log10 period derivative at the given
-    values of the period. The death line models can be:
-      'I' - Equation 3 of Zhang, Harding & Muslimov, 2000, ApJ (astro-ph/0001341)
-      'Ip' - Equation 4 of ZHM
-      'II' - Equation 5 of ZHM
-      'IIp' - Equation 6 of ZHM
-      'III' - Equation 8 of ZHM
-      'IIIp' - Equation 9 of ZHM
-      'IV' - Equation 10 of ZHM
-      'IVp' - Equation 11 of ZHM
+    The pulsar death line. Returns the base-10 logarithm of the period derivative for the given
+    values of the period.
 
-    :param linemodel: a string with one of the above model names (default 'Ip')
-    :param rho6: the value of the rho6 parameter from ZHM (default of 1 is equivalent to 10^6 cm)
+    Args:
+        logP (list, :class:`~numpy.ndarray`): the base-10 log values of period.
+        linemodel (str): a string with one of the above model names. Defaults to ``Ip``.
+        rho6 (float): the value of the :math:`\rho_6` parameter from [ZHM]_ . Defaults to 1 is,
+            which is equivalent to :math:`10^6` cm.
+
+    Returns:
+        :class:`numpy.ndarray`: a vector of period derivative values
+
+    .. note::
+
+        The death line models can be:
+
+        * 'I' - Equation 3 of [ZHM]
+        * 'Ip' - Equation 4 of [ZHM]
+        * 'II' - Equation 5 of [ZHM]
+        * 'IIp' - Equation 6 of [ZHM]
+        * 'III' - Equation 8 of [ZHM]
+        * 'IIIp' - Equation 9 of [ZHM]
+        * 'IV' - Equation 10 of [ZHM]
+        * 'IVp' - Equation 11 of [ZHM]
+
+    .. [ZHM] Zhang, Harding & Muslimov, *ApJ*, **531**, L135-L138 (2000),
+        `arXiv:astro-ph/0001341 <https://arxiv.org/abs/astro-ph/0001341>`_
 
     """
 
@@ -351,26 +365,21 @@ def death_line(logP, linemodel='Ip', rho6=1.):
 
 
 def label_line(ax, line, label, color='k', fs=14, frachoffset=0.1):
-    """Add an annotation to the given line with appropriate placement and rotation.
+    """
+    Add an annotation to the given line with appropriate placement and rotation.
 
-    Based on code from:
-        [How to rotate matplotlib annotation to match a line?]
-        (http://stackoverflow.com/a/18800233/230468) and [this](https://stackoverflow.com/a/38414616/1862861) answer
-        User: [Adam](http://stackoverflow.com/users/321772/adam)
+    Based on code from `"How to rotate matplotlib annotation to match a line?"
+    <http://stackoverflow.com/a/18800233/230468>`_ and `this
+    <https://stackoverflow.com/a/38414616/1862861>`_ answer.
 
-    Arguments
-    ---------
-    ax : `matplotlib.axes.Axes` object
-        Axes on which the label should be added.
-    line : `matplotlib.lines.Line2D` object
-        Line which is being labeled.
-    label : str
-        Text which should be drawn as the label.
-    ...
+    Args:
+        ax (:class:`matplotlib.axes.Axes`): Axes on which the label should be added.
+        line (:class:`matplotlib.lines.Line2D`): Line which is being labeled.
+        label (str): Text which should be drawn as the label.
 
-    Returns
-    -------
-    text : `matplotlib.text.Text` object
+    Returns:
+        :class:`matplotlib.text.Text`: a :class:`~matplotlib.text.Text` object containing the label
+            information
 
     """
     xdata, ydata = line.get_data()
