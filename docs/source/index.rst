@@ -190,7 +190,6 @@ API interface
    config
    utils
 
-
 Copyright and referencing for the catalogue
 -------------------------------------------
 
