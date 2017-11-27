@@ -304,7 +304,7 @@ class Pulsars(object):
         Args:
             psr (:class:`~psrqpy.pulsar.Pulsar`, :class:`~psrqpy.pulsar.Pulsars`): a
                 :class:`~psrqpy.pulsar.Pulsar` object, or :class:`~psrqpy.pulsar.Pulsars`
-                object 
+                object
         """
 
         assert isinstance(psr, Pulsar) or isinstance(psr, Pulsars), 'psr is not a Pulsar type'

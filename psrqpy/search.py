@@ -184,8 +184,7 @@ class QueryATNF(object):
 
         Args:
             version (str): a string containing the ATNF version.
-            params (list, str): a list of `parameters <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#par_list>`_ to
-                query.
+            params (list, str): a list of `parameters <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#par_list>`_ to query.
             condition (str): the logical `condition
                 <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#condition>`_
                 string for the query.
@@ -196,8 +195,8 @@ class QueryATNF(object):
                 a table of parameter values (only works if pulsar names are given)
 
         Returns:
-            str: A string with the content of a :class:`~requests.Response` returned by
-                :func:`~requests.get`
+            str: the :attr:`~requests.Response.content` of a :class:`~requests.Response` returned
+            by :func:`~requests.get` for the ATNF pulsar catalogue query page.
 
         """
 
@@ -457,10 +456,10 @@ class QueryATNF(object):
         """
         Returns:
             :class:`psrqpy.pulsar.Pulsars`: the queried pulsars returned as a
-                :class:`~psrqpy.pulsar.Pulsars` object, which is a dictionary of
-                :class:`~psrqpy.pulsar.Pulsar` objects. If ``JNAME`` or ``NAME`` was not in the
-                original query, it will be performed again, so that a name is present, which is
-                required for a :class:`~psrqpy.pulsar.Pulsar` object
+            :class:`~psrqpy.pulsar.Pulsars` object, which is a dictionary of
+            :class:`~psrqpy.pulsar.Pulsar` objects. If ``JNAME`` or ``NAME`` was not in the
+            original query, it will be performed again, so that a name is present, which is
+            required for a :class:`~psrqpy.pulsar.Pulsar` object
         """
 
         if not self._pulsars:

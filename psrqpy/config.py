@@ -20,8 +20,8 @@ QUERY_FLUFF = r'&ephemeris=long&coords_unit=raj%2Fdecj&radius=&coords_1=&coords_
 #: the full ATNF catalogue query URL
 QUERY_URL = ATNF_URL + PARAMS_QUERY + USERDEFINED_QUERY + SORT_QUERY + CONDITION_QUERY + PSRNAMES_QUERY + EPHEMERIS_QUERY + QUERY_FLUFF
 
-# pulsar parameters (http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html) that can be queried
-# For each parameter there is a dictionary giving:
+# pulsar parameters (http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html) that can be
+# queried. For each parameter there is a dictionary giving:
 #  - 'ref': True if the parameter can have an associated reference in the ATNF catalogue
 #  - 'err': True if the parameter can have an associated error value
 #  - 'unit': a string giving the units for the parameter (to be used if generating an astropy table)
