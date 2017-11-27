@@ -2,7 +2,7 @@
 
 """ A Python tool for interacting with the ATNF pulsar catalogue """
 
-__version__ = "0.3.5"
+__version__ = "0.3.6"
 
 from .search import QueryATNF
 from .pulsar import Pulsar, Pulsars

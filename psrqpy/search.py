@@ -132,7 +132,7 @@ class QueryATNF(object):
 
         # get references is required
         if self._include_refs:
-            self._refs = get_references(useads=self._adsref)
+            self._refs = get_references()
 
         # perform query
         self._query_content = self.generate_query()
@@ -390,8 +390,25 @@ class QueryATNF(object):
                                     refstring2 = re.sub(r'\s+', ' ', refstring.format(**thisref)) # remove any superfluous whitespace
                                     self._query_output[p+'_REF'][idx] = ','.join([a for a in refstring2.split(',') if a.strip()]) # remove any superfluous empty ',' seperated values
 
-                                    if self._adsref and 'ADS URL' in thisref:
-                                        self._query_output[p+'_REFURL'][idx] = thisref['ADS URL'] # remove any superfluous whitespace
+                                    if self._adsref:
+                                        if 'ADS URL' not in thisref: # get ADS reference
+                                            try:
+                                                import ads
+                                            except ImportError:
+                                                warnings.warn('Could not import ADS module, so no ADS information will be included', UserWarning)
+                                                article = []
+
+                                            try:
+                                                article = ads.SearchQuery(year=thisref['year'], first_author=thisref['authors'][0], title=thisref['title'])
+                                            except IOError:
+                                                warnings.warn('Could not get reference information, so no ADS information will be included', UserWarning)
+                                                article = []
+
+                                            article = list(article)
+                                            if len(article) > 0:
+                                                self._refs[reftag]['ADS URL'] = ADS_URL.format(list(article)[0].bibcode)
+
+                                        self._query_output[p+'_REFURL'][idx] = thisref['ADS URL']
                                 else:
                                     warnings.warn('Reference tag "{}" not found so omitting reference'.format(reftag), UserWarning)
                             vidx += 1

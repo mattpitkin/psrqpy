@@ -61,7 +61,7 @@ def get_references(useads=False):
     queryrefs = requests.get(ATNF_BASE_URL + 'psrcat_ref.html')
 
     if queryrefs.status_code != 200:
-        warnings.warn("Could query the ATNF references. No references returned".format(ATNF_VERSION), UserWarning)
+        warnings.warn("Could query the ATNF references. No references returned", UserWarning)
     else:
         try:
             refsoup = BeautifulSoup(queryrefs.content, 'html.parser')
@@ -231,12 +231,20 @@ def get_references(useads=False):
                     warnings.warn('Could not import ADS module, so no ADS information will be included', UserWarning)
                     continue
 
+                refs[reftag]['ADS'] = None
+                refs[reftag]['ADS URL'] = ''
+
                 try:
-                    article = list(ads.SearchQuery(year=refs[reftag]['year'], first_author=refs[reftag]['authors'][0], title=refs[reftag]['title']))[0]
-                    refs[reftag]['ADS'] = article
-                    refs[reftag]['ADS URL'] = ADS_URL.format(article.bibcode)
+                    article = ads.SearchQuery(year=refs[reftag]['year'], first_author=refs[reftag]['authors'][0], title=refs[reftag]['title'])
                 except IOError:
-                    warnings.warn('Could not import ADS module, so no ADS information will be included', UserWarning)
+                    warnings.warn('Could not get reference information, so no ADS information will be included', UserWarning)
+                    continue
+
+                article = list(article)
+
+                if len(article) > 0:
+                    refs[reftag]['ADS'] = list(article)[0]
+                    refs[reftag]['ADS URL'] = ADS_URL.format(list(article)[0].bibcode)
 
     return refs
 
