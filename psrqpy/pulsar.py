@@ -264,7 +264,7 @@ class Pulsar(object):
 
 class Pulsars(object):
     """
-    Class to contain multiple Pulsar objects
+    Class to contain multiple :class:`~psrqpy.pulsar.Pulsar` objects.
     """
 
     def __init__(self):

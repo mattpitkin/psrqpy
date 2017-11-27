@@ -53,7 +53,9 @@ class QueryATNF(object):
         psrs (:obj:`list`): a list of pulsar names for which to get the requested parameters.
             Defaults to None.
         include_errs (bool): Set if wanting parameter errors to be returned. Defaults to True.
-        include_refs (bool): Set if wanting parameter references to be returned. Defaults to False.
+        include_refs (bool): Set if wanting parameter
+            `references <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_ref.html>`_ to be
+            returned. Defaults to False.
         get_ephemeris (bool): Set if wanting to get pulsar ephemerides (only works if `psrs` have
             been specified). Defaults to False.
         version (str): a string with the ATNF version to use (this will default to the current
@@ -729,11 +731,12 @@ class QueryATNF(object):
             showB (bool): show lines of constant magnetic field strength. Defaults to True, and
                 shows lines for :math:`10^{10}` through to :math:`10^{14}` gauss with steps in
                 powers of 10.
-            Bfield (:py:obj:`list`): a list of magnetic field strengths to plot.
-            rcparams (dict): a dictionary of :py:obj:`matplotlib.rcParams` setup parameters for the plot.
+            Bfield (list): a list of magnetic field strengths to plot.
+            rcparams (dict): a dictionary of :py:obj:`matplotlib.rcParams` setup parameters for the
+                plot.
 
         Returns:
-            A :class:`matplotlib.figure.Figure` object
+            :class:`matplotlib.figure.Figure`: the figure object
         """
 
         try:

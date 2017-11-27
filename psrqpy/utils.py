@@ -44,8 +44,9 @@ def get_version():
 
 def get_references(useads=False):
     """
-    Return a dictionary of paper reference in the ATNF catalogue. The keys are the ref strings given
-    in the ATNF catalogue.
+    Return a dictionary of paper
+    `reference <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_ref.html>`_ in the ATNF
+    catalogue. The keys are the ref strings given in the ATNF catalogue.
 
     Args:
         useads (bool): boolean to set whether to use the python mod:`ads` module to get
@@ -423,9 +424,9 @@ def label_line(ax, line, label, color='k', fs=14, frachoffset=0.1):
         frachoffset (float): a number between 0 and 1 giving the fractional offset of the label
             text along the x-axis. Defaults to 0.1, i.e. 10%.
 
+
     Returns:
-        :class:`matplotlib.text.Text`: a :class:`~matplotlib.text.Text` object containing the label
-            information
+        :class:`matplotlib.text.Text`: an object containing the label information
 
     """
     xdata, ydata = line.get_data()

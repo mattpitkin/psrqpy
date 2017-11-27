@@ -71,6 +71,13 @@ The number of pulsars can easily be accessed, e.g.,
 The code will automatically attempt to query the current version of the
 ATNF catalogue, the value of which is printed in the above example.
 
+.. note::
+
+   If you really want to query the catalogue many times in quick succession it is advisable not to use this module, as
+   it could result in too much load on the ATNF catalogue's server. Instead it is probably preferable to `download
+   the catalogue <http://www.atnf.csiro.au/research/pulsar/psrcat/download.html>`_ and query it with the ``psrcat`` software
+   provided.
+
 More complex queries
 --------------------
 
