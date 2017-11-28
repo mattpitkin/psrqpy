@@ -9,8 +9,10 @@ from __future__ import print_function, division
 import warnings
 from collections import OrderedDict
 import re
-import cPickle as pickle
 import six
+
+from six.moves import cPickle as pickle
+from six import string_types
 
 import numpy as np
 import requests
@@ -107,12 +109,12 @@ class QueryATNF(object):
                 raise Exception("No parameters in list")
 
             for p in params:
-                if not isinstance(p, basestring):
+                if not isinstance(p, string_types):
                     raise Exception("Non-string value '{}' found in params list".format(p))
 
             self._query_params = [p.upper() for p in params] # make sure parameter names are all upper case
         else:
-            if isinstance(params, basestring):
+            if isinstance(params, string_types):
                 self._query_params = [params.upper()] # make sure parameter is all upper case
             else:
                 if self._psrs and self._get_ephemeris: # if getting ephemerides then param can be None 
@@ -211,7 +213,7 @@ class QueryATNF(object):
         query_dict['version'] = self._atnf_version
 
         if params:
-            if isinstance(params, basestring):
+            if isinstance(params, string_types):
                 params = [params] # convert to list
             else:
                 if not isinstance(params, list):
@@ -236,7 +238,7 @@ class QueryATNF(object):
         query_dict['sortattr'] = self._sort_attr
 
         if psrnames:
-            if isinstance(psrnames, basestring):
+            if isinstance(psrnames, string_types):
                 self._psrs = [psrnames] # convert to list
             else:
                 if not isinstance(psrnames, list):
@@ -245,7 +247,7 @@ class QueryATNF(object):
 
         qpulsars = '' # pulsar name query string
         if self._psrs is not None:
-            if isinstance(self._psrs, basestring):
+            if isinstance(self._psrs, string_types):
                 self._psrs = [self._psrs] # if a string pulsar name then convert to list
 
             for psr in self._psrs:
@@ -555,7 +557,7 @@ class QueryATNF(object):
         if not condition:
             conditionparse = ''
         else:
-            if not isinstance(condition, basestring):
+            if not isinstance(condition, string_types):
                 warnings.warn('Condition "{}" must be a string. No condition being set'.format(condition), UserWarning)
                 return ''
 
@@ -602,11 +604,11 @@ class QueryATNF(object):
                     raise Exception("No pulsar types in list")
 
                 for p in psrtype:
-                    if not isinstance(p, basestring):
+                    if not isinstance(p, string_types):
                         raise Exception("Non-string value '{}' found in pulsar type list".format(p))
                 self._query_psr_types = psrtype
             else:
-                if isinstance(psrtype, basestring):
+                if isinstance(psrtype, string_types):
                     self._query_psr_types = [psrtype]
                 else:
                     raise Exception("'psrtype' must be a list or string")
@@ -628,11 +630,11 @@ class QueryATNF(object):
                     raise Exception("No pulsar types in list")
 
                 for p in assoc:
-                    if not isinstance(p, basestring):
+                    if not isinstance(p, string_types):
                         raise Exception("Non-string value '{}' found in associations list".format(p))
                 self._query_assocs = assoc
             else:
-                if isinstance(assoc, basestring):
+                if isinstance(assoc, string_types):
                     self._query_assocs = [assoc]
                 else:
                     raise Exception("'assoc' must be a list or string")
@@ -654,11 +656,11 @@ class QueryATNF(object):
                     raise Exception("No pulsar types in list")
 
                 for p in bincomp:
-                    if not isinstance(p, basestring):
+                    if not isinstance(p, string_types):
                         raise Exception("Non-string value '{}' found in binary companions list".format(p))
                 self._query_bincomps = bincomp
             else:
-                if isinstance(bincomp, basestring):
+                if isinstance(bincomp, string_types):
                     self._query_bincomps = [bincomp]
                 else:
                     raise Exception("'bincomp' must be a list or string")
@@ -772,7 +774,7 @@ class QueryATNF(object):
         if intrinsicpdot and 'P1_I' not in self._query_params:
             self._query_params.append('P1_I')
 
-        if isinstance(showtypes, basestring):
+        if isinstance(showtypes, string_types):
             nshowtypes = [showtypes]
         else:
             nshowtypes = showtypes

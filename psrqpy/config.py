@@ -57,7 +57,7 @@ PSR_GENERAL = {'NAME':     {'ref': True, 'err': False, 'units': None, 'format': 
               }
 
 # just return the parameter names
-PSR_GENERAL_PARS = PSR_GENERAL.keys()
+PSR_GENERAL_PARS = list(PSR_GENERAL.keys())
 
 # timing solution and profile parameters
 PSR_TIMING = {'P0':        {'ref': True, 'err': True, 'units': 's', 'format': 'f8'},           # Barycentric period of the pulsar (s)
@@ -79,7 +79,7 @@ PSR_TIMING = {'P0':        {'ref': True, 'err': True, 'units': 's', 'format': 'f
               'S2000':     {'ref': True, 'err': True, 'units': 'mJy', 'format': 'f8'}          # Mean flux density at 2000 MHz (mJy)
              }
 
-PSR_TIMING_PARS = PSR_TIMING.keys()
+PSR_TIMING_PARS = list(PSR_TIMING.keys())
 
 # binary system parameters
 PSR_BINARY = {'BINARY':    {'ref': True, 'err': False, 'units': None, 'format': 'S5'},         # Binary model (usually one of several recognised by the pulsar timing programs TEMPO or TEMPO2). Modified versions of standard models are often used - refer to the source paper for details of the binary model used.
@@ -96,7 +96,7 @@ PSR_BINARY = {'BINARY':    {'ref': True, 'err': False, 'units': None, 'format': 
               'BINCOMP':   {'ref': True, 'err': False, 'units': None, 'format': 'S4'}          # Companion type
              }
 
-PSR_BINARY_PARS = PSR_BINARY.keys()
+PSR_BINARY_PARS = list(PSR_BINARY.keys())
 
 # derived parameters
 PSR_DERIVED = {'R_LUM':    {'ref': False, 'err': False, 'units': 'mJy kpc^2', 'format': 'f8'},      # Radio luminosity at 400 MHz (mJy kpc2)
@@ -113,7 +113,7 @@ PSR_DERIVED = {'R_LUM':    {'ref': False, 'err': False, 'units': 'mJy kpc^2', 'f
                'B_LC':     {'ref': False, 'err': False, 'units': 'G', 'format': 'f8'}               # Magnetic field at light cylinder (gauss)
               }
 
-PSR_DERIVED_PARS = PSR_DERIVED.keys()
+PSR_DERIVED_PARS = list(PSR_DERIVED.keys())
 
 # a list of all allowed parameters for querying
 PSR_ALL = dict(itertools.chain(PSR_GENERAL.items(), PSR_TIMING.items(), PSR_BINARY.items(), PSR_DERIVED.items()))

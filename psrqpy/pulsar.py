@@ -6,7 +6,8 @@ or an interable list of pulsars.
 from __future__ import print_function, division
 
 import warnings
-import six
+
+from six import string_types, iteritems
 
 from .config import PSR_ALL_PARS, PSR_ALL
 from .utils import get_version
@@ -28,7 +29,7 @@ class Pulsar(object):
         self._version = version if not version else get_version()
         self._ephemeris = None
 
-        for key, value in six.iteritems(kwargs):
+        for key, value in iteritems(kwargs):
             setattr(self, key, value)
 
     def __repr__(self):
@@ -51,7 +52,7 @@ class Pulsar(object):
         """
         Return a list of the class attribute values
         """
-        return [value for key, value in six.iteritems(self.__dict__) if key in PSR_ALL_PARS+[par+'_ERR' for par in PSR_ALL_PARS]]
+        return [value for key, value in iteritems(self.__dict__) if key in PSR_ALL_PARS+[par+'_ERR' for par in PSR_ALL_PARS]]
 
     @property
     def name(self):
@@ -185,7 +186,7 @@ class Pulsar(object):
         if not self._ephemeris and ephem:
             self._ephemeris = ephem # set ephemeris if it doesn't already exist
 
-        assert isinstance(self._ephemeris, basestring), 'Ephemeris must be a string'
+        assert isinstance(self._ephemeris, string_types), 'Ephemeris must be a string'
 
         # get ephemeris values
         ephemvals = [ev.split() for ev in ephem.split('\n') if len(ev.split()) > 1]
@@ -336,7 +337,7 @@ class Pulsars(object):
             psrname (str): a string with the name of a pulsar
         """
 
-        assert isinstance(psrname, basestring), 'psrname is not a string'
+        assert isinstance(psrname, string_types), 'psrname is not a string'
 
         if psrname in self._psrs:
             del self._psrs[psrname]
@@ -348,7 +349,7 @@ class Pulsars(object):
         Args:
             psrname (str): a string with the name of a pulsar
         """
-        assert isinstance(psrname, basestring), 'psrname is not a string'
+        assert isinstance(psrname, string_types), 'psrname is not a string'
 
         if psrname in self._psrs:
             return self._psrs.pop(psrname)

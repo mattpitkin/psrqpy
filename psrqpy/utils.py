@@ -9,8 +9,9 @@ import re
 import datetime
 import numpy as np
 import requests
-
 from bs4 import BeautifulSoup
+
+from six import string_types
 
 from .config import ATNF_BASE_URL, ATNF_VERSION, ADS_URL
 
@@ -117,7 +118,7 @@ def get_references(useads=False):
                                'Sov. Astron. Lett.': 'SvAL',
                                'ATel.': 'ATel'}
 
-                if isinstance(rdf, basestring): # only run on string values
+                if isinstance(rdf, string_types): # only run on string values
                     rdfs = re.sub(r'\s+', ' ', rdf) # make sure only single spaces are present
                     for js in journalsubs:
                         if js in rdfs:
@@ -160,7 +161,7 @@ def get_references(useads=False):
             if '&' in sepauthors[-1] or 'and' in sepauthors[-1]: # split any authors that are seperated by an ampersand
                 lastauthors = [a.strip() for a in re.split(r'& | and ', sepauthors.pop(-1))]
                 sepauthors = sepauthors + lastauthors
-                for i in xrange(len(sepauthors)-2):
+                for i in range(len(sepauthors)-2):
                     sepauthors[i] += '.' # re-add final full stops where needed
                 sepauthors[-1] += '.'
             else:
