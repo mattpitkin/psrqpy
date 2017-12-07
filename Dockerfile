@@ -1,9 +1,9 @@
 # use python 2.7 build
 FROM python:2.7-slim
 
-WORKDIR /app
+WORKDIR /app2.7
 
-ADD . /app
+ADD . /app2.7
 
 # Install any needed packages specified in requirements.txt
 RUN pip install --trusted-host pypi.python.org -r requirements.txt
@@ -16,6 +16,10 @@ RUN python2.7 setup.py install
 
 # use python 3.5 build
 FROM python:3.5-slim
+
+WORKDIR /app3.5
+
+ADD . /app3.5
 
 # Install any needed packages specified in requirements.txt
 RUN pip3 install --trusted-host pypi.python.org -r requirements.txt
