@@ -2,6 +2,8 @@
 #FROM ubuntu:xenial
 FROM python:2.7-slim
 
+WORKDIR .
+
 # Install python 2.7 and 3.5
 #RUN set -x \
 #    && pythonVersions='python2.7 python3.5' \
