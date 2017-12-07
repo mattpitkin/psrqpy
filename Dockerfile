@@ -2,7 +2,9 @@
 #FROM ubuntu:xenial
 FROM python:2.7-slim
 
-WORKDIR .
+WORKDIR /app
+
+ADD . /app
 
 # Install python 2.7 and 3.5
 #RUN set -x \
