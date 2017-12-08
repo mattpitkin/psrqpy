@@ -781,7 +781,7 @@ class QueryATNF(object):
 
         for stype in nshowtypes:
             if 'ALL' == stype.upper():
-                nshowtypes = PSR_TYPES
+                nshowtypes = list(PSR_TYPES)
                 del nshowtypes[nshowtypes.index('RADIO')] # remove radio as none are returned as this 
                 break
             if 'SGR' == stype.upper(): # synonym for AXP
