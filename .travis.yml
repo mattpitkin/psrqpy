@@ -13,7 +13,7 @@ install:
   - pip install sphinx sphinx-rtd-theme
   # build psrqpy
   - pip install -e .
-scripts:
+script:
   # try running a query
   - python -c "import sys; from psrqpy import QueryATNF; query = QueryATNF(params='JName'); fig = query.ppdot(); sys.exit(0)"
   # try building documentation
