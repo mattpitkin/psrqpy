@@ -11,7 +11,7 @@ Any comments or suggestions are welcome.
 
 ## Installation
 
-To install the code from source clone the git repository and run either:
+To install the code from source, clone the git repository and run either:
 
 ```
 python setup.py install --user
@@ -20,7 +20,7 @@ python setup.py install --user
 to install as a user, or
 
 ```
-sudo python setup.py install --user
+sudo python setup.py install
 ```
 
 to install as root.
