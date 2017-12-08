@@ -839,9 +839,9 @@ class QueryATNF(object):
         pdots = pdots[pidx]
 
         if 'ASSOC' in self._query_params:
-            assocs = t['ASSOC'][pidx]   # associations
+            assocs = t['ASSOC'][pidx]    # associations
         if 'TYPE' in self._query_params:
-            types = t['TYPE'][pidx]     # pulsar types
+            types = t['TYPE'][pidx]      # pulsar types
         if 'BINARY' in nshowtypes:
             binaries = t['BINARY'][pidx] # binary pulsars
 
@@ -929,13 +929,14 @@ class QueryATNF(object):
         for stype in nshowtypes:
             if stype.upper() in PSR_TYPES + ['GC', 'SNR']:
                 thistype = stype.upper()
+                # six.b() makes sure it compares bytes types in python 3
                 if thistype == 'BINARY':
                     # for binaries used the 'BINARY' column in the table
-                    typeidx = np.flatnonzero(np.char.find(binaries, '*')==-1)
+                    typeidx = np.flatnonzero(np.char.find(binaries, six.b('*'))==-1)
                 elif thistype in ['GC', 'SNR']:
-                    typeidx = np.flatnonzero(np.char.find(assocs, thistype)!=-1)
+                    typeidx = np.flatnonzero(np.char.find(assocs, six.b(thistype))!=-1)
                 else:
-                    typeidx = np.flatnonzero(np.char.find(types, thistype)!=-1)
+                    typeidx = np.flatnonzero(np.char.find(types, six.b(thistype))!=-1)
 
                 if len(typeidx) == 0:
                     continue
