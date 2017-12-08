@@ -5,6 +5,9 @@ branches:
 python:
   - "2.7"
   - "3.5"
+before_install:
+  # add a latex install for the matplotlib testing
+  - sudo apt-get -qq update && sudo apt-get install -y --no-install-recommends texlive-full
 install:
   - pip install -r requirements.txt
   # install additionally allowed packages
@@ -22,6 +25,7 @@ script:
   - python -c "import sys; from psrqpy import QueryATNF; query = QueryATNF(params='JName'); fig = query.ppdot(); sys.exit(0)"
   # try building documentation
   - cd docs
+  - mkdir source/_static
   - sphinx-apidoc ../psrqpy -o .
   - make html
 
