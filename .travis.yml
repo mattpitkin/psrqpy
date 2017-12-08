@@ -1,0 +1,23 @@
+language: python
+branches:
+  only:
+    master
+python:
+  - "2.7"
+  - "3.5"
+install:
+  - pip install -r requirements.txt
+  # install additionally allowed packages
+  - pip install matplotlib ads
+  # install packages for documentation building
+  - pip install sphinx sphinx-rtd-theme
+  # build psrqpy
+  - pip install -e .
+scripts:
+  # try running a query
+  - python -c "import sys; from psrqpy import QueryATNF; query = QueryATNF(params='JName'); fig = query.ppdot(); sys.exit(0)"
+  # try building documentation
+  - cd docs
+  - sphinx-apidoc ../psrqpy -o .
+  - make html
+
