@@ -26,6 +26,5 @@ script:
   # try building documentation
   - cd docs
   - mkdir source/_static
-  - sphinx-apidoc ../psrqpy -o .
   - make html
 
