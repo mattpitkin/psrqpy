@@ -8,8 +8,8 @@ python:
 before_install:
   # add a latex install for the matplotlib testing
   #- sudo apt-get -qq update && sudo apt-get install -y --no-install-recommends texlive-full
-  # try a lighter weight texlive distribution, e.g. just texlive
-  - sudo apt-get -qq update && sudo apt-get install -y --no-install-recommends texlive
+  # try a lighter weight texlive distribution, e.g. just texlive and texlive-latex-extra
+  - sudo apt-get -qq update && sudo apt-get install -y --no-install-recommends texlive texlive-latex-extra
 install:
   - pip install -r requirements.txt
   # install additionally allowed packages
