@@ -107,7 +107,7 @@ use, e.g., if using a previous ``query`` we had done:
 
     >>> query.save('atnfquery.pkl')
 
-The we could reload this with
+Then we could reload this with
 
    >>> oldquery = QueryATNF(loadfromfile='atnfquery.pkl')
 
