@@ -118,4 +118,6 @@ This code is licensed under the [MIT License](http://opensource.org/licenses/MIT
 
 [![PyPI version](https://badge.fury.io/py/psrqpy.svg)](https://badge.fury.io/py/psrqpy)
 [![Build Status](https://travis-ci.org/mattpitkin/psrqpy.svg?branch=master)](https://travis-ci.org/mattpitkin/psrqpy)
+[![Documentation Status](https://readthedocs.org/projects/psrqpy/badge/?version=latest)](http://psrqpy.readthedocs.io/en/latest/?badge=latest)
+
 
