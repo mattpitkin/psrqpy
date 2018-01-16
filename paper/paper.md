@@ -20,7 +20,7 @@ the catalogue without having to use the current web interface. As such,
 querying of the catalogue can easily be incorporated into Python scripts.
 
 The module can also be used to create plots of pulsar period against period
-derivative ($P$ vs.\ $\dot{P} plots) using `matplotlib` [@matplotlib] as shown
+derivative ($P$ vs.\ $\dot{P}$ plots) using `matplotlib` [@matplotlib] as shown
 below.
 
 ![A plot of pulsar period vs.\ period derivative as produced using *psrqpy*](ppdot.png)
