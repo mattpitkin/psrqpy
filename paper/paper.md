@@ -6,7 +6,10 @@ tags:
 authors:
   - name: Matthew Pitkin
     orcid: 0000-0003-4548-526X
-    affiliation: Institute for Gravitational Research, SUPA, University of Glasgow, University Avenue, Glasgow, UK, G12 8QQ
+    affiliation: 1
+affiliations:
+  - name: Institute for Gravitational Research, SUPA, University of Glasgow, University Avenue, Glasgow, UK, G12 8QQ
+   index: 1
 date: 16 January 2018
 bibliography: paper.bib
 ---
