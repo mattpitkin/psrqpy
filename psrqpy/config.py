@@ -8,6 +8,7 @@ import itertools
 ATNF_VERSION = '1.57' #: the default ATNF catalogue version
 ATNF_BASE_URL = r'http://www.atnf.csiro.au/people/pulsar/psrcat/' #: the ATNF pulsar catalogue base URL
 ATNF_URL = ATNF_BASE_URL + r'proc_form.php?version={version}' #: the ATNF pulsar catalogue base URL for queries
+ATNF_TARBALL = ATNF_BASE_URL + r'downloads/psrcat_pkg.tar.gz' #: name of the tarball containing the entire catalogue database
 
 PARAMS_QUERY = r'{params}'
 USERDEFINED_QUERY = r'&startUserDefined=true&c1_val=&c2_val=&c3_val=&c4_val='

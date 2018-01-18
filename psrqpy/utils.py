@@ -12,11 +12,100 @@ import requests
 from bs4 import BeautifulSoup
 
 from six import string_types
+from six import StringIO
 
 from .config import ATNF_BASE_URL, ATNF_VERSION, ADS_URL
 
 # problematic references that are hard to parse
 PROB_REFS = ['bwck08']
+
+
+def get_catalogue():
+    """
+    This function will attempt to download the entire ATNF catalogue `tarball
+    <http://www.atnf.csiro.au/people/pulsar/psrcat/downloads/psrcat_pkg.tar.gz>`_ and convert it to
+    an :class:`astropy.table.Table`. This is based on the method in the `ATNF.ipynb
+    <https://github.com/astrophysically/ATNF-Pulsar-Cat/blob/master/ATNF.ipynb>`_ notebook by
+    Joshua Tan (`@astrophysically <https://github.com/astrophysically/>`_).
+
+    Note:
+        At the moment this function does not return a table that includes the uncertainties on the
+        parameters.
+    """
+    
+    try:
+        import urllib2
+    except ImportError:
+        raise ImportError('Problem importing urllib2')
+
+    try:
+        import tarfile
+    except ImportError:
+        raise ImportError('Problem importing tarfile')
+
+    try:
+        from astropy.table import Table, MaskedColumn
+    except ImportError:
+        raise ImportError('Problem importing astropy')
+
+    # get the tarball
+    try:
+        pulsargzfile = urllib2.urlopen(ATNF_TARBALL)
+        fp = StringIO(pulsargzfile.read()) # download and store in memory
+    except IOError:
+        raise IOError('Problem accessing ATNF catalogue tarball')
+
+    try:
+        # open tarball
+        pulsargz = tarfile.open(fileobj=fp, mode='r:gz')
+
+        # extract the database file
+        dbfile = pulsargz.extractfile('psrcat_tar/psrcat.db')
+    except IOError:
+        raise IOError('Problem extracting the database file')
+
+    breakstring = '@'   # break bewteen each pulsar
+    commentstring = '#' # specifies line is a comment
+
+    psrtable = Table(masked=True)
+    ind = 0 # Keeps track of how many objects
+    psrtable.add_row(None) #db file jumps right in! Better add the first row.
+    
+    # loop through lines in dbfile
+    for line in dbfile.readlines():
+        dataline = line.split()   # Splits on whitespace
+
+        if dataline[0][0] == commentstring:
+            continue
+
+        if dataline[0][0] == breakstring:
+            psrtable.add_row(None)   # First break comes at the end of the first object and so forth.
+            ind += 1                 # New object!
+            psrtable.mask[ind] = [True]*len(psrtable.columns) # Default mask to True
+            continue
+
+        if dataline[0] not in psrtable.colnames:  #Make a new column
+            if dataline[0] in PSR_ALL_PARS:
+                thisdtstr = PSR_ALL[dataline[0]]['format']
+                unitstr = PSR_ALL[dataline[0]]['units']
+            else:
+                thisdtstr = 'S64' # default to string type
+                unitstr = None
+
+            newcolumn = MaskedColumn(name=dataline[0], dtype=thisdtstr, mask=True, unit=unitstr, length=ind+1) 
+            psrtable.add_column(newcolumn)
+
+        psrtable[dataline[0]][ind] = dataline[1] # Data entry
+        psrtable[dataline[0]].mask[ind] = False  # Turn off masking for this entry
+
+    psrtable.remove_row(ind) # Final breakstring comes at the end of the file
+
+    dbfile.close()   # close tar file
+    pulsargz.close()
+    fp.close()       # close StringIO
+
+    return psrtable
+
 
 def get_version():
     """
