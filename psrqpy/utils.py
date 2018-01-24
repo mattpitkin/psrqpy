@@ -28,6 +28,9 @@ def get_catalogue():
     <https://github.com/astrophysically/ATNF-Pulsar-Cat/blob/master/ATNF.ipynb>`_ notebook by
     Joshua Tan (`@astrophysically <https://github.com/astrophysically/>`_).
 
+    Returns:
+        :class:`~astropy.table.Table`: a table containing the entire catalogue.
+
     Note:
         At the moment this function does not return a table that includes the uncertainties on the
         parameters.
@@ -109,7 +112,10 @@ def get_catalogue():
 
 def get_version():
     """
-    Return a string with the ATNF version number, or default to that defined in ATNF_VERSION
+    Return a string with the ATNF catalogue version number, or default to that defined in `ATNF_VERSION`.
+    
+    Returns:
+        str: the ATNF catalogue verion number.
     """
 
     site = requests.get(ATNF_BASE_URL)
