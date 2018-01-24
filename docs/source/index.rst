@@ -78,6 +78,12 @@ ATNF catalogue, the value of which is printed in the above example.
    the catalogue <http://www.atnf.csiro.au/research/pulsar/psrcat/download.html>`_ and query it with the ``psrcat`` software
    provided.
 
+A function, :func:`~psrqpy.utils.get_catalogue`, is also available to download the entire catalogue and return it as an
+:class:`astropy.table.Table`. This function is heavily based on
+`code <https://github.com/astrophysically/ATNF-Pulsar-Cat/blob/master/ATNF.ipynb>`_ by Joshua Tan
+(`@astrophysically <https://github.com/astrophysically/>`_). The function currently does not return parameter uncertainties
+or references in the table.
+
 More complex queries
 --------------------
 

@@ -1003,3 +1003,4 @@ class QueryATNF(object):
 
         # return the figure
         return fig
+
