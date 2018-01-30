@@ -34,7 +34,7 @@ The requirements for installing the code are:
  * :mod:`requests`
  * :mod:`bs4`
  * :mod:`numpy`
- * :mod:`astropy<3.0` (versions 3.0 or greater will not work for Python 2)
+ * :mod:`astropy` (for Python 2 astropy versions before [3.0](http://docs.astropy.org/en/latest/whatsnew/3.0.html#whatsnew-3-0-python3) must be used)
  * :mod:`datetime`
 
 The :mod:`ads` module and :mod:`matplotlib` are optional requirement to get the full functionality.
