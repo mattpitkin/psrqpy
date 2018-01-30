@@ -2,5 +2,5 @@ six
 requests
 beautifulsoup4
 numpy
-astropy
+astropy<3.0
 datetime

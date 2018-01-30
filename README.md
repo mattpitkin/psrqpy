@@ -39,7 +39,7 @@ The requirements for installing the code are:
  * `requests`
  * `beautifulsoup4`
  * `numpy`
- * `astropy`
+ * `astropy<3.0` (versions 3.0 or greater will not work for Python 2)
  * `datetime`
 
 The `ads` module is an optional requirement that is needed to get ADS URLs for references.
