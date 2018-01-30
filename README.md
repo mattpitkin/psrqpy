@@ -33,13 +33,13 @@ pip install psrqpy
 
 ### Requirements
 
-The requirements for installing the code are:
+The [requirements](requirements.txt) for installing the code are:
 
  * `six`
  * `requests`
  * `beautifulsoup4`
  * `numpy`
- * `astropy<3.0` (versions 3.0 or greater will not work for Python 2)
+ * `astropy` (for Python 2 astropy versions before [3.0](http://docs.astropy.org/en/latest/whatsnew/3.0.html#whatsnew-3-0-python3) must be used)
  * `datetime`
 
 The `ads` module is an optional requirement that is needed to get ADS URLs for references.
