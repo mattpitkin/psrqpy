@@ -37,7 +37,7 @@ The requirements for installing the code are:
  * :mod:`requests`
  * :mod:`bs4`
  * :mod:`numpy`
- * :mod:`astropy` (for Python 2 astropy versions before [3.0](http://docs.astropy.org/en/latest/whatsnew/3.0.html#whatsnew-3-0-python3) must be used)
+ * :mod:`astropy` (for Python 2 astropy versions before `3.0 <http://docs.astropy.org/en/latest/whatsnew/3.0.html#whatsnew-3-0-python3>`_ must be used)
  * :mod:`datetime`
 
 The :mod:`ads` module and :mod:`matplotlib` are optional requirement to get the full functionality.
@@ -173,6 +173,16 @@ We can also get the whole ephemeris for the Crab with
     P1              4.20972E-13              3.000e-18
     DIST_DM         1.31
     ...
+
+**Return a reference**
+
+We can make use of the `ADS module <https://ads.readthedocs.io/en/latest/>`_ to return links to references for pulsars/pulsar parameters.
+For example we could get the reference for the orbital period of J0737-3039A with
+
+    >>> from psrqpy import QueryATNF
+    >>> query = QueryATNF(params='PB', psrs='J0737-3039A', include_refs=True, adsref=True)
+    >>> print(query.table()['PB_REFURL'][0])
+    https://ui.adsabs.harvard.edu/#abs/2006Sci...314...97K/
 
 .. _make-p-pdot-diagram:
 
