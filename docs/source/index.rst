@@ -12,7 +12,10 @@ The psrqpy package
 
 .. automodule:: psrqpy
 
-This package provides a way to directly query the `ATNF Pulsar Catalogue <http://www.atnf.csiro.au/people/pulsar/psrcat/>`_ [1]_ using python.
+This package provides a way to directly query the `ATNF Pulsar Catalogue <http://www.atnf.csiro.au/people/pulsar/psrcat/>`_ [1]_ using Python.
+It is primarily aimed at astronomers wanting access to the latest pulsar information via a script,
+rather than through the standard web interface. It also provides a function to produce a
+:math:`P-\dot{P}` :ref:`diagram <make-p-pdot-diagram>` using the latest catalogue information.
 
 Installation
 ============
@@ -170,6 +173,8 @@ We can also get the whole ephemeris for the Crab with
     P1              4.20972E-13              3.000e-18
     DIST_DM         1.31
     ...
+
+.. _make-p-pdot-diagram:
 
 **Make a P-Pdot diagram**
 
