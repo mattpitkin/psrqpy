@@ -24,7 +24,10 @@ from .utils import *
 class QueryATNF(object):
     """
     A class to generate a query of the
-    `ATNF pulsar catalogue <http://www.atnf.csiro.au/people/pulsar/psrcat/>`_.
+    `ATNF pulsar catalogue <http://www.atnf.csiro.au/people/pulsar/psrcat/>`_. This class will
+    generate and return a query and for a set of pulsar parameters. Specific pulsars can also be
+    queried. Conditions can be set on the queried parameters. The results can be converted into a
+    dictionary or an :class:`astropy.table.Table`.
 
     Args:
         params (str, :obj:`list`, required): a list of strings with the pulsar `parameters

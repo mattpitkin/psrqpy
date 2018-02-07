@@ -14,7 +14,10 @@ from .utils import get_version
 
 class Pulsar(object):
     """
-    An object to hold a single pulsar. The class requires a pulsar name is required.
+    An object to hold a single pulsar. The class requires a pulsar name is required. The pulsar
+    parameters are set as attributes of the class. If a particular parameter is requested from
+    the class, but is not already an attribute, the it will be requested from the ATNF pulsar
+    catalogue using :class:`~psrqpy.search.QueryATNF`.
 
     Args:
         psrname (str): a string containing a pulsar name
