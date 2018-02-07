@@ -25,6 +25,8 @@ before_script: # configure a headless display to test plot generation (see https
 script:
   # try running a query
   - python -c "import sys; from psrqpy import QueryATNF; query = QueryATNF(params='JName'); fig = query.ppdot(); sys.exit(0)"
+  # check the Crab pulsar frequency rounds down to 29 Hz (should be OK for another ~80 years)
+  - python -c "import sys; from numpy import floor; from psrqpy import QueryATNF; query = QueryATNF(params=[F0'], psrs=['J0534+2200']); sys.exit(0) if floor(q.get_dict()['F0'][0]) == 29.0 else sys.exit(1)"
   # try building documentation
   - cd docs
   - mkdir source/_static

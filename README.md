@@ -48,7 +48,7 @@ The `ads` module is an optional requirement that is needed to get ADS URLs for r
 
 A simple query of the catalogue, e.g., to just return all pulsar frequencies, would be:
 
-```
+```python
 import psrqpy
 
 q = psrqpy.QueryATNF(params='F0')
@@ -61,7 +61,7 @@ print t['F0']
 
 You can query multiply parameters, e.g.:
 
-```
+```python
 import psrqpy
 
 q = psrqpy.QueryATNF(params=['F0', 'F1', 'RAJ', 'DecJ'])
@@ -74,19 +74,27 @@ print t['F0']
 
 You can query specific pulsars, e.g.:
 
-```
+```python
 import psrqpy
 
 q = psrqpy.QueryATNF(params=['JName', 'F0', 'F1', 'RAJ', 'DecJ'], psrs=['J0534+2200', 'J0537-6910'])
 
 # get values as an astropy table
 t = q.table()
+
+# print the table
+print(t)
+  JNAME          F0       F0_ERR       F1      F1_ERR     RAJ      RAJ_ERR     DECJ     DECJ_ERR
+                 Hz         Hz       1 / s2    1 / s2                                           
+---------- ------------- ------- ------------- ------ ------------ ------- ------------ --------
+J0534+2200     29.946923   1e-06  -3.77535e-10  2e-15 05:34:31.973   0.005 +22:00:52.06     0.06
+J0537-6910 62.0261895958 1.3e-09 -1.992272e-10  4e-17 05:37:47.416    0.11 -69:10:19.88      0.6
 ```
 
 You can set [conditions](http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=normal#condition) for the searches,
 e.g.:
 
-```
+```python
 import psrqpy
 q = psrqpy.QueryATNF(params=['Jname', 'f0'], condition='f0 > 100 && f0 < 200', assoc='GC')
 ```
