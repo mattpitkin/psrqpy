@@ -185,6 +185,14 @@ where this shows all pulsar types and pulsars in supernova remnants, to give
 .. figure::  images/ppdot.png
    :align:   center
 
+Development and Support
+=======================
+
+Code development is done via the package's `GitHib repository <https://github.com/mattpitkin/psrqpy>`_.
+Any contributions can be made via a `fork and pull request <https://help.github.com/articles/creating-a-pull-request-from-a-fork/>`_ model
+from that repository, and must adhere to the :ref:`MIT license <copyright-license-for-psrqpy>`. Any problems with the code
+or support requests can be submitted via the repository's `Issue tracker <https://github.com/mattpitkin/psrqpy/issues>`_.
+
 API interface
 =============
 
@@ -208,6 +216,8 @@ Regarding the use of the catalogue and software behind it, the `following statem
     The programs and databases remain the property of the Australia Telescope National Facility, CSIRO, and are covered by the `CSIRO Legal Notice and Disclaimer <http://www.csiro.au/en/About/Footer/Legal-notice>`_.
 
     If you make use of information from the ATNF Pulsar Catalogue in a publication, we would appreciate acknowledgement by reference to the publication "`The ATNF Pulsar Catalogue <http://adsabs.harvard.edu/abs/2005AJ....129.1993M>`_", R. N. Manchester, G. B. Hobbs, A. Teoh & M. Hobbs, Astronomical Journal, 129, 1993-2006 (2005) and by quoting the web address http://www.atnf.csiro.au/research/pulsar/psrcat for updated versions.
+
+.. _copyright-license-for-psrqpy:
 
 Copyright & license for psrqpy
 ------------------------------
