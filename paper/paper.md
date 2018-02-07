@@ -33,4 +33,3 @@ pulsars using the `ads` Python module [@ADS].
 
 Development of *psrqpy* happens on Github [@psrqpy_github] and the documentation
 is provided [here](http://psrqpy.readthedocs.io).
-

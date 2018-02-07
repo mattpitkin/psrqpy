@@ -98,6 +98,13 @@ it could result in too much load on the ATNF catalogue's server. Instead it is p
 the catalogue](http://www.atnf.csiro.au/research/pulsar/psrcat/download.html) and query it with the software
 provided.
 
+## Development and Support
+
+Code development is done via the package's [GitHib repository](https://github.com/mattpitkin/psrqpy).
+Any contributions can be made via a [fork and pull request](https://help.github.com/articles/creating-a-pull-request-from-a-fork/) model
+from that repository, and must adhere to the [MIT license](#License). Any problems with the code
+or support requests can be submitted via the repository's [Issue tracker](https://github.com/mattpitkin/psrqpy/issues).
+
 ## Copyright and referencing for the catalogue
 
 Regarding the use of the catalogue and software behind it, the [following statements](http://www.atnf.csiro.au/research/pulsar/psrcat/download.html) apply:
