@@ -19,7 +19,7 @@ bibliography: paper.bib
 This Python module provides an interface for querying the [Australia Telescope
 National Facility (ATNF) pulsar catalogue](http://www.atnf.csiro.au/people/pulsar/psrcat/) [@ATNF].
 The intended users are astronomers wanting to extract data from the catalogue through a
-script rather than having to download and parse txet tables output using the standard web interface. It allows users to access
+script rather than having to download and parse text tables output using the standard web interface. It allows users to access
 information, such as pulsar frequencies and sky locations, on all pulsars in
 the catalogue. Querying of the catalogue can easily be incorporated into Python scripts.
 
