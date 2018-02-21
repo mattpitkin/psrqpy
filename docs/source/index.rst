@@ -239,7 +239,7 @@ Copyright & license for psrqpy
 
 This code is licensed under the `MIT License <http://opensource.org/licenses/MIT>`_.
 
-If making use of this code to access to the catalogue, or produce plots, I would be grateful if (as well as citing the ATNF pulsar catalogue `paper <http://adsabs.harvard.edu/abs/2005AJ....129.1993M>`_ and `URL <http://www.atnf.csiro.au/research/pulsar/psrcat>`_ given above) you consider citing the `paper <https://doi.org/10.21105/joss.00538>`_ for this software:
+If making use of this code to access the catalogue, or produce plots, I would be grateful if (as well as citing the ATNF pulsar catalogue `paper <http://adsabs.harvard.edu/abs/2005AJ....129.1993M>`_ and `URL <http://www.atnf.csiro.au/research/pulsar/psrcat>`_ given above) you consider citing the `JOSS <http://joss.theoj.org/>`_ `paper <https://doi.org/10.21105/joss.00538>`_ for this software:
 
 .. code-block:: tex
 
