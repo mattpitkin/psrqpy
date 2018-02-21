@@ -125,6 +125,23 @@ Regarding the use of the catalogue and software behind it, the [following statem
 >
 > If you make use of information from the ATNF Pulsar Catalogue in a publication, we would appreciate acknowledgement by reference to the publication "[The ATNF Pulsar Catalogue](http://adsabs.harvard.edu/abs/2005AJ....129.1993M)", R. N. Manchester, G. B. Hobbs, A. Teoh & M. Hobbs, Astronomical Journal, 129, 1993-2006 (2005) and by quoting the web address http://www.atnf.csiro.au/research/pulsar/psrcat for updated versions.
 
+If making use of this code to access to the catalogue, or produce plots, I would be grateful if (as well as citing the ATNF pulsar catalogue [paper](http://adsabs.harvard.edu/abs/2005AJ....129.1993M) and [URL](http://www.atnf.csiro.au/research/pulsar/psrcat) given above) you consider citing the [paper](https://doi.org/10.21105/joss.00538) for this software:
+
+```
+@article{psrqpy,
+  author = {{Pitkin}, M.},
+   title = "{psrqpy: a python interface for querying the ATNF pulsar catalogue}",
+  volume = 3,
+  number = 22,
+   pages = 538,
+   month = feb,
+    year = 2018,
+ journal = "{Journal of Open Source Software}",
+     doi = {10.21105/joss.00538},
+     url = {https://doi.org/10.21105/joss.00538}
+}
+```
+
 ## License
 
 This code is licensed under the [MIT License](http://opensource.org/licenses/MIT).
