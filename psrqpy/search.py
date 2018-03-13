@@ -21,6 +21,15 @@ from bs4 import BeautifulSoup
 from .config import *
 from .utils import *
 
+
+# set formatting of warnings to not include line number and code (see
+# e.g. https://pymotw.com/3/warnings/#formatting)
+def warning_format(message, category, filename, lineno, file=None, line=None):
+    return '{}: {}'.format(category.__name__, message)
+
+warnings.formatwarning = warning_format
+
+
 class QueryATNF(object):
     """
     A class to generate a query of the
@@ -321,7 +330,15 @@ class QueryATNF(object):
                         self._bad_pulsars.append(wvalues['psr'])
                         # remove any pulsars that weren't found
                         if wvalues['psr'] in self._psrs:
-                            del self._psrs[wvalues['psr']]
+                            del self._psrs[self._psrs.index(wvalues['psr'])]
+
+                            # if there are no pulsars left in the list then return None
+                            if len(self._psrs) == 0:
+                                print('No requested pulsars were found in the catalogue')
+                                self._query_output = None
+                                self._npulsars = 0
+                                self._pulsars = None
+                                return None
 
         # actual table or ephemeris values should be in the final <pre> tag
         qoutput = pretags[-1].text
