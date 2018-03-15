@@ -44,7 +44,7 @@ The [requirements](requirements.txt) for installing the code are:
 
 The `ads` module is an optional requirement that is needed to get ADS URLs for references.
 
-## Example
+## Examples
 
 A simple query of the catalogue, e.g., to just return all pulsar frequencies, would be:
 
@@ -74,7 +74,7 @@ print t['F0']
 
 You can query specific pulsars, e.g.:
 
-```python
+```
 import psrqpy
 
 q = psrqpy.QueryATNF(params=['JName', 'F0', 'F1', 'RAJ', 'DecJ'], psrs=['J0534+2200', 'J0537-6910'])
@@ -101,10 +101,28 @@ q = psrqpy.QueryATNF(params=['Jname', 'f0'], condition='f0 > 100 && f0 < 200', a
 
 where `assoc=GC` looks for all pulsars in globular clusters.
 
-If you really want to query the catalogue many times in quick succession it is advisable not to use this module, as
-it could result in too much load on the ATNF catalogue's server. Instead it is probably preferable to [download
+If you really want to query the catalogue many times in quick succession it is probably preferable to [download
 the catalogue](http://www.atnf.csiro.au/research/pulsar/psrcat/download.html) and query it with the software
-provided.
+provided. The enitre catalogue can be downloaded using:
+
+```python
+import psrqpy
+catalogue = psrqpy.get_catalogue()
+```
+
+You can also [generate](http://psrqpy.readthedocs.io/en/latest/query.html#psrqpy.search.QueryATNF.ppdot) a
+_lovely_ period vs. period derivative plot based on the latest catalogue information, using
+just three lines of code, e.g.:
+
+```python
+from psrqpy import QueryATNF
+query = QueryATNF(params=['P0', 'P1', 'ASSOC', 'BINARY', 'TYPE', 'P1_I'])
+query.ppdot(showSNRs=True, showtypes='all')
+```
+
+gives
+
+![PPdot](../master/docs/source/images/ppdot.png)
 
 ## Development and Support
 
