@@ -59,7 +59,7 @@ t = q.table()
 print t['F0']
 ```
 
-You can query multiply parameters, e.g.:
+You can query multiple parameters, e.g.:
 
 ```python
 import psrqpy
