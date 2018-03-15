@@ -14,7 +14,7 @@ from bs4 import BeautifulSoup
 from six import string_types
 from six import StringIO
 
-from .config import ATNF_BASE_URL, ATNF_VERSION, ADS_URL
+from .config import ATNF_BASE_URL, ATNF_VERSION, ADS_URL, ATNF_TARBALL, PSR_ALL, PSR_ALL_PARS
 
 # problematic references that are hard to parse
 PROB_REFS = ['bwck08']
@@ -92,7 +92,7 @@ def get_catalogue():
                 thisdtstr = PSR_ALL[dataline[0]]['format']
                 unitstr = PSR_ALL[dataline[0]]['units']
             else:
-                thisdtstr = 'S64' # default to string type
+                thisdtstr = 'U128' # default to string type
                 unitstr = None
 
             newcolumn = MaskedColumn(name=dataline[0], dtype=thisdtstr, mask=True, unit=unitstr, length=ind+1) 

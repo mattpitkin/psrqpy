@@ -29,8 +29,8 @@ QUERY_URL = ATNF_URL + PARAMS_QUERY + USERDEFINED_QUERY + SORT_QUERY + CONDITION
 #  - 'format': a string giving the parameter format (to be used if generating an astropy table)
 PSR_GENERAL = {'NAME':     {'ref': True, 'err': False, 'units': None, 'format': 'S32'},        # Pulsar name.  The B name if exists, otherwise the J name.
                'JNAME':    {'ref': True, 'err': False, 'units': None, 'format': 'S32'},        # Pulsar name based on J2000 coordinates
-               'RAJ':      {'ref': True, 'err': True, 'units': None, 'format': 'S32'},         # Right ascension (J2000) (hh:mm:ss.s)
-               'DECJ':     {'ref': True, 'err': True, 'units': None, 'format': 'S32'},         # Declination (J2000) (+dd:mm:ss)
+               'RAJ':      {'ref': True, 'err': True, 'units': None, 'format': 'U64'},         # Right ascension (J2000) (hh:mm:ss.s)
+               'DECJ':     {'ref': True, 'err': True, 'units': None, 'format': 'U64'},         # Declination (J2000) (+dd:mm:ss)
                'PMRA':     {'ref': True, 'err': True, 'units': 'mas/yr', 'format': 'f8'},      # Proper motion in the right ascension direction (mas/yr)
                'PMDEC':    {'ref': True, 'err': True, 'units': 'mas/yr', 'format': 'f8'},      # Proper motion in declination (mas/yr)
                'PX':       {'ref': True, 'err': True, 'units': 'mas', 'format': 'f8'},         # Annual parallax (mas)
@@ -43,16 +43,16 @@ PSR_GENERAL = {'NAME':     {'ref': True, 'err': False, 'units': None, 'format': 
                'GB':       {'ref': False, 'err': False, 'units': 'deg', 'format': 'f8'},       # Galactic latitude (degrees)
                'RAJD':     {'ref': False, 'err': False, 'units': 'deg', 'format': 'f8'},       # Right ascension (J2000) (degrees)
                'DecJD':    {'ref': False, 'err': False, 'units': 'deg', 'format': 'f8'},       # Declination (J2000) (degrees)
-               'TYPE':     {'ref': True, 'err': False, 'units': None, 'format': 'S32'},        # Type codes for the pulsar (http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#psr_types)
+               'TYPE':     {'ref': True, 'err': False, 'units': None, 'format': 'U64'},        # Type codes for the pulsar (http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#psr_types)
                'DIST':     {'ref': False, 'err': False, 'units': 'kpc', 'format': 'f8'},       # Best estimate of the pulsar distance using the YMW16 DM-based distance as default (kpc)
                'DIST_DM':  {'ref': True, 'err': False, 'units': 'kpc', 'format': 'f8'},        # Distance based on the YMW16 electron density model. In 'LONG' or 'PUBLICATION QUALITY' modes, lower limits from the distance model are preceded by a '+' sign.
                'DMSINB':   {'ref': False, 'err': False, 'units': 'cm^-3 pc', 'format': 'f8'},  # DM x sin(b) (cm-3 pc)
                'ZZ':       {'ref': False, 'err': False, 'units': 'kpc', 'format': 'f8'},       # Distance from the Galactic plane, based on Dist
                'XX':       {'ref': False, 'err': False, 'units': 'kpc', 'format': 'f8'},       # X-Distance in X-Y-Z Galactic coordinate system (kpc)
                'YY':       {'ref': False, 'err': False, 'units': 'kpc', 'format': 'f8'},       # Y-Distance in X-Y-Z Galactic coordinate system (kpc)
-               'ASSOC':    {'ref': False, 'err': False, 'units': None, 'format': 'S64'},       # Names of other objects, e.g., supernova remnant, globular cluster or gamma-ray source associated with the pulsar
-               'SURVEY':   {'ref': False, 'err': False, 'units': None, 'format': 'S32'},       # Surveys that detected the pulsar (discovery survey first) (http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#surveys)
-               'OSURVEY':  {'ref': False, 'err': False, 'units': None, 'format': 'S32'},       # Surveys that detected the pulsar encoded as bits in integer
+               'ASSOC':    {'ref': False, 'err': False, 'units': None, 'format': 'U128'},      # Names of other objects, e.g., supernova remnant, globular cluster or gamma-ray source associated with the pulsar
+               'SURVEY':   {'ref': False, 'err': False, 'units': None, 'format': 'U64'},       # Surveys that detected the pulsar (discovery survey first) (http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#surveys)
+               'OSURVEY':  {'ref': False, 'err': False, 'units': None, 'format': 'U32'},       # Surveys that detected the pulsar encoded as bits in integer
                'DATE':     {'ref': False, 'err': False, 'units': 'yr', 'format': 'i4'},        # Date of discovery publication.
                'NGLT':     {'ref': False, 'err': False, 'units': None, 'format': 'i4'}         # Number of glitches observed for the pulsar
               }
@@ -73,7 +73,7 @@ PSR_TIMING = {'P0':        {'ref': True, 'err': True, 'units': 's', 'format': 'f
               'RM':        {'ref': True, 'err': True, 'units': 'rad m^-2', 'format': 'f8'},    # Rotation measure (rad m-2)
               'W50':       {'ref': True, 'err': True, 'units': 'ms', 'format': 'f8'},          # Width of pulse at 50% of peak (ms). Note, pulse widths are a function of both observing frequency and observational time resolution,so quoted widths are indicative only. Refer to the original reference for details.
               'W10':       {'ref': True, 'err': True, 'units': 'ms', 'format': 'f8'},          # Width of pulse at 10% (ms). Note the comments above for W50.
-              'UNITS':     {'ref': True, 'err': False, 'units': None, 'format': 'S4'},         # Timescale for period/frequency and epoch data: TCB or TDB. See Hobbs, Edwards & Manchester (2006) for a discussion of the relationship between TCB and TDB.
+              'UNITS':     {'ref': True, 'err': False, 'units': None, 'format': 'U4'},         # Timescale for period/frequency and epoch data: TCB or TDB. See Hobbs, Edwards & Manchester (2006) for a discussion of the relationship between TCB and TDB.
               'TAU_SC':    {'ref': True, 'err': True, 'units': 's', 'format': 'f8'},           # Temporal broadening of pulses at 1 GHz due to interestellar scattering (s)
               'S400':      {'ref': True, 'err': True, 'units': 'mJy', 'format': 'f8'},         # Mean flux density at 400 MHz (mJy)
               'S1400':     {'ref': True, 'err': True, 'units': 'mJy', 'format': 'f8'},         # Mean flux density at 1400 MHz (mJy)
@@ -83,7 +83,7 @@ PSR_TIMING = {'P0':        {'ref': True, 'err': True, 'units': 's', 'format': 'f
 PSR_TIMING_PARS = list(PSR_TIMING.keys())
 
 # binary system parameters
-PSR_BINARY = {'BINARY':    {'ref': True, 'err': False, 'units': None, 'format': 'S5'},         # Binary model (usually one of several recognised by the pulsar timing programs TEMPO or TEMPO2). Modified versions of standard models are often used - refer to the source paper for details of the binary model used.
+PSR_BINARY = {'BINARY':    {'ref': True, 'err': False, 'units': None, 'format': 'U8'},         # Binary model (usually one of several recognised by the pulsar timing programs TEMPO or TEMPO2). Modified versions of standard models are often used - refer to the source paper for details of the binary model used.
               'T0':        {'ref': True, 'err': True, 'units': 'd', 'format': 'f8'},           # Epoch of periastron (MJD)
               'PB':        {'ref': True, 'err': True, 'units': 'd', 'format': 'f8'},           # Binary period of pulsar (days)
               'A1':        {'ref': True, 'err': True, 'units': 's', 'format': 'f8'},           # Projected semi-major axis of orbit (lt s)
@@ -94,7 +94,7 @@ PSR_BINARY = {'BINARY':    {'ref': True, 'err': False, 'units': None, 'format': 
               'EPS2':      {'ref': True, 'err': True, 'units': None, 'format': 'f8'},          # ECC x cos(OM) - ELL1 binary model
               'MINMASS':   {'ref': False, 'err': False, 'units': 'M_sun', 'format': 'f8'},     # Minimum companion mass assuming i=90 degrees and neutron star mass is 1.35 Mo
               'MEDMASS':   {'ref': False, 'err': False, 'units': 'M_sun', 'format': 'f8'},     # Median companion mass assuming i=60 degrees
-              'BINCOMP':   {'ref': True, 'err': False, 'units': None, 'format': 'S4'}          # Companion type
+              'BINCOMP':   {'ref': True, 'err': False, 'units': None, 'format': 'U32'}          # Companion type
              }
 
 PSR_BINARY_PARS = list(PSR_BINARY.keys())
