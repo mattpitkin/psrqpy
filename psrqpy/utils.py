@@ -71,7 +71,7 @@ def get_catalogue():
     
     # loop through lines in dbfile
     for line in dbfile.readlines():
-        dataline = line.split()   # Splits on whitespace
+        dataline = line.decode().split()   # Splits on whitespace
 
         if dataline[0][0] == commentstring:
             continue
