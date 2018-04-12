@@ -12,7 +12,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from six import string_types
-from six import StringIO
+from six import BytesIO
 
 from .config import ATNF_BASE_URL, ATNF_VERSION, ADS_URL, ATNF_TARBALL, PSR_ALL, PSR_ALL_PARS
 
@@ -35,11 +35,6 @@ def get_catalogue():
         At the moment this function does not return a table that includes the uncertainties on the
         parameters.
     """
-    
-    try:
-        import urllib2
-    except ImportError:
-        raise ImportError('Problem importing urllib2')
 
     try:
         import tarfile
@@ -53,8 +48,8 @@ def get_catalogue():
 
     # get the tarball
     try:
-        pulsargzfile = urllib2.urlopen(ATNF_TARBALL)
-        fp = StringIO(pulsargzfile.read()) # download and store in memory
+        pulsargzfile = requests.get(ATNF_TARBALL)
+        fp = BytesIO(pulsargzfile.content) # download and store in memory
     except IOError:
         raise IOError('Problem accessing ATNF catalogue tarball')
 
@@ -527,7 +522,6 @@ def label_line(ax, line, label, color='k', fs=14, frachoffset=0.1):
         fs (int): the font size for the label text. Defaults to 14.
         frachoffset (float): a number between 0 and 1 giving the fractional offset of the label
             text along the x-axis. Defaults to 0.1, i.e. 10%.
-
 
     Returns:
         :class:`matplotlib.text.Text`: an object containing the label information
