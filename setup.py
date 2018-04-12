@@ -36,6 +36,11 @@ if sys.argv[-1] == 'publish':
     os.system('twine upload dist/*')
     sys.exit()
 
+if sys.argv[-1] == 'testpublish':
+    os.system('python setup.py sdist bdist_wheel --universal')
+    os.system('twine upload --repository-url https://test.pypi.org/legacy/ dist/*')
+    sys.exit()
+
 setup(name="psrqpy",
       version=VERSION,
       author="Matthew Pitkin",
