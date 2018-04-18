@@ -381,7 +381,7 @@ def age_pdot(period, tau=1e6, braking_idx=3.):
 
     .. math::
 
-       \dot{P} = \\frac{\dot{P}}{\\tau(n - 1)}
+       \dot{P} = \\frac{P}{\\tau(n - 1)}
 
     Args:
         period (list, :class:`numpy.ndarray`): the pulsar period in seconds
