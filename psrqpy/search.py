@@ -976,7 +976,9 @@ class QueryATNF(object):
                     markertypes[thistype]['markerfacecolor'] = 'none'
                 if 'linestyle' not in markertypes[thistype]:
                     markertypes[thistype]['linestyle'] = 'none'
-                typehandle, = ax.loglog(periods[typeidx], pdots[typeidx], **markertypes[thistype])
+                typehandle, = ax.loglog(periods[typeidx], pdots[typeidx],
+                                        label=typelegstring[thistype],
+                                        **markertypes[thistype])
                 if thistype in typelegstring:
                     handles[typelegstring[thistype]] = typehandle
                 else:
