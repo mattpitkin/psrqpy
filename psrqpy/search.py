@@ -737,7 +737,7 @@ class QueryATNF(object):
     def ppdot(self, intrinsicpdot=False, excludeGCs=False, showtypes=[], showGCs=False,
               showSNRs=False, markertypes={}, deathline=True, deathmodel='Ip', filldeath=True,
               filldeathtype={}, showtau=True, brakingidx=3, tau=None, showB=True, Bfield=None,
-              rcparams={}):
+              pdotlims=None, periodlims=None, rcparams={}):
         """
         Draw a lovely period vs period derivative diagram.
 
@@ -774,6 +774,8 @@ class QueryATNF(object):
                 shows lines for :math:`10^{10}` through to :math:`10^{14}` gauss with steps in
                 powers of 10.
             Bfield (list): a list of magnetic field strengths to plot.
+            periodlims (array_like): the [min, max] period limits to plot with
+            pdotlims (array_like): the [min, max] pdot limits to plot with
             rcparams (dict): a dictionary of :py:obj:`matplotlib.rcParams` setup parameters for the
                 plot.
 
@@ -901,8 +903,10 @@ class QueryATNF(object):
         ax.set_ylabel(r'Period Derivative')
 
         # get limits
-        periodlims = [10**np.floor(np.min(np.log10(periods))), 10.*int(np.ceil(np.max(pdots)/10.))]
-        pdotlims = [10**np.floor(np.min(np.log10(pdots))), 10**np.ceil(np.max(np.log10(pdots)))]
+        if periodlims is None:
+            periodlims = [10**np.floor(np.min(np.log10(periods))), 10.*int(np.ceil(np.max(pdots)/10.))]
+        if pdotlims is None:
+            pdotlims = [10**np.floor(np.min(np.log10(pdots))), 10**np.ceil(np.max(np.log10(pdots)))]
         ax.set_xlim(periodlims);
         ax.set_ylim(pdotlims);
 
