@@ -946,6 +946,8 @@ class QueryATNF(object):
         typelegstring['BINARY'] = r'Binary'
         typelegstring['HE'] = r'Radio-IR Emission'
         typelegstring['GC'] = r'Globular Cluster'
+        typelegstring['SNR'] = r'SNR'
+        typelegstring['RRAT'] = r'RRAT'
 
         # show globular cluster pulsars
         if showGCs and not excludeGCs:
