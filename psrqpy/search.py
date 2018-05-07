@@ -66,6 +66,14 @@ class QueryATNF(object):
             ascending.
         psrs (:obj:`list`): a list of pulsar names for which to get the requested parameters.
             Defaults to None.
+        coord1 (str): a string containing a right ascension in the format ('hh:mm:ss') that
+            centres a circular boundary in which to search for pulsars (requires coord2 and
+            radius to be set).
+        coord2 (str): a string containing a declination in the format ('dd:mm:ss') that
+            centres a circular boundary in which to search for pulsars (requires coord1 and
+            radius to be set).
+        radius (float): the radius (in degrees) of a circular boundary in which to search for
+            pulsars (requires coord1 and coord2 to be set).
         include_errs (bool): Set if wanting parameter errors to be returned. Defaults to True.
         include_refs (bool): Set if wanting parameter
             `references <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_ref.html>`_ to be
@@ -83,7 +91,7 @@ class QueryATNF(object):
     def __init__(self, params=None, condition=None, psrtype=None, assoc=None, bincomp=None,
                  exactmatch=False, sort_attr='jname', sort_order='asc', psrs=None,
                  include_errs=True, include_refs=False, get_ephemeris=False, version=None,
-                 adsref=False, loadfromfile=None):
+                 adsref=False, loadfromfile=None, coord1=None, coord2=None, radius=0.):
         self._psrs = psrs
         self._include_errs = include_errs
         self._include_refs = include_refs
@@ -114,6 +122,20 @@ class QueryATNF(object):
         self._get_ephemeris = get_ephemeris
 
         self._pulsars = None # gets set to a Pulsars object by get_pulsars()
+
+        # conditions for finding pulsars within a circular boundary
+        self._coord1 = coord1
+        self._coord2 = coord2
+        self._radius = radius
+        if self._coord1 is None or self._coord2 is None or self._radius == 0.:
+            # if any are not set then we can't define a boundary
+            self._coord1 = self._coord2 = ''
+            self._radius = 0.
+        else:
+            if not isinstance(self._coord1, string_types) or not isinstance(self._coord2, string_types):
+                raise Exception("Circular boundary centre coordinates must be strings")
+            if not isinstance(self._radius, float):
+                raise Exception("Circular boundary radius must be a float")
 
         # check parameters are allowed values
         if isinstance(params, list):
@@ -190,7 +212,8 @@ class QueryATNF(object):
             raise Exception("Error reading in pickle")
 
     def generate_query(self, version='', params=None, condition='', sortorder='asc',
-                       sortattr='JName', psrnames=None, **kwargs):
+                       sortattr='JName', psrnames=None, coord1=None, coord2=None,
+                       radius=0., **kwargs):
         """
         Generate a query URL and return the content of the :class:`~requests.Response` from that
         URL. If the required class attributes are set then they are used for generating the query,
@@ -205,6 +228,14 @@ class QueryATNF(object):
             sortorder (str): the order for sorting the results.
             sortattr (str): the parameter on which to perform the sorting.
             psrnames (list, str): a list of pulsar names to get parameters for
+            coord1 (str): a string containing a right ascension in the format ('hh:mm:ss') that
+                centres a circular boundary in which to search for pulsars (requires coord2 and
+                radius to be set).
+            coord2 (str): a string containing a declination in the format ('dd:mm:ss') that
+                centres a circular boundary in which to search for pulsars (requires coord1 and
+                radius to be set).
+            radius (float): the radius (in degrees) of a circular boundary in which to search for
+                pulsars (requires coord1 and coord2 to be set).
             get_ephemeris (bool): a boolean stating whether to get pulsar ephemerides rather than
                 a table of parameter values (only works if pulsar names are given)
 
@@ -248,6 +279,18 @@ class QueryATNF(object):
         query_dict['sortorder'] = self._sort_order
         self._sort_attr = self._sort_attr if sortattr == self._sort_attr else sortattr
         query_dict['sortattr'] = self._sort_attr
+        self._coord1 = self._coord1 if not coord1 else coord1
+        if self._coord1:
+            if not isinstance(self._coord1, string_types):
+                raise Exception("Circular boundary right ascension must be a string")
+        self._coord2 = self._coord2 if not coord2 else coord2
+        if self._coord2:
+            if not isinstance(self._coord2, string_types):
+                raise Exception("Circular boundary declination must be a string")
+        self._radius = self._radius if not radius else radius
+        query_dict['coord1'] = self._coord1.replace(':', '%3A')
+        query_dict['coord2'] = self._coord2.replace(':', '%3A')
+        query_dict['radius'] = self._radius
 
         if psrnames:
             if isinstance(psrnames, string_types):
