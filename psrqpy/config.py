@@ -16,10 +16,13 @@ CONDITION_QUERY = r'&condition={condition}'
 PSRNAMES_QUERY = r'&pulsar_names={psrnames}'
 SORT_QUERY = r'&sort_attr={sortattr}&sort_order={sortorder}'
 EPHEMERIS_QUERY = r'&submit_ephemeris={getephemeris}'
-QUERY_FLUFF = r'&ephemeris=long&coords_unit=raj%2Fdecj&radius=&coords_1=&coords_2=&style=Long+with+errors&no_value=*&nohead=nohead&state=query&table_bottom.x=30&table_bottom.y=22'
+COORD1_QUERY = r'&coords_1={coord1}'
+COORD2_QUERY = r'&coords_2={coord2}'
+RADIUS_QUERY = r'&radius={radius}' 
+QUERY_FLUFF = r'&ephemeris=long&coords_unit=raj%2Fdecj&style=Long+with+errors&no_value=*&nohead=nohead&state=query&table_bottom.x=30&table_bottom.y=22'
 
 #: the full ATNF catalogue query URL
-QUERY_URL = ATNF_URL + PARAMS_QUERY + USERDEFINED_QUERY + SORT_QUERY + CONDITION_QUERY + PSRNAMES_QUERY + EPHEMERIS_QUERY + QUERY_FLUFF
+QUERY_URL = ATNF_URL + PARAMS_QUERY + USERDEFINED_QUERY + SORT_QUERY + CONDITION_QUERY + PSRNAMES_QUERY + EPHEMERIS_QUERY + RADIUS_QUERY + COORD1_QUERY + COORD2_QUERY + QUERY_FLUFF
 
 # pulsar parameters (http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html) that can be
 # queried. For each parameter there is a dictionary giving:

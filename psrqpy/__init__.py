@@ -2,7 +2,7 @@
 
 """ A Python tool for interacting with the ATNF pulsar catalogue """
 
-__version__ = "0.4.12"
+__version__ = "0.5.1"
 
 __citation__ = """@article{psrqpy,
   author = {{Pitkin}, M.},
