@@ -140,7 +140,7 @@ class QueryATNF(object):
         self._radius = radius
         if isinstance(circular_boundary, list) or isinstance(circular_boundary, tuple):
            if len(circular_boundary) != 3:
-		raise Exception("Circular boundary must contain three values")
+               raise Exception("Circular boundary must contain three values")
            self._coord1 = circular_boundary[0]
            self._coord2 = circular_boundary[1]
            self._radius = circular_boundary[2]
