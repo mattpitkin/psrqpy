@@ -174,6 +174,28 @@ We can also get the whole ephemeris for the Crab with
     DIST_DM         1.31
     ...
 
+**Query pulsars within a circular boundary**
+
+We can query the catalogue to only return pulsars within a `circular boundary <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=normal#boundary>`_ defined
+by a central right ascension and declination, and with a given radius (in degrees).
+
+    >>> from psrqpy import QueryATNF
+    >>> # set the boundary circle centre (RAJ then DECJ) and radius
+    >>> c = ['12:34:56.7', '-02:54:12.3', 10.]
+    >>> query = QueryATNF(params=['JNAME', 'RAJ', 'DECJ'], circular_boundary=c)
+    >>> print(query.table())
+      JNAME     RAJ  RAJ_ERR  DECJ  DECJ_ERR
+    ---------- ----- ------- ------ --------
+    J1142+0119 11:42     0.0 +01:19      0.0
+
+The circle's coordinates can also be define as, e.g.:
+
+    >>> c = ['12h34m56.7s', '-02d54m12.3s', 10.]
+
+Or, in radians, as:
+
+    >>> c = [3.29406898, -0.05067418, 10.]
+
 **Return a reference**
 
 We can make use of the `ADS module <https://ads.readthedocs.io/en/latest/>`_ to return links to references for pulsars/pulsar parameters.
