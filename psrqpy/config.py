@@ -97,7 +97,7 @@ PSR_BINARY = {'BINARY':    {'ref': True, 'err': False, 'units': None, 'format': 
               'EPS2':      {'ref': True, 'err': True, 'units': None, 'format': 'f8'},          # ECC x cos(OM) - ELL1 binary model
               'MINMASS':   {'ref': False, 'err': False, 'units': 'M_sun', 'format': 'f8'},     # Minimum companion mass assuming i=90 degrees and neutron star mass is 1.35 Mo
               'MEDMASS':   {'ref': False, 'err': False, 'units': 'M_sun', 'format': 'f8'},     # Median companion mass assuming i=60 degrees
-              'BINCOMP':   {'ref': True, 'err': False, 'units': None, 'format': 'U32'}          # Companion type
+              'BINCOMP':   {'ref': True, 'err': False, 'units': None, 'format': 'U32'}         # Companion type
              }
 
 PSR_BINARY_PARS = list(PSR_BINARY.keys())
@@ -109,7 +109,7 @@ PSR_DERIVED = {'R_LUM':    {'ref': False, 'err': False, 'units': 'mJy kpc^2', 'f
                'BSURF':    {'ref': False, 'err': False, 'units': 'G', 'format': 'f8'},              # Surface magnetic flux density (Gauss) [B = 3.2e19 sqrt(P * Pdot)]
                'EDOT':     {'ref': False, 'err': False, 'units': 'erg/s', 'format': 'f8'},          # Spin down energy loss rate (ergs/s)
                'EDOTD2':   {'ref': False, 'err': False, 'units': 'erg s^-1/kpc^2', 'format': 'f8'}, # Energy flux at the Sun (ergs/kpc2/s)
-               'PMTOT':    {'ref': False, 'err': False, 'units': 'mas/yr', 'format': 'f8'},         # Total proper motion (mas/yr)
+               'PMTOT':    {'ref': False, 'err': True, 'units': 'mas/yr', 'format': 'f8'},          # Total proper motion (mas/yr)
                'VTRANS':   {'ref': False, 'err': False, 'units': 'km/s', 'format': 'f8'},           # Transverse velocity - based on DIST (km/s)
                'P1_I':     {'ref': False, 'err': False, 'units': None, 'format': 'f8'},             # Period derivative corrected for Shklovskii (proper motion) effect
                'AGE_I':    {'ref': False, 'err': False, 'units': 'yr', 'format': 'f8'},             # Spin down age from P1_i (yr)
