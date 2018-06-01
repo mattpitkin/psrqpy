@@ -46,7 +46,8 @@ The `ads` module is an optional requirement that is needed to get ADS URLs for r
 
 ## Examples
 
-A simple query of the catalogue, e.g., to just return all pulsar frequencies, would be:
+A simple query of the catalogue, e.g., to just return all pulsar frequencies (noting that the
+pulsar ['JNAME'](http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=normal&highlight=jname#jname) is also always returned by default), would be:
 
 ```python
 import psrqpy
@@ -56,7 +57,7 @@ q = psrqpy.QueryATNF(params='F0')
 # get frequencies as an astropy table
 t = q.table()
 
-print t['F0']
+print(t['F0'])
 ```
 
 You can query multiple parameters, e.g.:
@@ -69,7 +70,7 @@ q = psrqpy.QueryATNF(params=['F0', 'F1', 'RAJ', 'DecJ'])
 # get values as an astropy table
 t = q.table()
 
-print t['F0']
+print(t['F0'])
 ```
 
 You can query specific pulsars, e.g.:
@@ -77,7 +78,7 @@ You can query specific pulsars, e.g.:
 ```
 import psrqpy
 
-q = psrqpy.QueryATNF(params=['JName', 'F0', 'F1', 'RAJ', 'DecJ'], psrs=['J0534+2200', 'J0537-6910'])
+q = psrqpy.QueryATNF(params=['F0', 'F1', 'RAJ', 'DecJ'], psrs=['J0534+2200', 'J0537-6910'])
 
 # get values as an astropy table
 t = q.table()
