@@ -46,7 +46,7 @@ Examples
 ========
 
 You can query the ATNF catalogue for any combination of the pulsar parameters listed
-`here <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=normal#par_list>`_.
+`here <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=expert#par_list>`_.
 
 A simple example of a query is to get the 'JName' (pulsar name based on the J2000 coordinates) and frequency 'F0' for all pulsars in the catalogue. This could be done with
 
