@@ -46,7 +46,7 @@ The `ads` module is an optional requirement that is needed to get ADS URLs for r
 
 ## Examples
 
-A simple query of the catalogue, e.g., to just return all pulsar frequencies (noting that the
+A simple query of the catalogue to, e.g., just return all pulsar frequencies (noting that the
 pulsar ['JNAME'](http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=normal&highlight=jname#jname) is also always returned by default), would be:
 
 ```python
