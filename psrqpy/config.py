@@ -119,8 +119,27 @@ PSR_DERIVED = {'R_LUM':    {'ref': False, 'err': False, 'units': 'mJy kpc^2', 'f
 
 PSR_DERIVED_PARS = list(PSR_DERIVED.keys())
 
+# "expert" mode parameters (extra distance, observation, glitch and binary parameters)
+PSR_EXPERT = {'BNAME':    {'ref': True, 'err': False, 'units': None, 'format': 'S32'}, #Pulsar Besselian name
+              'PML':      {'ref': False, 'err': True, 'units': 'mas/yr', 'format': 'f8'}, # Proper motion in Galactic longitude (mas/yr)
+              'PMB':      {'ref': False, 'err': True, 'units': 'mas/yr', 'format': 'f8'}, # Proper motion in Galactic latitude (mas/yr)
+              'DIST_DM1': {'ref': True, 'err': False, 'units': 'kpc', 'format': 'f8'}, # Distance based on NE2001 model (kpc)
+              'DIST1':    {'ref': False, 'err': False, 'units': 'kpc', 'format': 'f8'}, # Best estimate of the pulsar distance using the NE2001 DM-based distance as default (kpc)
+              'DIST_AMN': {'ref': True, 'err': True, 'units': 'kpc', 'format': 'f8'}, # Lower limit on independent distance estimate (kpc) (NOTE: although there is an 'error' column it is always zero)
+              'DIST_AMX': {'ref': True, 'err': False, 'units': 'kpc', 'format': 'f8'}, # Upper limit on independent distance estimate (kpc)
+              'DIST_A':   {'ref': True, 'err': True, 'units': 'kpc', 'format': 'f8'}, # Independent distance estimate - takes precedence over other distance estimates for DIST and DIST1 (kpc)
+              'GLEP': {'ref': False, 'err': False, 'units': 'd', 'format': 'f8'}, # Epoch of glitch
+              'GLPH': {'ref': False, 'err': False, 'units': None, 'format': 'f8'}, # Phase increment at glitch
+              'GLF0': {'ref': False, 'err': False, 'units': 'Hz', 'format': 'f8'}, # Permanent pulse frequency increment at glitch
+              'GLF1': {'ref': False, 'err': False, 'units': 'Hz/s', 'format': 'f8'}, # Permanent frequency derivative increment at glitch
+              'GLF0D': {'ref': False, 'err': False, 'units': 'Hz', 'format': 'f8'}, # Decaying frequency increment at glitch
+              'GLTD': {'ref': False, 'err': False, 'units': 'd', 'format': 'f8'} # Time constant for decaying frequency increment
+}
+
+PSR_EXPERT_PARS = list(PSR_EXPERT.keys())
+
 # a list of all allowed parameters for querying
-PSR_ALL = dict(itertools.chain(PSR_GENERAL.items(), PSR_TIMING.items(), PSR_BINARY.items(), PSR_DERIVED.items()))
+PSR_ALL = dict(itertools.chain(PSR_GENERAL.items(), PSR_TIMING.items(), PSR_BINARY.items(), PSR_DERIVED.items(), PSR_EXPERT.items()))
 """: a dict of allowed pulsars parameters (e.g., name, position, distance...)
 
 Each parameter name key gives a dictionary containing the keys:
@@ -136,7 +155,7 @@ The allowed parameters and their units are given
 `here <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=normal#par_list>`_.
 """
 
-PSR_ALL_PARS = PSR_GENERAL_PARS + PSR_TIMING_PARS + PSR_BINARY_PARS + PSR_DERIVED_PARS
+PSR_ALL_PARS = PSR_GENERAL_PARS + PSR_TIMING_PARS + PSR_BINARY_PARS + PSR_DERIVED_PARS + PSR_EXPERT_PARS
 
 PSR_TYPES = ['AXP',           # Anomalous X-ray Pulsar or Soft Gamma-ray Repeater with detected pulsations
              'BINARY',        # Pulsar has one or more stellar companion(s)
