@@ -43,8 +43,9 @@ class QueryATNF(object):
 
     Args:
         params (str, :obj:`list`, required): a list of strings with the pulsar `parameters
-            <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#par_list>`_
-            to query. The parameter names are case insensitive.
+            <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=expert#par_list>`_
+            to query. The parameter names are case insensitive. The ``JName`` parameter will be
+            queried by default, unless ``nojname`` is set to True.
         condition (str): a string with logical conditions for the returned parameters. The allowed
             format of the condition string is given `here
             <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#condition>`_.
@@ -96,13 +97,15 @@ class QueryATNF(object):
             information. Defaults to False.
         loadfromfile (str): load an instance of :class:`~psrqpy.search.QueryATNF` from the given
             file, rather than performing a new query. Defaults to None.
+        nojname (bool): Set to True if wanting to explicitly exclude the ``JName`` parameter from
+            a query. Defaults to False.
     """
 
     def __init__(self, params=None, condition=None, psrtype=None, assoc=None, bincomp=None,
                  exactmatch=False, sort_attr='jname', sort_order='asc', psrs=None,
                  include_errs=True, include_refs=False, get_ephemeris=False, version=None,
                  adsref=False, loadfromfile=None, circular_boundary=None, coord1=None, coord2=None,
-                 radius=0.):
+                 radius=0., nojname=False):
         self._psrs = psrs
         self._include_errs = include_errs
         self._include_refs = include_refs
@@ -155,23 +158,28 @@ class QueryATNF(object):
                 raise Exception("Circular boundary radius must be a float or int")
 
         # check parameters are allowed values
+        self._query_params = ['JNAME'] # query JNAME by default for all queries
         if isinstance(params, list):
             if len(params) == 0:
-                raise Exception("No parameters in list")
+                print('No query parameters have been specified, so only "JNAME" will be queried')
 
             for p in params:
                 if not isinstance(p, string_types):
                     raise Exception("Non-string value '{}' found in params list".format(p))
 
-            self._query_params = [p.upper() for p in params] # make sure parameter names are all upper case
+            self._query_params += [p.upper() for p in params if p.upper() != 'JNAME'] # make sure parameter names are all upper case and JNAME is not re-added
         else:
             if isinstance(params, string_types):
-                self._query_params = [params.upper()] # make sure parameter is all upper case
-            else:
+                if params.upper() != 'JNAME': # do not re-add JNAME as it is already the default
+                    self._query_params += [params.upper()] # make sure parameter is all upper case
+            elif params is not None:
                 if self._psrs and self._get_ephemeris: # if getting ephemerides then param can be None 
                     self._query_params = []
                 else:
                     raise Exception("'params' must be a list or string")
+
+        if nojname and 'JNAME' in self._query_params:
+            self._query_params.remove('JNAME')
 
         for p in list(self._query_params):
             if p not in PSR_ALL_PARS:

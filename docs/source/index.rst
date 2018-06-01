@@ -48,10 +48,12 @@ Examples
 You can query the ATNF catalogue for any combination of the pulsar parameters listed
 `here <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=expert#par_list>`_.
 
-A simple example of a query is to get the 'JName' (pulsar name based on the J2000 coordinates) and frequency 'F0' for all pulsars in the catalogue. This could be done with
+A simple example of a query is to get the frequency 'F0' for all pulsars in the catalogue. By default the
+`'JName' <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=normal&highlight=jname#jname>`_
+(pulsar name based on the J2000 coordinates) parameter will also always be returned by default. This could be done with
 
    >>> from psrqpy import QueryATNF
-   >>> query = QueryATNF(params=['JName', 'F0'])
+   >>> query = QueryATNF(params=['F0'])
 
 where the parameter names are case insensitive. The returned :class:`~psrqpy.search.QueryATNF` query will
 contain a dictionary keyed on the parameter names (converted
@@ -94,16 +96,16 @@ More complex queries
 
 You can set `logical conditions <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#condition>`_
 on the parameters that you query. Let's say you want the names of all pulsars with rotation frequencies between
-100 and 200 Hz, then you could do the following:
+100 and 200 Hz, then (because the name is always queried by default) you could do the following:
 
     >>> from psrqpy import QueryATNF
-    >>> query = QueryATNF(params=['JName'], condition='F0 > 100 && F0 < 200')
+    >>> query = QueryATNF(condition='F0 > 100 && F0 < 200')
     >>> print(len(query))
     82
 
 If you also wanted pulsars with this condition, but also in globular clusters, you could do
 
-    >>> query = QueryATNF(params=['JName'], condition='F0 > 100 && F0 < 200', assoc='GC')
+    >>> query = QueryATNF(condition='F0 > 100 && F0 < 200', assoc='GC')
     >>> print(len(query))
     33
 
@@ -128,10 +130,10 @@ J0537-6910, then we could get their sky positions with:
     >>> from psrqpy import QueryATNF
     >>> query = QueryATNF(params=['RAJ', 'DECJ'], psrs=['J0534+2200', 'J0537-6910'])
     >>> print(query.table())
-        RAJ      RAJ_ERR     DECJ     DECJ_ERR
-    ------------ ------- ------------ --------
-    05:34:31.973   0.005 +22:00:52.06     0.06
-    05:37:47.416    0.11 -69:10:19.88      0.6
+       JNAME        RAJ      RAJ_ERR     DECJ     DECJ_ERR
+    ---------- ------------ ------- ------------ --------
+    J0534+2200 05:34:31.973   0.005 +22:00:52.06     0.06
+    J0537-6910 05:37:47.416    0.11 -69:10:19.88      0.6
 
 You can also access these pulsars using the :class:`psrqpy.pulsar.Pulsars` class. This
 will create a dictionary of :class:`psrqpy.pulsar.Pulsar` objects keyed on the pulsar
@@ -182,7 +184,7 @@ by a central right ascension and declination, and with a given radius (in degree
     >>> from psrqpy import QueryATNF
     >>> # set the boundary circle centre (RAJ then DECJ) and radius
     >>> c = ['12:34:56.7', '-02:54:12.3', 10.]
-    >>> query = QueryATNF(params=['JNAME', 'RAJ', 'DECJ'], circular_boundary=c)
+    >>> query = QueryATNF(params=['RAJ', 'DECJ'], circular_boundary=c)
     >>> print(query.table())
       JNAME     RAJ  RAJ_ERR  DECJ  DECJ_ERR
     ---------- ----- ------- ------ --------
