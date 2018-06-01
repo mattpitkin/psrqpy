@@ -46,7 +46,7 @@ PSR_GENERAL = {'NAME':     {'ref': True,  'err': False, 'units': None,       'fo
                'GL':       {'ref': False, 'err': False, 'units': 'deg',      'format': 'f8'},   # Galactic longitude (degrees)
                'GB':       {'ref': False, 'err': False, 'units': 'deg',      'format': 'f8'},   # Galactic latitude (degrees)
                'RAJD':     {'ref': False, 'err': False, 'units': 'deg',      'format': 'f8'},   # Right ascension (J2000) (degrees)
-               'DecJD':    {'ref': False, 'err': False, 'units': 'deg',      'format': 'f8'},   # Declination (J2000) (degrees)
+               'DECJD':    {'ref': False, 'err': False, 'units': 'deg',      'format': 'f8'},   # Declination (J2000) (degrees)
                'TYPE':     {'ref': True,  'err': False, 'units': None,       'format': 'U64'},  # Type codes for the pulsar (http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#psr_types)
                'PML':      {'ref': False, 'err': True,  'units': 'mas/yr',   'format': 'f8'},   # Proper motion in Galactic longitude (mas/yr)
                'PMB':      {'ref': False, 'err': True,  'units': 'mas/yr',   'format': 'f8'},   # Proper motion in Galactic latitude (mas/yr)
