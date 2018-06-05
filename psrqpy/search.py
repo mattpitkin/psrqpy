@@ -809,6 +809,35 @@ class QueryATNF(object):
         else:
             return repr(self._query_output) # should be empty dict
 
+    def plot(self, param1, param2, logx=False, logy=False, excludeAssoc=[], showtypes=[],
+             showGCs=False, showSNRs=False, markertypes={}, rcparams={}, useplotly=False,
+             **kwargs):
+        """
+        Produce a scatter plot of pairs of parameters using :module:`matplotlib.pyplot`.
+
+        Args:
+            param1 (str): a pulsar parameter to be plotted along the x-axis. The parameter values
+                must be floating point numbers.
+            param2 (str): a pulsar parameter to be plotted along the y-axis. The parameter values
+                must be floating point numbers.
+            logx (bool): set to True to use a logarithmic x-axis. Defaults to False.
+            logy (bool): set to True to use a logarithmic y-axis. Defaults to False.
+            showtypes (list, str): a list of pulsar types to highlight with markers in the plot.
+                These can contain any of the following: ``BINARY``, ``HE``, ``NRAD``, ``RRAT``,
+                ``XINS``, ``AXP`` or ``SGR``, or ``ALL`` to show all types. Default to showing no
+                types.
+            showGCs (bool): show markers to denote the pulsars in globular clusters. Defaults to
+                False.
+            showSNRs (bool): show markers to denote the pulsars with supernova remnants associated
+                with them. Defaults to False.
+            markertypes (dict): a dictionary of marker styles and colors keyed to the pulsar types
+                above.
+            excludeAssoc (list): a list of pulsar association type only ('GC' or 'SNR') at the
+                moment to exclude from the plot.
+            useplotly (bool): create a plot `plot.ly <https://plot.ly/>`_ figure rather than a
+                :class:`matplotlib.figure.Figure`.
+        """
+
     def ppdot(self, intrinsicpdot=False, excludeGCs=False, showtypes=[], showGCs=False,
               showSNRs=False, markertypes={}, deathline=True, deathmodel='Ip', filldeath=True,
               filldeathtype={}, showtau=True, brakingidx=3, tau=None, showB=True, Bfield=None,
@@ -831,7 +860,7 @@ class QueryATNF(object):
             showSNRs (bool): show markers to denote the pulsars with supernova remnants associated
                 with them. Defaults to False.
             markertypes (dict): a dictionary of marker styles and colors keyed to the pulsar types
-                above
+                above.
             deathline (bool): draw the pulsar death line. Defaults to True.
             deathmodel (str): the type of death line to draw based on the models in
                 :func:`psrqpy.utils.death_line`. Defaults to ``'Ip'``.
