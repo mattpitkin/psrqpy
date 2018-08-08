@@ -398,8 +398,8 @@ class QueryATNF(object):
         # parse through BeautifulSoup
         try:
             psrsoup = BeautifulSoup(self._query_content, 'html.parser')
-        except:
-            raise Exception('Error... problem parsing catalogue with BeautifulSoup')
+        except RuntimeError:
+            raise RuntimeError('Error... problem parsing catalogue with BeautifulSoup')
 
         pretags = psrsoup.find_all('pre')  # get any <pre> html tags
 
