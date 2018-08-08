@@ -570,6 +570,14 @@ class QueryATNF(object):
 
         return psrtable
 
+    def pandas(self):
+        """
+        Returns:
+            :class:`pandas.DataFrame`: a table of pulsar data returned by the query.
+        """
+
+        return self.table().to_pandas()
+
     def get_pulsars(self):
         """
         Returns:
@@ -810,7 +818,7 @@ class QueryATNF(object):
             return repr(self._query_output) # should be empty dict
 
     def plot(self, param1, param2, logx=False, logy=False, excludeAssoc=[], showtypes=[],
-             showGCs=False, showSNRs=False, markertypes={}, rcparams={}, useplotly=False,
+             showGCs=False, showSNRs=False, markertypes={}, rcparams={}, usealtair=False,
              **kwargs):
         """
         Produce a scatter plot of pairs of parameters using :module:`matplotlib.pyplot`.
@@ -838,10 +846,88 @@ class QueryATNF(object):
                 :class:`matplotlib.figure.Figure`.
         """
 
+        try:
+            import matplotlib as mpl
+            from matplotlib import pyplot as pl
+        except ImportError:
+            raise Exception('Cannot produce P-Pdot plot as Matplotlib is not available')
+
+        if usealtair:
+            # import altair
+            try:
+                import altair as alt
+            except ImportError:
+                raise ImportError('Cannot create plot using altair as it is not available')
+
+        # check that both input parameters have been queried
+        if param1 not in self._query_params:
+            self._query_params.append(param1)
+        if param2 not in self._query_params:
+            self._query_params.append(param2)
+
+        # redo query if required
+        if len(self._query_params) != nparams:
+            # perform query
+            self._query_content = self.generate_query()
+            self._query_output = self.parse_query()
+
+        if not self.num_pulsars:
+            print("No pulsars found, so no P-Pdot plot has been produced")
+            return None
+
+        # set plot parameters
+        if not usealtair:
+            rcparams['figure.figsize'] = rcparams['figure.figsize'] if 'figure.figsize' in rcparams else (9, 9.5)
+            rcparams['figure.dpi'] = rcparams['figure.dpi'] if 'figure.dpi' in rcparams else 250
+            rcparams['text.usetex'] = rcparams['text.usetex'] if 'text.usetex' in rcparams else True
+            rcparams['axes.linewidth'] = rcparams['axes.linewidth'] if 'axes.linewidth' in rcparams else 0.5
+            rcparams['axes.grid'] = rcparams['axes.grid'] if 'axes.grid' in rcparams else False
+            rcparams['font.family'] = rcparams['font.family'] if 'font.family' in rcparams else 'sans-serif'
+            rcparams['font.sans-serif'] = rcparams['font.sans-serif'] if 'font.sans-serif' in rcparams else 'Avant Garde, Helvetica, Computer Modern Sans serif'
+            rcparams['font.size'] = rcparams['font.size'] if 'font.size' in rcparams else 20
+            rcparams['legend.fontsize'] = rcparams['legend.fontsize'] if 'legend.fontsize' in rcparams else 16
+            rcparams['legend.frameon'] = rcparams['legend.frameon'] if 'legend.frameon' in rcparams else False
+
+            mpl.rcParams.update(rcparams)
+
+            fig, ax = pl.subplots()
+
+        # get Pandas DataFrame of parameters
+        t = self.pandas()
+
+        # set axes scales
+        scalex = 'linear' if not logx else 'log'
+        scaley = 'linear' if not logy else 'log'
+
+        if usealtair:
+            # set tool tip values
+            tooltip = []
+            if 'JNAME' in t:
+                tooltip.append('JNAME')
+            if 'F0' in t:
+                tooltip.append('F0')
+            elif 'P0' in t:
+                tooltip.append('P0')
+            tooltip.append(param1)
+            tooltip.append(param2)
+
+            alt.Chart(t).mark_circle().encode(
+                alt.X(param1, scale=alt.Scale(type=scalex)),
+                alt.Y(param2, scale=alt.Scale(type=scaley)),
+                tooltip=tooltip
+            )
+        else:
+            fig, ax = pl.subplots()
+
+            ax.plot(t[param1], t[param2])
+            ax.set_xscale(xscale)
+            ax.set_yscale(yscale)
+
+
     def ppdot(self, intrinsicpdot=False, excludeGCs=False, showtypes=[], showGCs=False,
               showSNRs=False, markertypes={}, deathline=True, deathmodel='Ip', filldeath=True,
               filldeathtype={}, showtau=True, brakingidx=3, tau=None, showB=True, Bfield=None,
-              pdotlims=None, periodlims=None, rcparams={}, useplotly=False):
+              pdotlims=None, periodlims=None, rcparams={}, usealtair=False):
         """
         Draw a lovely period vs period derivative diagram.
 
@@ -882,8 +968,8 @@ class QueryATNF(object):
             pdotlims (array_like): the [min, max] pdot limits to plot with
             rcparams (dict): a dictionary of :py:obj:`matplotlib.rcParams` setup parameters for the
                 plot.
-            useplotly (bool): convert the plot into a `plot.ly <https://plot.ly/>`_ figure. Only
-                works with Python >= 3.5.
+            usealtair (bool): use `altair <https://altair-viz.github.io/>`_ to
+                produce the plot.
 
         Returns:
             :class:`matplotlib.figure.Figure`: the figure object
@@ -895,15 +981,12 @@ class QueryATNF(object):
         except ImportError:
             raise Exception('Cannot produce P-Pdot plot as Matplotlib is not available')
 
-        if useplotly:
-            # import plot.ly in using Python >= 3.5
-            if sys.version_info >= (3, 5):
-                try:
-                    import plotly.tools as tls
-                except ImportError:
-                    raise ImportError('Cannot convert plot into a plot.ly figure as plot.ly is not available')
-            else:
-                raise Exception('Can only use plot.ly with Python >= 3.5')
+        if usealtair:
+            # import altair
+            try:
+                import altair
+            except ImportError:
+                raise ImportError('Cannot create plot using altair as it is not available')
 
         # check the we have periods and period derivatives
         nparams = len(self._query_params)
@@ -1151,12 +1234,4 @@ class QueryATNF(object):
         for l in Blines:
             ttext = label_line(ax, Blines[l], l, color='k', fs=18, frachoffset=0.90)
 
-        # return the figure (convert to plotly figure if requested)
-        if useplotly:
-            # convert to plotly
-            plfig = tls.mpl_to_plotly(fig)
-
-            return plfig
-        else:
-            return fig
-
+        return fig
