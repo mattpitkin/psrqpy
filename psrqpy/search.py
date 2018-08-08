@@ -873,6 +873,7 @@ class QueryATNF(object):
                 raise ImportError('Cannot create plot using altair as it is not available')
 
         # check that both input parameters have been queried
+        nparams = len(self._query_params)
         if param1 not in self._query_params:
             self._query_params.append(param1)
         if param2 not in self._query_params:
@@ -888,23 +889,6 @@ class QueryATNF(object):
             print("No pulsars found, so no P-Pdot plot has been produced")
             return None
 
-        # set plot parameters
-        if not usealtair:
-            rcparams['figure.figsize'] = rcparams['figure.figsize'] if 'figure.figsize' in rcparams else (9, 9.5)
-            rcparams['figure.dpi'] = rcparams['figure.dpi'] if 'figure.dpi' in rcparams else 250
-            rcparams['text.usetex'] = rcparams['text.usetex'] if 'text.usetex' in rcparams else True
-            rcparams['axes.linewidth'] = rcparams['axes.linewidth'] if 'axes.linewidth' in rcparams else 0.5
-            rcparams['axes.grid'] = rcparams['axes.grid'] if 'axes.grid' in rcparams else False
-            rcparams['font.family'] = rcparams['font.family'] if 'font.family' in rcparams else 'sans-serif'
-            rcparams['font.sans-serif'] = rcparams['font.sans-serif'] if 'font.sans-serif' in rcparams else 'Avant Garde, Helvetica, Computer Modern Sans serif'
-            rcparams['font.size'] = rcparams['font.size'] if 'font.size' in rcparams else 20
-            rcparams['legend.fontsize'] = rcparams['legend.fontsize'] if 'legend.fontsize' in rcparams else 16
-            rcparams['legend.frameon'] = rcparams['legend.frameon'] if 'legend.frameon' in rcparams else False
-
-            mpl.rcParams.update(rcparams)
-
-            fig, ax = pl.subplots()
-
         # get Pandas DataFrame of parameters
         t = self.pandas()
 
@@ -917,25 +901,47 @@ class QueryATNF(object):
             tooltip = []
             if 'JNAME' in t:
                 tooltip.append('JNAME')
-            if 'F0' in t:
+            if 'F0' in t and 'F0' not in [param1, param2]:
                 tooltip.append('F0')
-            elif 'P0' in t:
+            elif 'P0' in t and 'P0' not in [param1, param2]:
                 tooltip.append('P0')
             tooltip.append(param1)
             tooltip.append(param2)
 
-            alt.Chart(t).mark_circle().encode(
-                alt.X(param1, scale=alt.Scale(type=scalex)),
-                alt.Y(param2, scale=alt.Scale(type=scaley)),
-                tooltip=tooltip
-            )
+            text = alt.TextConfig(font='Times')
+            axistext = alt.VgAxisConfig(titleFont='Times', titleFontSize=12,
+                                        labelFont='Times')
+            config = alt.Config(text=text, axis=axistext)
+
+            chart = alt.Chart(t, height=600, width=800,
+                              config=config).mark_circle().encode(
+                    alt.X(param1+':Q', scale=alt.Scale(type=scalex)),
+                    alt.Y(param2+':Q', scale=alt.Scale(type=scaley)),
+                    tooltip=tooltip
+                )
+
+            return chart
         else:
+            rcparams['figure.figsize'] = rcparams['figure.figsize'] if 'figure.figsize' in rcparams else (9, 9.5)
+            rcparams['figure.dpi'] = rcparams['figure.dpi'] if 'figure.dpi' in rcparams else 250
+            rcparams['text.usetex'] = rcparams['text.usetex'] if 'text.usetex' in rcparams else True
+            rcparams['axes.linewidth'] = rcparams['axes.linewidth'] if 'axes.linewidth' in rcparams else 0.5
+            rcparams['axes.grid'] = rcparams['axes.grid'] if 'axes.grid' in rcparams else False
+            rcparams['font.family'] = rcparams['font.family'] if 'font.family' in rcparams else 'sans-serif'
+            rcparams['font.sans-serif'] = rcparams['font.sans-serif'] if 'font.sans-serif' in rcparams else 'Avant Garde, Helvetica, Computer Modern Sans serif'
+            rcparams['font.size'] = rcparams['font.size'] if 'font.size' in rcparams else 20
+            rcparams['legend.fontsize'] = rcparams['legend.fontsize'] if 'legend.fontsize' in rcparams else 16
+            rcparams['legend.frameon'] = rcparams['legend.frameon'] if 'legend.frameon' in rcparams else False
+
+            mpl.rcParams.update(rcparams)
+            
             fig, ax = pl.subplots()
 
             ax.plot(t[param1], t[param2])
-            ax.set_xscale(xscale)
-            ax.set_yscale(yscale)
+            ax.set_xscale(scalex)
+            ax.set_yscale(scaley)
 
+            return fig
 
     def ppdot(self, intrinsicpdot=False, excludeGCs=False, showtypes=[], showGCs=False,
               showSNRs=False, markertypes={}, deathline=True, deathmodel='Ip', filldeath=True,
