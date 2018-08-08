@@ -156,11 +156,11 @@ class QueryATNF(object):
         self._coord2 = coord2
         self._radius = radius
         if isinstance(circular_boundary, list) or isinstance(circular_boundary, tuple):
-           if len(circular_boundary) != 3:
-               raise Exception("Circular boundary must contain three values")
-           self._coord1 = circular_boundary[0]
-           self._coord2 = circular_boundary[1]
-           self._radius = circular_boundary[2]
+            if len(circular_boundary) != 3:
+                raise Exception("Circular boundary must contain three values")
+            self._coord1 = circular_boundary[0]
+            self._coord2 = circular_boundary[1]
+            self._radius = circular_boundary[2]
         elif self._coord1 is None or self._coord2 is None or self._radius == 0.:
             # if any are not set then we can't define a boundary
             self._coord1 = self._coord2 = ''
@@ -454,7 +454,7 @@ class QueryATNF(object):
                         self._query_output[p] = np.zeros(self._npulsars, dtype=PSR_ALL[p]['format'])
 
                         if PSR_ALL[p]['err'] and self._include_errs:
-                            self._query_output[p+'_ERR'] = np.zeros(self._npulsars, dtype='f8') # error can only be floats
+                            self._query_output[p+'_ERR'] = np.zeros(self._npulsars, dtype='f8')  # error can only be floats
 
                         if PSR_ALL[p]['ref'] and self._include_refs:
                             self._query_output[p+'_REF'] = np.zeros(self._npulsars, dtype='S1024')
@@ -1026,12 +1026,12 @@ class QueryATNF(object):
         for stype in list(nshowtypes):
             if 'ALL' == stype.upper():
                 nshowtypes = list(PSR_TYPES)
-                del nshowtypes[nshowtypes.index('RADIO')] # remove radio as none are returned as this 
+                del nshowtypes[nshowtypes.index('RADIO')]  # remove radio as none are returned as this
                 break
             elif stype.upper() not in list(PSR_TYPES):
                 warnings.warn('"TYPE" {} is not recognised, so will not be included'.format(stype))
                 del nshowtypes[nshowtypes.index(stype)]
-            if 'SGR' == stype.upper(): # synonym for AXP
+            if 'SGR' == stype.upper():  # synonym for AXP
                 nshowtypes[nshowtypes.index(stype)] = 'AXP'
 
         if nshowtypes and 'TYPE' not in self._query_params:
@@ -1105,7 +1105,7 @@ class QueryATNF(object):
 
         # check whether to exclude globular cluster pulsars that could have contaminated spin-down value
         if excludeGCs:
-            nongcidxs = np.flatnonzero(np.char.find(assocs,'GC:')==-1) # use '!=' to find GC indexes
+            nongcidxs = np.flatnonzero(np.char.find(assocs, 'GC:') == -1)  # use '!=' to find GC indexes
             periods = periods[nongcidxs]
             pdots = pdots[nongcidxs]
             if 'ASSOC' in self._query_params:
@@ -1125,8 +1125,8 @@ class QueryATNF(object):
             periodlims = [10**np.floor(np.min(np.log10(periods))), 10.*int(np.ceil(np.max(pdots)/10.))]
         if pdotlims is None:
             pdotlims = [10**np.floor(np.min(np.log10(pdots))), 10**np.ceil(np.max(np.log10(pdots)))]
-        ax.set_xlim(periodlims);
-        ax.set_ylim(pdotlims);
+        ax.set_xlim(periodlims)
+        ax.set_ylim(pdotlims)
 
         if deathline:
             deathpdots = 10**death_line(np.log10(periodlims), linemodel=deathmodel)
@@ -1145,7 +1145,7 @@ class QueryATNF(object):
         # add markers for each pulsar type
         if not markertypes:
             markertypes = {}
-    
+
         # check if markers have been defined by the user or not
         markertypes['AXP'] = {'marker': 's', 'markeredgecolor': 'red'} if 'AXP' not in markertypes else markertypes['AXP']
         markertypes['BINARY'] = {'marker': 'o', 'markeredgecolor': 'grey'} if 'BINARY' not in markertypes else markertypes['BINARY']
@@ -1182,11 +1182,11 @@ class QueryATNF(object):
                 thistype = stype.upper()
                 if thistype == 'BINARY':
                     # for binaries used the 'BINARY' column in the table
-                    typeidx = np.flatnonzero(np.char.find(binaries, '*')==-1)
+                    typeidx = np.flatnonzero(np.char.find(binaries, '*') == -1)
                 elif thistype in ['GC', 'SNR']:
-                    typeidx = np.flatnonzero(np.char.find(assocs, thistype)!=-1)
+                    typeidx = np.flatnonzero(np.char.find(assocs, thistype) != -1)
                 else:
-                    typeidx = np.flatnonzero(np.char.find(types, thistype)!=-1)
+                    typeidx = np.flatnonzero(np.char.find(types, thistype) != -1)
 
                 if len(typeidx) == 0:
                     continue
@@ -1204,7 +1204,8 @@ class QueryATNF(object):
                 else:
                     handles[thistype] = typehandle
 
-                ax.legend(handles.values(), handles.keys(), loc='upper left', numpoints=1);
+                ax.legend(handles.values(), handles.keys(), loc='upper left',
+                          numpoints=1)
 
         # add characteristic age lines
         tlines = OrderedDict()
@@ -1242,7 +1243,7 @@ class QueryATNF(object):
                 if numv == 1.:
                     Blines[r'$10^{{{0:d}}}\,{{\rm G}}$'.format(int(Bpow))] = bline
                 else:
-                    Blines[r'${{0:.1f}}!\times\!10^{{{1:d}}}\,{{\rm G}}$'.format(numv, Bpow)] = bline
+                    Blines[r'${{{0:.1f}}}!\times\!10^{{{1:d}}}\,{{\rm G}}$'.format(numv, Bpow)] = bline
 
         fig.tight_layout()
 
