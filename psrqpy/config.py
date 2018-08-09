@@ -5,10 +5,12 @@ URLs used for queries.
 
 import itertools
 
-ATNF_VERSION = '1.58' #: the default ATNF catalogue version
-ATNF_BASE_URL = r'http://www.atnf.csiro.au/people/pulsar/psrcat/' #: the ATNF pulsar catalogue base URL
-ATNF_URL = ATNF_BASE_URL + r'proc_form.php?version={version}' #: the ATNF pulsar catalogue base URL for queries
-ATNF_TARBALL = ATNF_BASE_URL + r'downloads/psrcat_pkg.tar.gz' #: name of the tarball containing the entire catalogue database
+ATNF_VERSION = '1.58'  #: the default ATNF catalogue version
+ATNF_BASE_URL = r'http://www.atnf.csiro.au/people/pulsar/psrcat/'  #: the ATNF pulsar catalogue base URL
+ATNF_URL = ATNF_BASE_URL + r'proc_form.php?version={version}'  #: the ATNF pulsar catalogue base URL for queries
+ATNF_TARBALL = ATNF_BASE_URL + r'downloads/psrcat_pkg.tar.gz'  #: name of the tarball containing the entire catalogue database
+
+GLITCH_URL = r'http://www.jb.man.ac.uk/pulsar/glitches/gTable.html'  #: Jodrell Bank glitch catalogue table URL 
 
 PARAMS_QUERY = r'{params}'
 USERDEFINED_QUERY = r'&startUserDefined=true&c1_val=&c2_val=&c3_val=&c4_val='

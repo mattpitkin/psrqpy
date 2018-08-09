@@ -14,8 +14,12 @@ The psrqpy package
 
 This package provides a way to directly query the `ATNF Pulsar Catalogue <http://www.atnf.csiro.au/people/pulsar/psrcat/>`_ [1]_ using Python.
 It is primarily aimed at astronomers wanting access to the latest pulsar information via a script,
-rather than through the standard web interface. It also provides a function to produce a
-:math:`P-\dot{P}` :ref:`diagram <make-p-pdot-diagram>` using the latest catalogue information.
+rather than through the standard web interface.
+
+Other functionality that it includes:
+
+ * it can produce a :math:`P-\dot{P}` :ref:`diagram <make-p-pdot-diagram>` using the latest catalogue information.
+ * a function (:func:`~psrqpy.utils.get_glitch_catalogue`) to access the `Jodrell Bank pulsar glitch catalogue <http://www.jb.man.ac.uk/pulsar/glitches.html>`_.
 
 Installation
 ============
