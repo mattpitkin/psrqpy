@@ -14,7 +14,9 @@ from bs4 import BeautifulSoup
 from six import string_types
 from six import BytesIO
 
-from .config import ATNF_BASE_URL, ATNF_VERSION, ADS_URL, ATNF_TARBALL, PSR_ALL, PSR_ALL_PARS
+from collections import OrderedDict
+
+from .config import ATNF_BASE_URL, ATNF_VERSION, ADS_URL, ATNF_TARBALL, PSR_ALL, PSR_ALL_PARS, GLITCH_URL
 
 # problematic references that are hard to parse
 PROB_REFS = ['bwck08']
@@ -49,7 +51,7 @@ def get_catalogue():
     # get the tarball
     try:
         pulsargzfile = requests.get(ATNF_TARBALL)
-        fp = BytesIO(pulsargzfile.content) # download and store in memory
+        fp = BytesIO(pulsargzfile.content)  # download and store in memory
     except IOError:
         raise IOError('Problem accessing ATNF catalogue tarball')
 
@@ -62,13 +64,13 @@ def get_catalogue():
     except IOError:
         raise IOError('Problem extracting the database file')
 
-    breakstring = '@'   # break bewteen each pulsar
-    commentstring = '#' # specifies line is a comment
+    breakstring = '@'    # break between each pulsar
+    commentstring = '#'  # specifies line is a comment
 
     psrtable = Table(masked=True)
-    ind = 0 # Keeps track of how many objects
-    psrtable.add_row(None) #db file jumps right in! Better add the first row.
-    
+    ind = 0  # Keeps track of how many objects
+    psrtable.add_row(None)  # db file jumps right in! Better add the first row.
+
     # loop through lines in dbfile
     for line in dbfile.readlines():
         dataline = line.decode().split()   # Splits on whitespace
@@ -77,26 +79,27 @@ def get_catalogue():
             continue
 
         if dataline[0][0] == breakstring:
-            psrtable.add_row(None)   # First break comes at the end of the first object and so forth.
+            # First break comes at the end of the first object and so forth
+            psrtable.add_row(None)
             ind += 1                 # New object!
-            psrtable.mask[ind] = [True]*len(psrtable.columns) # Default mask to True
+            psrtable.mask[ind] = [True]*len(psrtable.columns)  # Default mask to True
             continue
 
-        if dataline[0] not in psrtable.colnames:  #Make a new column
+        if dataline[0] not in psrtable.colnames:  # Make a new column
             if dataline[0] in PSR_ALL_PARS:
                 thisdtstr = PSR_ALL[dataline[0]]['format']
                 unitstr = PSR_ALL[dataline[0]]['units']
             else:
-                thisdtstr = 'U128' # default to string type
+                thisdtstr = 'U128'  # default to string type
                 unitstr = None
 
             newcolumn = MaskedColumn(name=dataline[0], dtype=thisdtstr, mask=True, unit=unitstr, length=ind+1) 
             psrtable.add_column(newcolumn)
 
-        psrtable[dataline[0]][ind] = dataline[1] # Data entry
-        psrtable[dataline[0]].mask[ind] = False  # Turn off masking for this entry
+        psrtable[dataline[0]][ind] = dataline[1]  # Data entry
+        psrtable[dataline[0]].mask[ind] = False   # Turn off masking for this entry
 
-    psrtable.remove_row(ind) # Final breakstring comes at the end of the file
+    psrtable.remove_row(ind)  # Final breakstring comes at the end of the file
 
     dbfile.close()   # close tar file
     pulsargz.close()
@@ -107,10 +110,11 @@ def get_catalogue():
 
 def get_version():
     """
-    Return a string with the ATNF catalogue version number, or default to that defined in `ATNF_VERSION`.
-    
+    Return a string with the ATNF catalogue version number, or default to that defined in
+    `ATNF_VERSION`.
+
     Returns:
-        str: the ATNF catalogue verion number.
+        str: the ATNF catalogue version number.
     """
 
     site = requests.get(ATNF_BASE_URL)
@@ -132,6 +136,134 @@ def get_version():
             atnfversion = ATNF_VERSION
 
     return atnfversion
+
+
+def get_glitch_catalogue(psr=None):
+    """
+    Return a :class:`~astropy.table.Table`: containing the `Jodrell Bank pulsar glitch catalogue
+    <http://www.jb.man.ac.uk/pulsar/glitches/gTable.html>`_.  If using data from the glitch
+    catalogue then please cite `Espinoza _et al_ (2011)
+    <http://adsabs.harvard.edu/abs/2011MNRAS.414.1679E>`_ and the URL
+    `<http://www.jb.man.ac.uk/pulsar/glitches.html>`_.
+
+    The output table will contain the following columns:
+
+     * `NAME`: the pulsars common name
+     * `JNAME`: the pulsar name based on J2000 coordinates
+     * `Glitch number`: the number of the glitch for a particular pulsar in chronological order
+     * `MJD`: the time of the glitch in Modified Julian Days
+     * `MJD_ERR`: the uncertainty on the glitch time in days
+     * `DeltaF/F`: the fractional frequency change
+     * `DeltaF/F_ERR`: the uncertainty on the fractional frequency change
+     * `DeltaF1/F1`: the fractional frequency derivative change
+     * `DeltaF1/F1_ERR`: the uncertainty on the fractional frequency derivative change
+     * `Reference`: the glitch publication reference
+
+    Args:
+        psr (str): if a pulsar name is given then only the glitches for that pulsar are returned,
+            otherwise all glitches are returned.
+
+    Returns:
+        :class:`~astropy.table.Table`: a table containing the entire glitch catalogue.
+
+    Example:
+        An example of using this to extract the glitches for the Crab Pulsar would be:
+
+        >>> import psrqpy
+        >>> gtable = psrqpy.get_glitch_catalogue(psr='J0534+2200')
+        >>> print("There have been {} glitches observed from the Crab pulsar".format(len(gtable)))
+        27
+    """
+
+    try:
+        from astropy.table import Table
+        from astropy.units import Unit
+    except ImportError:
+        raise ImportError('Problem importing astropy')
+
+    # get webpage
+    try:
+        gt = requests.get(GLITCH_URL)
+    except RuntimeError:
+        warnings.warn("Count not query the glitch catalogue.", UserWarning)
+        return None
+
+    if gt.status_code != 200:
+        warnings.warn("Count not query the glitch catalogue.", UserWarning)
+        return None
+
+    # parse HTML
+    try:
+        soup = BeautifulSoup(gt.content, 'html.parser')
+    except RuntimeError:
+        warnings.warn("Count not parse the glitch catalogue.", UserWarning)
+        return None
+
+    # get table rows
+    rows = soup.table.find_all('tr')
+
+    # set the table headings
+    tabledict = OrderedDict()
+    tabledict['NAME'] = []
+    tabledict['JNAME'] = []
+    tabledict['Glitch number'] = []
+    tabledict['MJD'] = []
+    tabledict['MJD_ERR'] = []
+    tabledict['DeltaF/F'] = []
+    tabledict['DeltaF/F_ERR'] = []
+    tabledict['DeltaF1/F1'] = []
+    tabledict['DeltaF1/F1_ERR'] = []
+    tabledict['Reference'] = []
+
+    # loop through rows: rows with glitches have their first column as an index
+    for i, row in enumerate(rows):
+        tds = row.find_all('td')
+
+        if tds[0].contents[0].string is None:
+            continue
+
+        try:
+            tabledict['NAME'].append(tds[1].contents[0].string)
+            jname = 'J'+tds[2].contents[0].string if 'J' != tds[2].contents[0].string[0] else tds[2].contents[0].string
+            tabledict['JNAME'].append(jname)
+            tabledict['Glitch number'].append(int(tds[3].contents[0].string))
+
+            for j, pname in enumerate(['MJD', 'MJD_ERR', 'DeltaF/F', 'DeltaF/F_ERR', 'DeltaF1/F1',
+                                       'DeltaF1/F1_ERR']):
+                try:
+                    val = float(tds[4+j].contents[0].string)
+                except ValueError:
+                    val = np.nan
+
+                tabledict[pname].append(val)
+
+            # get reference link if present
+            try:
+                ref = tds[10].contents[0].a.attrs['href']
+            except AttributeError:
+                ref = tds[10].contents[0].string
+            tabledict['Reference'].append(ref)
+        except RuntimeError:
+            warnings.warn("Problem parsing glitch table", UserWarning)
+            return None
+
+    # convert to an astropy table
+    table = Table(tabledict)
+    table.columns['MJD'].unit = Unit('d')     # add units of days to glitch time
+    table.columns['MJD_ERR'].unit = Unit('d')
+
+    if psr is None:
+        return table
+    else:
+        if psr not in table['NAME'] and psr not in table['JNAME']:
+            warnings.warn("Pulsar '{}' not found in glitch catalogue".format(psr), UserWarning)
+            return None 
+        else:
+            if psr in table['NAME']:
+                return table[table['NAME'] == psr]
+            else:
+                return table[table['JNAME'] == psr]
+
 
 def get_references(useads=False):
     """
@@ -158,8 +290,9 @@ def get_references(useads=False):
             refsoup = BeautifulSoup(queryrefs.content, 'html.parser')
 
             # get table containing the references
-            pattern = re.compile('References') # References are in a h2 tag containing 'References'
-            table = refsoup.find('h2', text=pattern).parent.find('table') # get the table in the same parent element as the 'References' header
+            pattern = re.compile('References')  # References are in a h2 tag containing 'References'
+            # get the table in the same parent element as the 'References' header
+            table = refsoup.find('h2', text=pattern).parent.find('table')
 
             trows = table.find_all('tr')
         except IOError:
@@ -170,13 +303,13 @@ def get_references(useads=False):
         j = 0
         for tr in trows:
             j = j + 1
-            reftag = tr.b.text # the reference string is contained in a <b> tag
+            reftag = tr.b.text  # the reference string is contained in a <b> tag
 
             if reftag in PROB_REFS:
                 continue
 
             refs[reftag] = {}
-            tds = tr.find_all('td') # get the two <td> tags - reference info is in the second
+            tds = tr.find_all('td')  # get the two <td> tags - reference info is in the second
 
             # check if publication is 'awkward', i.e. if has a year surrounded by '.'s, e.g, '.1969.' or '.1969a.'
             utext = re.sub(r'\s+', ' ', tds[1].text)
@@ -185,7 +318,7 @@ def get_references(useads=False):
             if len(dotyeardotlist) != 3:
                 utext = None
 
-            refdata = list(tds[1].contents) # copy list so contents of table aren't changed in the journal name substitution step below
+            refdata = list(tds[1].contents)  # copy list so contents of table aren't changed in the journal name substitution step below
 
             # check that the tag contains a string (the paper/book title) within <i> (paper) or <b> (book) - there are a few exceptions to this rule
             titlestr = None
@@ -208,17 +341,17 @@ def get_references(useads=False):
                                'Sov. Astron. Lett.': 'SvAL',
                                'ATel.': 'ATel'}
 
-                if isinstance(rdf, string_types): # only run on string values
-                    rdfs = re.sub(r'\s+', ' ', rdf) # make sure only single spaces are present
+                if isinstance(rdf, string_types):  # only run on string values
+                    rdfs = re.sub(r'\s+', ' ', rdf)  # make sure only single spaces are present
                     for js in journalsubs:
                         if js in rdfs:
                             refdata[ridx] = re.sub(js, journalsubs[js], rdfs)
 
             if (titlestr is not None or booktitlestr is not None) and utext is None:
-                authors = re.sub(r'\s+', ' ', refdata[0]).strip().strip('.') # remove line breaks and extra spaces (and final full-stop)
+                authors = re.sub(r'\s+', ' ', refdata[0]).strip().strip('.')  # remove line breaks and extra spaces (and final full-stop)
                 sepauthors = authors.split('.,')
             elif utext is not None:
-                year = int(re.sub('\D', '', dotyeardotlist[1])) # remove any non-number values
+                year = int(re.sub('\D', '', dotyeardotlist[1]))  # remove any non-number values
                 authors = dotyeardotlist[0]
                 sepauthors = authors.split('.,')
             else:
@@ -226,7 +359,7 @@ def get_references(useads=False):
 
             if (titlestr is not None or booktitlestr is not None) and utext is None:
                 try:
-                    year = int(''.join(filter(lambda x: x.isdigit(), sepauthors.pop(-1).strip('.')))) # strip any non-digit characters (e.g. from '1976a')
+                    year = int(''.join(filter(lambda x: x.isdigit(), sepauthors.pop(-1).strip('.'))))  # strip any non-digit characters (e.g. from '1976a')
                 except ValueError:
                     # get year from reftag
                     year = int(''.join(filter(lambda x: x.isdigit(), reftag)))
@@ -248,14 +381,14 @@ def get_references(useads=False):
                     else:
                         year += 2000
 
-            if '&' in sepauthors[-1] or 'and' in sepauthors[-1]: # split any authors that are seperated by an ampersand
+            if '&' in sepauthors[-1] or 'and' in sepauthors[-1]:  # split any authors that are seperated by an ampersand
                 lastauthors = [a.strip() for a in re.split(r'& | and ', sepauthors.pop(-1))]
                 sepauthors = sepauthors + lastauthors
                 for i in range(len(sepauthors)-2):
-                    sepauthors[i] += '.' # re-add final full stops where needed
+                    sepauthors[i] += '.'  # re-add final full stops where needed
                 sepauthors[-1] += '.'
             else:
-                sepauthors = [a+'.' for a in sepauthors] # re-add final full stops
+                sepauthors = [a+'.' for a in sepauthors]  # re-add final full stops
 
             refs[reftag]['authorlist'] = ', '.join(sepauthors)
             refs[reftag]['authors'] = sepauthors
@@ -265,7 +398,7 @@ def get_references(useads=False):
             refs[reftag]['pages'] = ''
 
             if titlestr is not None:
-                title = (re.sub(r'\s+', ' ', titlestr)).lstrip() # remove any leading spaces
+                title = (re.sub(r'\s+', ' ', titlestr)).lstrip()  # remove any leading spaces
             else:
                 title = ''
             refs[reftag]['title'] = title
@@ -275,7 +408,7 @@ def get_references(useads=False):
                 refs[reftag]['booktitle'] = booktitle
 
             if titlestr is not None:
-                # seperate journal name, volume and pages
+                # separate journal name, volume and pages
                 journalref = [a.strip() for a in refdata[-1].strip('.').split(',')]
                 if len(journalref) == 3:
                     refs[reftag]['journal'] = journalref[0]
@@ -284,13 +417,13 @@ def get_references(useads=False):
                 else:
                     if 'arxiv' in refdata[-1].strip('.').lower():
                         axvparts = refdata[-1].strip('.').split(':')
-                        if len(axvparts) == 2: # if an arXiv number of found
+                        if len(axvparts) == 2:  # if an arXiv number of found
                             axv = 'arXiv:{}'.format(re.split(', |. ', axvparts[1])[0])
                         else:
-                            axv = 'arXiv' # no arXiv number can be set
+                            axv = 'arXiv'  # no arXiv number can be set
                         refs[reftag]['journal'] = axv
             elif booktitlestr is not None:
-                # seperate book volume and other editorial/publisher info
+                # separate book volume and other editorial/publisher info
                 bookref = [a.strip() for a in refdata[-1].strip('.').split('eds')]
                 refs[reftag]['volume'] = re.sub(r', |. |\s+', '', bookref[0])
                 refs[reftag]['eds'] = bookref[1]
@@ -346,7 +479,7 @@ def characteristic_age(period, pdot, braking_idx=3.):
     age in using
 
     .. math::
-    
+
        \\tau = \\frac{P}{\dot{P}(n-1)}
 
     Args:
@@ -396,10 +529,10 @@ def age_pdot(period, tau=1e6, braking_idx=3.):
     if not isinstance(periods, np.ndarray):
         periods = np.array(periods)
 
-    taus = tau*365.25*86400. # tau in seconds
+    taus = tau*365.25*86400.  # tau in seconds
 
     pdots = (periods/(taus * (braking_idx - 1.)))
-    pdots[pdots < 0] = np.nan # set any non zero values to NaN
+    pdots[pdots < 0] = np.nan  # set any non zero values to NaN
 
     return pdots
 
@@ -408,7 +541,7 @@ def B_field(period, pdot):
     """
     Function defining the polar magnetic field strength at the surface of the pulsar
     in gauss (Equation 5.12 of Lyne & Graham-Smith, Pulsar Astronmy, 2nd edition) with
-    
+
     .. math::
 
        B = 3.2\!\\times\!10^{19} \\sqrt{P\dot{P}}
@@ -440,15 +573,15 @@ def B_field_pdot(period, Bfield=1e10):
     """
     Function to get the period derivative from a given pulsar period and magnetic
     field strength using
-    
+
     .. math::
-    
+
        \dot{P} = \\frac{1}{P}\left( \\frac{B}{3.2\!\\times\!10^{19}} \\right)^2
 
     Args:
         period (list, :class:`~numpy.ndarray`): a list of period values
         Bfield (float): the polar magnetic field strength (Defaults to :math:`10^{10}` G)
-        
+
     Returns:
         :class:`numpy.ndarray`: an array of period derivatives
     """
@@ -458,7 +591,7 @@ def B_field_pdot(period, Bfield=1e10):
         periods = np.array(periods)
 
     pdots = (Bfield/3.2e19)**2/periods
-    pdots[pdots < 0] = np.nan # set any non zero values to NaN
+    pdots[pdots < 0] = np.nan  # set any non zero values to NaN
 
     return pdots
 
