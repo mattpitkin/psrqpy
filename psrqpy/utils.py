@@ -70,7 +70,7 @@ def get_catalogue():
     psrtable = Table(masked=True)
     ind = 0  # Keeps track of how many objects
     psrtable.add_row(None)  # db file jumps right in! Better add the first row.
-    
+
     # loop through lines in dbfile
     for line in dbfile.readlines():
         dataline = line.decode().split()   # Splits on whitespace
@@ -79,7 +79,8 @@ def get_catalogue():
             continue
 
         if dataline[0][0] == breakstring:
-            psrtable.add_row(None)   # First break comes at the end of the first object and so forth.
+            # First break comes at the end of the first object and so forth
+            psrtable.add_row(None)
             ind += 1                 # New object!
             psrtable.mask[ind] = [True]*len(psrtable.columns)  # Default mask to True
             continue
@@ -109,8 +110,9 @@ def get_catalogue():
 
 def get_version():
     """
-    Return a string with the ATNF catalogue version number, or default to that defined in `ATNF_VERSION`.
-    
+    Return a string with the ATNF catalogue version number, or default to that defined in
+    `ATNF_VERSION`.
+
     Returns:
         str: the ATNF catalogue version number.
     """
@@ -141,11 +143,11 @@ def get_glitch_catalogue(psr=None):
     Return a :class:`~astropy.table.Table`: containing the `Jodrell Bank pulsar glitch catalogue
     <http://www.jb.man.ac.uk/pulsar/glitches/gTable.html>`_.  If using data from the glitch
     catalogue then please cite `Espinoza _et al_ (2011)
-    <http://adsabs.harvard.edu/abs/2011MNRAS.414.1679E>`_ and the URL 
+    <http://adsabs.harvard.edu/abs/2011MNRAS.414.1679E>`_ and the URL
     `<http://www.jb.man.ac.uk/pulsar/glitches.html>`_.
 
     The output table will contain the following columns:
-     
+
      * `NAME`: the pulsars common name
      * `JNAME`: the pulsar name based on J2000 coordinates
      * `Glitch number`: the number of the glitch for a particular pulsar in chronological order
@@ -216,16 +218,16 @@ def get_glitch_catalogue(psr=None):
     # loop through rows: rows with glitches have their first column as an index
     for i, row in enumerate(rows):
         tds = row.find_all('td')
-    
+
         if tds[0].contents[0].string is None:
             continue
-    
+
         try:
             tabledict['NAME'].append(tds[1].contents[0].string)
             jname = 'J'+tds[2].contents[0].string if 'J' != tds[2].contents[0].string[0] else tds[2].contents[0].string
             tabledict['JNAME'].append(jname)
             tabledict['Glitch number'].append(int(tds[3].contents[0].string))
-        
+
             for j, pname in enumerate(['MJD', 'MJD_ERR', 'DeltaF/F', 'DeltaF/F_ERR', 'DeltaF1/F1',
                                        'DeltaF1/F1_ERR']):
                 try:
@@ -288,8 +290,9 @@ def get_references(useads=False):
             refsoup = BeautifulSoup(queryrefs.content, 'html.parser')
 
             # get table containing the references
-            pattern = re.compile('References') # References are in a h2 tag containing 'References'
-            table = refsoup.find('h2', text=pattern).parent.find('table') # get the table in the same parent element as the 'References' header
+            pattern = re.compile('References')  # References are in a h2 tag containing 'References'
+            # get the table in the same parent element as the 'References' header
+            table = refsoup.find('h2', text=pattern).parent.find('table')
 
             trows = table.find_all('tr')
         except IOError:
@@ -476,7 +479,7 @@ def characteristic_age(period, pdot, braking_idx=3.):
     age in using
 
     .. math::
-    
+
        \\tau = \\frac{P}{\dot{P}(n-1)}
 
     Args:
@@ -538,7 +541,7 @@ def B_field(period, pdot):
     """
     Function defining the polar magnetic field strength at the surface of the pulsar
     in gauss (Equation 5.12 of Lyne & Graham-Smith, Pulsar Astronmy, 2nd edition) with
-    
+
     .. math::
 
        B = 3.2\!\\times\!10^{19} \\sqrt{P\dot{P}}
@@ -570,15 +573,15 @@ def B_field_pdot(period, Bfield=1e10):
     """
     Function to get the period derivative from a given pulsar period and magnetic
     field strength using
-    
+
     .. math::
-    
+
        \dot{P} = \\frac{1}{P}\left( \\frac{B}{3.2\!\\times\!10^{19}} \\right)^2
 
     Args:
         period (list, :class:`~numpy.ndarray`): a list of period values
         Bfield (float): the polar magnetic field strength (Defaults to :math:`10^{10}` G)
-        
+
     Returns:
         :class:`numpy.ndarray`: an array of period derivatives
     """
