@@ -10,6 +10,7 @@ import warnings
 from collections import OrderedDict
 import re
 import six
+import sys
 
 from six.moves import cPickle as pickle
 from six import string_types
@@ -30,91 +31,104 @@ from .utils import *
 def warning_format(message, category, filename, lineno, file=None, line=None):
     return '{}: {}'.format(category.__name__, message)
 
+
 warnings.formatwarning = warning_format
 
 
 class QueryATNF(object):
     """
     A class to generate a query of the
-    `ATNF pulsar catalogue <http://www.atnf.csiro.au/people/pulsar/psrcat/>`_. This class will
-    generate and return a query and for a set of pulsar parameters. Specific pulsars can also be
-    queried. Conditions can be set on the queried parameters. The results can be converted into a
-    dictionary or an :class:`astropy.table.Table`.
+    `ATNF pulsar catalogue <http://www.atnf.csiro.au/people/pulsar/psrcat/>`_.
+    This class will generate and return a query and for a set of pulsar
+    parameters. Specific pulsars can also be queried. Conditions can be set on
+    the queried parameters. The results can be converted into a dictionary or
+    a :class:`astropy.table.Table`.
 
     Args:
-        params (str, :obj:`list`, required): a list of strings with the pulsar `parameters
+        params (str, :obj:`list`, required): a list of strings with the pulsar
+            `parameters
             <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=expert#par_list>`_
-            to query. The parameter names are case insensitive. The ``JName`` parameter will be
-            queried by default, unless ``nojname`` is set to True.
-        condition (str): a string with logical conditions for the returned parameters. The allowed
-            format of the condition string is given `here
+            to query. The parameter names are case insensitive. The ``JName``
+            parameter will be queried by default, unless ``nojname`` is set to
+            True.
+        condition (str): a string with logical conditions for the returned
+            parameters. The allowed format of the condition string is given
+            `here
             <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#condition>`_.
             Defaults to None.
-        psrtype (:obj:`list`): a list of strings, or single string, of conditions on the `type
+        psrtype (:obj:`list`): a list of strings, or single string, of
+            conditions on the `type
             <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#psr_types>`_ of
-            pulsars to return (logical AND will be used for any listed types). Defaults to None.
-        assoc (:obj:`list`, str): a condition on the associations of pulsars to return (logical AND
-            will be used for any listed associations). Currently this can contain either ``GC`` for
-            pulsars in globular clusters or ``SNR`` for pulsars with associated supernova remnants.
+            pulsars to return (logical AND will be used for any listed types).
             Defaults to None.
-        bincomp (str, :obj:`list`): a list of strings, or single string, of conditions on the
-            `binary
+        assoc (:obj:`list`, str): a condition on the associations of pulsars
+            to return (logical AND will be used for any listed associations).
+            Currently this can contain either ``GC`` for pulsars in globular
+            clusters or ``SNR`` for pulsars with associated supernova remnants.
+            Defaults to None.
+        bincomp (str, :obj:`list`): a list of strings, or single string, of
+            conditions on the `binary
             <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#bincomp_type>`_
-            companion types of pulsars to return (logical AND will be used for any listed
-            associations). Defaults to None.
-        extractmatch (bool): a boolean stating whether assciations and types given as the condition
-            should be an exact match. Defaults to False.
-        sort_attr (str): the (case insensitive) parameter name on which with sort the returned
-            pulsars. Defaults to ``JName``.
-        sort_ord (str): the order of the sorting, can be either ``asc`` or ``desc``. Defaults to
-            ascending.
-        psrs (:obj:`list`): a list of pulsar names for which to get the requested parameters.
-            Defaults to None.
-        circular_boundary (:obj:`list`, tuple): a list containing three entries defining the centre
-            (in right ascension and declination), and radius of a circle in which to search for and
-            return pulsars. The first entry is the centre point right ascension as a string in
-            format 'hh:mm:ss' or a float in radians, the second entry is the centre point
-            declination as a string in format 'dd:mm:ss' or a float in radians, the final entry is
-            the circle's radius in degrees. Alternatively `coord1`, `coord2`, and `radius` can be
+            companion types of pulsars to return (logical AND will be used for
+            any listed associations). Defaults to None.
+        extractmatch (bool): a boolean stating whether associations and types
+            given as the condition should be an exact match. Defaults to False.
+        sort_attr (str): the (case insensitive) parameter name on which with
+            sort the returned pulsars. Defaults to ``JName``.
+        sort_ord (str): the order of the sorting, can be either ``asc`` or
+            ``desc``. Defaults to ascending.
+        psrs (:obj:`list`): a list of pulsar names for which to get the
+            requested parameters. Defaults to None.
+        circular_boundary (:obj:`list`, tuple): a list containing three entries
+            defining the centre (in right ascension and declination), and
+            radius of a circle in which to search for and return pulsars. The
+            first entry is the centre point right ascension as a string in
+            format 'hh:mm:ss' or a float in radians, the second entry is the
+            centre point declination as a string in format 'dd:mm:ss' or a
+            float in radians, the final entry is the circle's radius in
+            degrees. Alternatively `coord1`, `coord2`, and `radius` can be
             used.
-        coord1 (str): a string containing a right ascension in the format ('hh:mm:ss') that
-            centres a circular boundary in which to search for pulsars (requires coord2 and
-            radius to be set).
-        coord2 (str): a string containing a declination in the format ('dd:mm:ss') that
-            centres a circular boundary in which to search for pulsars (requires coord1 and
-            radius to be set).
-        radius (float): the radius (in degrees) of a circular boundary in which to search for
-            pulsars (requires coord1 and coord2 to be set).
-        include_errs (bool): Set if wanting parameter errors to be returned. Defaults to True.
-        include_refs (bool): Set if wanting parameter
-            `references <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_ref.html>`_ to be
-            returned. Defaults to False.
-        get_ephemeris (bool): Set if wanting to get pulsar ephemerides (only works if `psrs` have
-            been specified). Defaults to False.
-        version (str): a string with the ATNF version to use (this will default to the current
-            version if set as None)
-        adsref (bool): Set if wanting to use an :class:`ads.search.SearchQuery` to get reference
-            information. Defaults to False.
-        loadfromfile (str): load an instance of :class:`~psrqpy.search.QueryATNF` from the given
-            file, rather than performing a new query. Defaults to None.
-        nojname (bool): Set to True if wanting to explicitly exclude the ``JName`` parameter from
-            a query. Defaults to False.
+        coord1 (str): a string containing a right ascension in the format
+            ('hh:mm:ss') that centres a circular boundary in which to search
+            for pulsars (requires coord2 and radius to be set).
+        coord2 (str): a string containing a declination in the format
+            ('dd:mm:ss') that centres a circular boundary in which to search
+            for pulsars (requires coord1 and radius to be set).
+        radius (float): the radius (in degrees) of a circular boundary in which
+            to search for pulsars (requires coord1 and coord2 to be set).
+        include_errs (bool): Set if wanting parameter errors to be returned.
+            Defaults to True.
+        include_refs (bool): Set if wanting parameter `references
+            <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_ref.html>`_
+            to be returned. Defaults to False.
+        get_ephemeris (bool): Set if wanting to get pulsar ephemerides (only
+            works if `psrs` have been specified). Defaults to False.
+        version (str): a string with the ATNF version to use (this will default
+            to the current version if set as None)
+        adsref (bool): Set if wanting to use an :class:`ads.search.SearchQuery`
+            to get reference information. Defaults to False.
+        loadfromfile (str): load an instance of
+            :class:`~psrqpy.search.QueryATNF` from the given file, rather than
+            performing a new query. Defaults to None.
+        nojname (bool): Set to True if wanting to explicitly exclude the
+            ``JName`` parameter from a query. Defaults to False.
     """
 
-    def __init__(self, params=None, condition=None, psrtype=None, assoc=None, bincomp=None,
-                 exactmatch=False, sort_attr='jname', sort_order='asc', psrs=None,
-                 include_errs=True, include_refs=False, get_ephemeris=False, version=None,
-                 adsref=False, loadfromfile=None, circular_boundary=None, coord1=None, coord2=None,
-                 radius=0., nojname=False):
+    def __init__(self, params=None, condition=None, psrtype=None, assoc=None,
+                 bincomp=None, exactmatch=False, sort_attr='jname',
+                 sort_order='asc', psrs=None, include_errs=True,
+                 include_refs=False, get_ephemeris=False, version=None,
+                 adsref=False, loadfromfile=None, circular_boundary=None,
+                 coord1=None, coord2=None, radius=0., nojname=False):
         self._psrs = psrs
         self._include_errs = include_errs
         self._include_refs = include_refs
         self._atnf_version = version
-        self._atnf_version = self.get_version # if no version is set this will return the current or default value
+        self._atnf_version = self.get_version  # if no version is set this will return the current or default value
         self._adsref = adsref
 
-        self._savefile = None # file to save class to
-        self._loadfile = None # file class loaded from
+        self._savefile = None  # file to save class to
+        self._loadfile = None  # file class loaded from
 
         if loadfromfile:
             self.load(loadfromfile)
@@ -131,22 +145,22 @@ class QueryATNF(object):
 
         self._sort_attr = sort_attr
 
-        self._refs = None # set of pulsar references
+        self._refs = None  # set of pulsar references
         self._query_output = None
         self._get_ephemeris = get_ephemeris
 
-        self._pulsars = None # gets set to a Pulsars object by get_pulsars()
+        self._pulsars = None  # gets set to a Pulsars object by get_pulsars()
 
         # conditions for finding pulsars within a circular boundary
         self._coord1 = coord1
         self._coord2 = coord2
         self._radius = radius
         if isinstance(circular_boundary, list) or isinstance(circular_boundary, tuple):
-           if len(circular_boundary) != 3:
-               raise Exception("Circular boundary must contain three values")
-           self._coord1 = circular_boundary[0]
-           self._coord2 = circular_boundary[1]
-           self._radius = circular_boundary[2]
+            if len(circular_boundary) != 3:
+                raise Exception("Circular boundary must contain three values")
+            self._coord1 = circular_boundary[0]
+            self._coord2 = circular_boundary[1]
+            self._radius = circular_boundary[2]
         elif self._coord1 is None or self._coord2 is None or self._radius == 0.:
             # if any are not set then we can't define a boundary
             self._coord1 = self._coord2 = ''
@@ -158,7 +172,7 @@ class QueryATNF(object):
                 raise Exception("Circular boundary radius must be a float or int")
 
         # check parameters are allowed values
-        self._query_params = ['JNAME'] # query JNAME by default for all queries
+        self._query_params = ['JNAME']  # query JNAME by default for all queries
         if isinstance(params, list):
             if len(params) == 0:
                 print('No query parameters have been specified, so only "JNAME" will be queried')
@@ -167,13 +181,13 @@ class QueryATNF(object):
                 if not isinstance(p, string_types):
                     raise Exception("Non-string value '{}' found in params list".format(p))
 
-            self._query_params += [p.upper() for p in params if p.upper() != 'JNAME'] # make sure parameter names are all upper case and JNAME is not re-added
+            self._query_params += [p.upper() for p in params if p.upper() != 'JNAME']  # make sure parameter names are all upper case and JNAME is not re-added
         else:
             if isinstance(params, string_types):
-                if params.upper() != 'JNAME': # do not re-add JNAME as it is already the default
-                    self._query_params += [params.upper()] # make sure parameter is all upper case
+                if params.upper() != 'JNAME':  # do not re-add JNAME as it is already the default
+                    self._query_params += [params.upper()]  # make sure parameter is all upper case
             elif params is not None:
-                if self._psrs and self._get_ephemeris: # if getting ephemerides then param can be None 
+                if self._psrs and self._get_ephemeris:  # if getting ephemerides then param can be None 
                     self._query_params = []
                 else:
                     raise Exception("'params' must be a list or string")
@@ -230,7 +244,7 @@ class QueryATNF(object):
             fp = open(fname, 'rb')
             tmp_dict = pickle.load(fp)
             fp.close()          
-            self.__dict__.clear() # clear current self
+            self.__dict__.clear()  # clear current self
             self.__dict__.update(tmp_dict)
             self._loadfile = fname
         except IOError:
@@ -274,7 +288,7 @@ class QueryATNF(object):
         for key, value in six.iteritems(kwargs):
             if key == 'get_ephemeris':
                 if isinstance(value, bool):
-                    self._get_ephemeris = value # overwrite the pre-set class _get_ephemeris value
+                    self._get_ephemeris = value  # overwrite the pre-set class _get_ephemeris value
 
         query_dict = {}
         self._atnf_version = self._atnf_version if not version else version
@@ -282,7 +296,7 @@ class QueryATNF(object):
 
         if params:
             if isinstance(params, string_types):
-                params = [params] # convert to list
+                params = [params]  # convert to list
             else:
                 if not isinstance(params, list):
                     raise Exception('Error... input "params" for generate_query() must be a list')
@@ -291,7 +305,7 @@ class QueryATNF(object):
                 if p.upper() not in PSR_ALL_PARS:
                     warnings.warn("Parameter {} not recognised".format(p), UserWarning)
                     qparams.remove(p)
-            self._query_params = [qp.upper() for qp in qparams] # convert parameter names to all be upper case
+            self._query_params = [qp.upper() for qp in qparams]  # convert parameter names to all be upper case
 
         pquery = ''
         for p in self._query_params:
@@ -325,24 +339,24 @@ class QueryATNF(object):
 
         if psrnames:
             if isinstance(psrnames, string_types):
-                self._psrs = [psrnames] # convert to list
+                self._psrs = [psrnames]  # convert to list
             else:
                 if not isinstance(psrnames, list):
                     raise Exception('Error... input "psrnames" for generate_query() must be a list')
-                self._psrs = list(psrnames) # reset self._psrs
+                self._psrs = list(psrnames)  # reset self._psrs
 
-        qpulsars = '' # pulsar name query string
+        qpulsars = ''  # pulsar name query string
         if self._psrs is not None:
             if isinstance(self._psrs, string_types):
-                self._psrs = [self._psrs] # if a string pulsar name then convert to list
+                self._psrs = [self._psrs]  # if a string pulsar name then convert to list
 
             for psr in self._psrs:
-                if '+' in psr: # convert '+'s in pulsar names to '%2B' for the query string
+                if '+' in psr:  # convert '+'s in pulsar names to '%2B' for the query string
                     qpulsars += psr.replace('+', '%2B')
                 else:
                     qpulsars += psr
-                qpulsars += '+' # seperator between pulsars
-            qpulsars = qpulsars.strip('+') # remove the trailing '+'
+                qpulsars += '+'  # seperator between pulsars
+            qpulsars = qpulsars.strip('+')  # remove the trailing '+'
         query_dict['psrnames'] = qpulsars
 
         # get pulsar ephemeris rather than table (parsing of this is not implemented yet)
@@ -384,17 +398,17 @@ class QueryATNF(object):
         # parse through BeautifulSoup
         try:
             psrsoup = BeautifulSoup(self._query_content, 'html.parser')
-        except:
-            raise Exception('Error... problem parsing catalogue with BeautifulSoup')
+        except RuntimeError:
+            raise RuntimeError('Error... problem parsing catalogue with BeautifulSoup')
 
-        pretags = psrsoup.find_all('pre') # get any <pre> html tags
+        pretags = psrsoup.find_all('pre')  # get any <pre> html tags
 
         if pretags is None:
             # couldn't find anything, or their was a query problem
             raise Exception('Error... problem parsing catalogue for currently requested parameters')
         
         # check for any warnings generated by the request
-        self._bad_pulsars = [] # any requested pulsars that were not found
+        self._bad_pulsars = []  # any requested pulsars that were not found
         for pt in pretags:
             if 'WARNING' in pt.text:
                 warnings.warn('Request generated warning: "{}"'.format(pt.text), UserWarning)
@@ -422,12 +436,12 @@ class QueryATNF(object):
         qoutput = pretags[-1].text
         self._query_output = OrderedDict()
         self._npulsars = 0
-        self._pulsars = None # reset to None in case a previous query had already been performed
+        self._pulsars = None  # reset to None in case a previous query had already been performed
 
-        if not self._get_ephemeris: # not getting ephemeris values
+        if not self._get_ephemeris:  # not getting ephemeris values
             # put the data in an ordered dictionary dictionary
             if qoutput:
-                plist = qoutput.strip().split('\n') # split output string
+                plist = qoutput.strip().split('\n')  # split output string
 
                 if self._psrs:
                     if len(self._psrs) != len(plist):
@@ -440,25 +454,25 @@ class QueryATNF(object):
                         self._query_output[p] = np.zeros(self._npulsars, dtype=PSR_ALL[p]['format'])
 
                         if PSR_ALL[p]['err'] and self._include_errs:
-                            self._query_output[p+'_ERR'] = np.zeros(self._npulsars, dtype='f8') # error can only be floats
+                            self._query_output[p+'_ERR'] = np.zeros(self._npulsars, dtype='f8')  # error can only be floats
 
                         if PSR_ALL[p]['ref'] and self._include_refs:
                             self._query_output[p+'_REF'] = np.zeros(self._npulsars, dtype='S1024')
 
-                            if self._adsref: # also add reference URL for NASA ADS
+                            if self._adsref:  # also add reference URL for NASA ADS
                                 self._query_output[p+'_REFURL'] = np.zeros(self._npulsars, dtype='S1024')
 
                 for idx, line in enumerate(plist):
                     # split the line on whitespace or \xa0 using re (if just using split it ignores \xa0,
                     # which may be present for, e.g., empty reference fields, and results in the wrong
                     # number of line entries, also ignore the first entry as it is always in index
-                    pvals = [lv.strip() for lv in re.split(r'\s+| \xa0 | \D\xa0', line)][1:] # strip removes '\xa0' now
+                    pvals = [lv.strip() for lv in re.split(r'\s+| \xa0 | \D\xa0', line)][1:]  # strip removes '\xa0' now
 
                     vidx = 0 # index of current value
                     for p in self._query_params:
                         if PSR_ALL[p]['format'] == 'f8':
                             if pvals[vidx] == '*':
-                                self._query_output[p][idx] = None # put NaN entry in numpy array
+                                self._query_output[p][idx] = None  # put NaN entry in numpy array
                             else:
                                 self._query_output[p][idx] = float(pvals[vidx])
                         elif PSR_ALL[p]['format'] == 'i4':
@@ -487,11 +501,11 @@ class QueryATNF(object):
                                 if reftag in self._refs:
                                     thisref = self._refs[reftag]
                                     refstring = '{authorlist}, {year}, {title}, {journal}, {volume}'
-                                    refstring2 = re.sub(r'\s+', ' ', refstring.format(**thisref)) # remove any superfluous whitespace
+                                    refstring2 = re.sub(r'\s+', ' ', refstring.format(**thisref))  # remove any superfluous whitespace
                                     self._query_output[p+'_REF'][idx] = ','.join([a for a in refstring2.split(',') if a.strip()]) # remove any superfluous empty ',' seperated values
 
                                     if self._adsref:
-                                        if 'ADS URL' not in thisref: # get ADS reference
+                                        if 'ADS URL' not in thisref:  # get ADS reference
                                             try:
                                                 import ads
                                             except ImportError:
@@ -512,7 +526,7 @@ class QueryATNF(object):
                                 else:
                                     warnings.warn('Reference tag "{}" not found so omitting reference'.format(reftag), UserWarning)
                             vidx += 1
-        else: # getting ephemeris
+        else:  # getting ephemeris
             # split ephemerides for each requested pulsar (they are seperated by '@-----'...)
             if qoutput:
                 psrephs = re.split(r'@-+', qoutput)
@@ -569,6 +583,14 @@ class QueryATNF(object):
 
         return psrtable
 
+    def pandas(self):
+        """
+        Returns:
+            :class:`pandas.DataFrame`: a table of pulsar data returned by the query.
+        """
+
+        return self.table().to_pandas()
+
     def get_pulsars(self):
         """
         Returns:
@@ -584,7 +606,7 @@ class QueryATNF(object):
 
             # check if JNAME or NAME was queried
             if 'JNAME' not in self._query_params and 'NAME' not in self._query_params:
-                self._query_params.append('JNAME') # add JNAME parameter
+                self._query_params.append('JNAME')  # add JNAME parameter
 
                 # re-do query
                 self._query_content = self.generate_query()
@@ -660,7 +682,7 @@ class QueryATNF(object):
                 return ''
 
             # split condition on >, <, &&, ||, ==, <=, >=, !=, (, ), and whitespace
-            splitvals = r'(&&)|(\|\|)|(>=)|>|(<=)|<|\(|\)|(==)|(!=)|!' # perform splitting by substitution and then splitting on whitespace
+            splitvals = r'(&&)|(\|\|)|(>=)|>|(<=)|<|\(|\)|(==)|(!=)|!'  # perform splitting by substitution and then splitting on whitespace
             condvals = re.sub(splitvals, ' ', condition).split()
 
             # check values are numbers, parameter, names, assocition names, etc
@@ -674,7 +696,7 @@ class QueryATNF(object):
                         return ''
 
             # remove spaces (turn into '+'), and convert values in condition
-            conditionparse = condition.strip() # string preceeding and trailing whitespace
+            conditionparse = condition.strip()  # string preceeding and trailing whitespace
             conditionparse = re.sub(r'\s+', '+', conditionparse) # change whitespace to '+'
 
             # substitute && for %26%26
@@ -795,7 +817,7 @@ class QueryATNF(object):
         if self._npulsars > 0:
             return str(self.table())
         else:
-            return str(self._query_output) # should be empty dict
+            return str(self._query_output)  # should be empty dict
 
     def __repr__(self):
         """
@@ -806,12 +828,125 @@ class QueryATNF(object):
         if self._npulsars > 0:
             return repr(self.table())
         else:
-            return repr(self._query_output) # should be empty dict
+            return repr(self._query_output)  # should be empty dict
+
+    def plot(self, param1, param2, logx=False, logy=False, excludeAssoc=[], showtypes=[],
+             showGCs=False, showSNRs=False, markertypes={}, rcparams={}, usealtair=False,
+             **kwargs):
+        """
+        Produce a scatter plot of pairs of parameters using :module:`matplotlib.pyplot`.
+
+        Args:
+            param1 (str): a pulsar parameter to be plotted along the x-axis. The parameter values
+                must be floating point numbers.
+            param2 (str): a pulsar parameter to be plotted along the y-axis. The parameter values
+                must be floating point numbers.
+            logx (bool): set to True to use a logarithmic x-axis. Defaults to False.
+            logy (bool): set to True to use a logarithmic y-axis. Defaults to False.
+            showtypes (list, str): a list of pulsar types to highlight with markers in the plot.
+                These can contain any of the following: ``BINARY``, ``HE``, ``NRAD``, ``RRAT``,
+                ``XINS``, ``AXP`` or ``SGR``, or ``ALL`` to show all types. Default to showing no
+                types.
+            showGCs (bool): show markers to denote the pulsars in globular clusters. Defaults to
+                False.
+            showSNRs (bool): show markers to denote the pulsars with supernova remnants associated
+                with them. Defaults to False.
+            markertypes (dict): a dictionary of marker styles and colors keyed to the pulsar types
+                above.
+            excludeAssoc (list): a list of pulsar association type only ('GC' or 'SNR') at the
+                moment to exclude from the plot.
+            useplotly (bool): create a plot `plot.ly <https://plot.ly/>`_ figure rather than a
+                :class:`matplotlib.figure.Figure`.
+        """
+
+        try:
+            import matplotlib as mpl
+            from matplotlib import pyplot as pl
+        except ImportError:
+            raise Exception('Cannot produce P-Pdot plot as Matplotlib is not available')
+
+        if usealtair:
+            # import altair
+            try:
+                import altair as alt
+            except ImportError:
+                raise ImportError('Cannot create plot using altair as it is not available')
+
+        # check that both input parameters have been queried
+        nparams = len(self._query_params)
+        if param1 not in self._query_params:
+            self._query_params.append(param1)
+        if param2 not in self._query_params:
+            self._query_params.append(param2)
+
+        # redo query if required
+        if len(self._query_params) != nparams:
+            # perform query
+            self._query_content = self.generate_query()
+            self._query_output = self.parse_query()
+
+        if not self.num_pulsars:
+            print("No pulsars found, so no P-Pdot plot has been produced")
+            return None
+
+        # get Pandas DataFrame of parameters
+        t = self.pandas()
+
+        # set axes scales
+        scalex = 'linear' if not logx else 'log'
+        scaley = 'linear' if not logy else 'log'
+
+        if usealtair:
+            # set tool tip values
+            tooltip = []
+            if 'JNAME' in t:
+                tooltip.append('JNAME')
+            if 'F0' in t and 'F0' not in [param1, param2]:
+                tooltip.append('F0')
+            elif 'P0' in t and 'P0' not in [param1, param2]:
+                tooltip.append('P0')
+            tooltip.append(param1)
+            tooltip.append(param2)
+
+            text = alt.TextConfig(font='Times')
+            axistext = alt.VgAxisConfig(titleFont='Times', titleFontSize=12,
+                                        labelFont='Times')
+            config = alt.Config(text=text, axis=axistext)
+
+            chart = alt.Chart(t, height=600, width=800,
+                              config=config).mark_circle().encode(
+                    alt.X(param1+':Q', scale=alt.Scale(type=scalex)),
+                    alt.Y(param2+':Q', scale=alt.Scale(type=scaley)),
+                    tooltip=tooltip
+                )
+
+            return chart
+        else:
+            rcparams['figure.figsize'] = rcparams['figure.figsize'] if 'figure.figsize' in rcparams else (9, 9.5)
+            rcparams['figure.dpi'] = rcparams['figure.dpi'] if 'figure.dpi' in rcparams else 250
+            rcparams['text.usetex'] = rcparams['text.usetex'] if 'text.usetex' in rcparams else True
+            rcparams['axes.linewidth'] = rcparams['axes.linewidth'] if 'axes.linewidth' in rcparams else 0.5
+            rcparams['axes.grid'] = rcparams['axes.grid'] if 'axes.grid' in rcparams else False
+            rcparams['font.family'] = rcparams['font.family'] if 'font.family' in rcparams else 'sans-serif'
+            rcparams['font.sans-serif'] = rcparams['font.sans-serif'] if 'font.sans-serif' in rcparams else 'Avant Garde, Helvetica, Computer Modern Sans serif'
+            rcparams['font.size'] = rcparams['font.size'] if 'font.size' in rcparams else 20
+            rcparams['legend.fontsize'] = rcparams['legend.fontsize'] if 'legend.fontsize' in rcparams else 16
+            rcparams['legend.frameon'] = rcparams['legend.frameon'] if 'legend.frameon' in rcparams else False
+
+            mpl.rcParams.update(rcparams)
+            
+            fig, ax = pl.subplots()
+
+            ax.plot(t[param1], t[param2])
+            ax.set_xscale(scalex)
+            ax.set_yscale(scaley)
+
+            return fig
 
     def ppdot(self, intrinsicpdot=False, excludeGCs=False, showtypes=[], showGCs=False,
               showSNRs=False, markertypes={}, deathline=True, deathmodel='Ip', filldeath=True,
               filldeathtype={}, showtau=True, brakingidx=3, tau=None, showB=True, Bfield=None,
-              pdotlims=None, periodlims=None, rcparams={}):
+              pdotlims=None, periodlims=None, rcparams={}, usealtair=False):
         """
         Draw a lovely period vs period derivative diagram.
 
@@ -830,7 +965,7 @@ class QueryATNF(object):
             showSNRs (bool): show markers to denote the pulsars with supernova remnants associated
                 with them. Defaults to False.
             markertypes (dict): a dictionary of marker styles and colors keyed to the pulsar types
-                above
+                above.
             deathline (bool): draw the pulsar death line. Defaults to True.
             deathmodel (str): the type of death line to draw based on the models in
                 :func:`psrqpy.utils.death_line`. Defaults to ``'Ip'``.
@@ -852,6 +987,8 @@ class QueryATNF(object):
             pdotlims (array_like): the [min, max] pdot limits to plot with
             rcparams (dict): a dictionary of :py:obj:`matplotlib.rcParams` setup parameters for the
                 plot.
+            usealtair (bool): use `altair <https://altair-viz.github.io/>`_ to
+                produce the plot.
 
         Returns:
             :class:`matplotlib.figure.Figure`: the figure object
@@ -862,6 +999,13 @@ class QueryATNF(object):
             from matplotlib import pyplot as pl
         except ImportError:
             raise Exception('Cannot produce P-Pdot plot as Matplotlib is not available')
+
+        if usealtair:
+            # import altair
+            try:
+                import altair
+            except ImportError:
+                raise ImportError('Cannot create plot using altair as it is not available')
 
         # check the we have periods and period derivatives
         nparams = len(self._query_params)
@@ -882,12 +1026,12 @@ class QueryATNF(object):
         for stype in list(nshowtypes):
             if 'ALL' == stype.upper():
                 nshowtypes = list(PSR_TYPES)
-                del nshowtypes[nshowtypes.index('RADIO')] # remove radio as none are returned as this 
+                del nshowtypes[nshowtypes.index('RADIO')]  # remove radio as none are returned as this
                 break
             elif stype.upper() not in list(PSR_TYPES):
                 warnings.warn('"TYPE" {} is not recognised, so will not be included'.format(stype))
                 del nshowtypes[nshowtypes.index(stype)]
-            if 'SGR' == stype.upper(): # synonym for AXP
+            if 'SGR' == stype.upper():  # synonym for AXP
                 nshowtypes[nshowtypes.index(stype)] = 'AXP'
 
         if nshowtypes and 'TYPE' not in self._query_params:
@@ -961,7 +1105,7 @@ class QueryATNF(object):
 
         # check whether to exclude globular cluster pulsars that could have contaminated spin-down value
         if excludeGCs:
-            nongcidxs = np.flatnonzero(np.char.find(assocs,'GC:')==-1) # use '!=' to find GC indexes
+            nongcidxs = np.flatnonzero(np.char.find(assocs, 'GC:') == -1)  # use '!=' to find GC indexes
             periods = periods[nongcidxs]
             pdots = pdots[nongcidxs]
             if 'ASSOC' in self._query_params:
@@ -981,8 +1125,8 @@ class QueryATNF(object):
             periodlims = [10**np.floor(np.min(np.log10(periods))), 10.*int(np.ceil(np.max(pdots)/10.))]
         if pdotlims is None:
             pdotlims = [10**np.floor(np.min(np.log10(pdots))), 10**np.ceil(np.max(np.log10(pdots)))]
-        ax.set_xlim(periodlims);
-        ax.set_ylim(pdotlims);
+        ax.set_xlim(periodlims)
+        ax.set_ylim(pdotlims)
 
         if deathline:
             deathpdots = 10**death_line(np.log10(periodlims), linemodel=deathmodel)
@@ -1001,7 +1145,7 @@ class QueryATNF(object):
         # add markers for each pulsar type
         if not markertypes:
             markertypes = {}
-    
+
         # check if markers have been defined by the user or not
         markertypes['AXP'] = {'marker': 's', 'markeredgecolor': 'red'} if 'AXP' not in markertypes else markertypes['AXP']
         markertypes['BINARY'] = {'marker': 'o', 'markeredgecolor': 'grey'} if 'BINARY' not in markertypes else markertypes['BINARY']
@@ -1038,11 +1182,11 @@ class QueryATNF(object):
                 thistype = stype.upper()
                 if thistype == 'BINARY':
                     # for binaries used the 'BINARY' column in the table
-                    typeidx = np.flatnonzero(np.char.find(binaries, '*')==-1)
+                    typeidx = np.flatnonzero(np.char.find(binaries, '*') == -1)
                 elif thistype in ['GC', 'SNR']:
-                    typeidx = np.flatnonzero(np.char.find(assocs, thistype)!=-1)
+                    typeidx = np.flatnonzero(np.char.find(assocs, thistype) != -1)
                 else:
-                    typeidx = np.flatnonzero(np.char.find(types, thistype)!=-1)
+                    typeidx = np.flatnonzero(np.char.find(types, thistype) != -1)
 
                 if len(typeidx) == 0:
                     continue
@@ -1060,7 +1204,8 @@ class QueryATNF(object):
                 else:
                     handles[thistype] = typehandle
 
-                ax.legend(handles.values(), handles.keys(), loc='upper left', numpoints=1);
+                ax.legend(handles.values(), handles.keys(), loc='upper left',
+                          numpoints=1)
 
         # add characteristic age lines
         tlines = OrderedDict()
@@ -1098,7 +1243,7 @@ class QueryATNF(object):
                 if numv == 1.:
                     Blines[r'$10^{{{0:d}}}\,{{\rm G}}$'.format(int(Bpow))] = bline
                 else:
-                    Blines[r'${{0:.1f}}!\times\!10^{{{1:d}}}\,{{\rm G}}$'.format(numv, Bpow)] = bline
+                    Blines[r'${{{0:.1f}}}!\times\!10^{{{1:d}}}\,{{\rm G}}$'.format(numv, Bpow)] = bline
 
         fig.tight_layout()
 
@@ -1109,6 +1254,4 @@ class QueryATNF(object):
         for l in Blines:
             ttext = label_line(ax, Blines[l], l, color='k', fs=18, frachoffset=0.90)
 
-        # return the figure
         return fig
-
