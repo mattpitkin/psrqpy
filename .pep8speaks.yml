@@ -1,0 +1,4 @@
+# File : .pep8speaks.yml
+
+pycodestyle:
+    max-line-length: 100  # Default is 79 in PEP8
