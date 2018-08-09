@@ -142,7 +142,7 @@ def get_glitch_catalogue(psr=None):
     """
     Return a :class:`~astropy.table.Table`: containing the `Jodrell Bank pulsar glitch catalogue
     <http://www.jb.man.ac.uk/pulsar/glitches/gTable.html>`_.  If using data from the glitch
-    catalogue then please cite `Espinoza _et al_ (2011)
+    catalogue then please cite `Espinoza *et al* (2011)
     <http://adsabs.harvard.edu/abs/2011MNRAS.414.1679E>`_ and the URL
     `<http://www.jb.man.ac.uk/pulsar/glitches.html>`_.
 
