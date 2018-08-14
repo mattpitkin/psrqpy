@@ -473,6 +473,68 @@ def get_references(useads=False):
     return refs
 
 
+def condition(psrtable, cond):
+    """
+    Given an :class:`astropy.table.Table` and logical condition for a single,
+    or set of, parameters return a new table based on that condition. The
+    logical conditions must be applicable to values stored in a
+    :class:`numpy.ndarray`
+
+    Args:
+        psrtable (:class:`~astropy.table.Table`): a table of pulsar data
+        cond (str): a set of logical conditions containing pulsar parameter
+            names
+
+    Returns:
+        :class:`~astropy.table.Table`: the table of conforming to the condition
+
+    Example:
+        Some examples this might be:
+        
+        1. finding all pulsars with frequencies greater than 100 Hz
+
+        >>> newtable = condition(psrtable, 'F0 > 100')
+
+        2. finding all pulsars with frequencies greater than 50 Hz and
+        period derivatives less than 1e-15 s/s.
+
+        >>> newtable = condition(psrtable, '(F0 > 50) & (P1 < 1e-15)')
+
+    """
+
+    from astropy.table import Table
+
+    if not isinstance(psrtable, Table):
+        raise RuntimeError("Input must be an astropy Table")
+
+    if not isinstance(cond, string_types):
+         raise RuntimeError("Condition must be a string")
+
+    # find parameter names in the string
+    incondition = {}
+    for par in PSR_ALL_PARS:
+        if par in cond:
+            if par in psrtable.colnames:
+                incondition[par] = psrtable[par]
+            else:
+                raise RuntimeError("Condition parameter '{}' is not in the table".format(par))
+
+    # get boolean array for condition
+    try:
+        condidx = eval(cond, incondition)
+    except RuntimeError:
+        raise RuntimeError("Could not evaluate the condition '{}'".format(cond))
+
+    if condidx is None:
+        return None
+
+    if np.all(np.logical_not(condidx)):
+        # no values where found conforming to the condition
+        return None
+    
+    return psrtable[condidx]
+
+
 def characteristic_age(period, pdot, braking_idx=3.):
     """
     Function defining the characteristic age of a pulsar. Returns the characteristic
