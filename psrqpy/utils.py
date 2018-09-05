@@ -505,10 +505,10 @@ def condition(psrtable, cond):
     from astropy.table import Table
 
     if not isinstance(psrtable, Table):
-        raise RuntimeError("Input must be an astropy Table")
+        raise TypeError("Input must be an astropy Table")
 
     if not isinstance(cond, string_types):
-         raise RuntimeError("Condition must be a string")
+         raise TypeError("Condition must be a string")
 
     # find parameter names in the string
     incondition = {}
