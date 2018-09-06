@@ -22,7 +22,7 @@ from .config import ATNF_BASE_URL, ATNF_VERSION, ADS_URL, ATNF_TARBALL, PSR_ALL,
 PROB_REFS = ['bwck08']
 
 
-def get_catalogue():
+def get_catalogue(path_to_db=None):
     """
     This function will attempt to download the entire ATNF catalogue `tarball
     <http://www.atnf.csiro.au/people/pulsar/psrcat/downloads/psrcat_pkg.tar.gz>`_ and convert it to
@@ -39,30 +39,37 @@ def get_catalogue():
     """
 
     try:
-        import tarfile
-    except ImportError:
-        raise ImportError('Problem importing tarfile')
-
-    try:
         from astropy.table import Table, MaskedColumn
     except ImportError:
         raise ImportError('Problem importing astropy')
 
-    # get the tarball
-    try:
-        pulsargzfile = requests.get(ATNF_TARBALL)
-        fp = BytesIO(pulsargzfile.content)  # download and store in memory
-    except IOError:
-        raise IOError('Problem accessing ATNF catalogue tarball')
+    if not path_to_db:
+        try:
+            import tarfile
+        except ImportError:
+            raise ImportError('Problem importing tarfile')
 
-    try:
-        # open tarball
-        pulsargz = tarfile.open(fileobj=fp, mode='r:gz')
+        # get the tarball
+        try:
+            pulsargzfile = requests.get(ATNF_TARBALL)
+            fp = BytesIO(pulsargzfile.content)  # download and store in memory
+        except IOError:
+            raise IOError('Problem accessing ATNF catalogue tarball')
 
-        # extract the database file
-        dbfile = pulsargz.extractfile('psrcat_tar/psrcat.db')
-    except IOError:
-        raise IOError('Problem extracting the database file')
+        try:
+            # open tarball
+            pulsargz = tarfile.open(fileobj=fp, mode='r:gz')
+
+            # extract the database file
+            dbfile = pulsargz.extractfile('psrcat_tar/psrcat.db')
+        except IOError:
+            raise IOError('Problem extracting the database file')
+
+    else:
+        try:
+            dbfile = open(path_to_db)
+        except IOError:
+            raise IOError('Error loading given database file')
 
     breakstring = '@'    # break between each pulsar
     commentstring = '#'  # specifies line is a comment
@@ -73,7 +80,10 @@ def get_catalogue():
 
     # loop through lines in dbfile
     for line in dbfile.readlines():
-        dataline = line.decode().split()   # Splits on whitespace
+        if isinstance(line,str):
+            dataline = line.split()
+        else:
+            dataline = line.decode().split()   # Splits on whitespace
 
         if dataline[0][0] == commentstring:
             continue
@@ -136,8 +146,9 @@ def get_catalogue():
     psrtable.remove_row(ind)  # Final breakstring comes at the end of the file
 
     dbfile.close()   # close tar file
-    pulsargz.close()
-    fp.close()       # close StringIO
+    if not path_to_db:
+        pulsargz.close()
+        fp.close()       # close StringIO
 
     return psrtable
 
