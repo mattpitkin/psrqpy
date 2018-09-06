@@ -35,6 +35,8 @@ QUERY_URL = ATNF_URL + PARAMS_QUERY + USERDEFINED_QUERY + SORT_QUERY + CONDITION
 PSR_GENERAL = {'NAME':     {'ref': True,  'err': False, 'units': None,       'format': 'U32'},  # Pulsar name.  The B name if exists, otherwise the J name.
                'JNAME':    {'ref': True,  'err': False, 'units': None,       'format': 'U32'},  # Pulsar name based on J2000 coordinates
                'BNAME':    {'ref': True,  'err': False, 'units': None,       'format': 'U32'},  # Pulsar Besselian name
+               'PSRJ':     {'ref': True,  'err': False, 'units': None,       'format': 'U32'},  # Pulsar name based on J2000 coordinates
+               'PSRB':     {'ref': True,  'err': False, 'units': None,       'format': 'U32'},  # Pulsar Besselian name
                'RAJ':      {'ref': True,  'err': True,  'units': None,       'format': 'U64'},  # Right ascension (J2000) (hh:mm:ss.s)
                'DECJ':     {'ref': True,  'err': True,  'units': None,       'format': 'U64'},  # Declination (J2000) (+dd:mm:ss)
                'PMRA':     {'ref': True,  'err': True,  'units': 'mas/yr',   'format': 'f8'},   # Proper motion in the right ascension direction (mas/yr)
@@ -49,7 +51,7 @@ PSR_GENERAL = {'NAME':     {'ref': True,  'err': False, 'units': None,       'fo
                'GB':       {'ref': False, 'err': False, 'units': 'deg',      'format': 'f8'},   # Galactic latitude (degrees)
                'RAJD':     {'ref': False, 'err': False, 'units': 'deg',      'format': 'f8'},   # Right ascension (J2000) (degrees)
                'DECJD':    {'ref': False, 'err': False, 'units': 'deg',      'format': 'f8'},   # Declination (J2000) (degrees)
-               'TYPE':     {'ref': True,  'err': False, 'units': None,       'format': 'U64'},  # Type codes for the pulsar (http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#psr_types)
+               'TYPE':     {'ref': False, 'err': False, 'units': None,       'format': 'U64'},  # Type codes for the pulsar (http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#psr_types)
                'PML':      {'ref': False, 'err': True,  'units': 'mas/yr',   'format': 'f8'},   # Proper motion in Galactic longitude (mas/yr)
                'PMB':      {'ref': False, 'err': True,  'units': 'mas/yr',   'format': 'f8'},   # Proper motion in Galactic latitude (mas/yr)
                'DIST':     {'ref': False, 'err': False, 'units': 'kpc',      'format': 'f8'},   # Best estimate of the pulsar distance using the YMW16 DM-based distance as default (kpc)
@@ -120,6 +122,7 @@ PSR_TIMING = {'P0':      {'ref': True,  'err': True,  'units': 's',             
               'S60':     {'ref': True,  'err': True,  'units': 'mJy',            'format': 'f8'}, # Flux at 60 MHz (mJy)
               'S80':     {'ref': True,  'err': True,  'units': 'mJy',            'format': 'f8'}, # Flux at 80 MHz (mJy)
               'S100':    {'ref': True,  'err': True,  'units': 'mJy',            'format': 'f8'}, # Flux at 100 MHz (mJy)
+              'S150':    {'ref': True,  'err': True,  'units': 'mJy',            'format': 'f8'}, # Flux at 150 MHz (mJy)
               'S200':    {'ref': True,  'err': True,  'units': 'mJy',            'format': 'f8'}, # Flux at 200 MHz (mJy)
               'S300':    {'ref': True,  'err': True,  'units': 'mJy',            'format': 'f8'}, # Flux at 300 MHz (mJy)
               'S600':    {'ref': True,  'err': True,  'units': 'mJy',            'format': 'f8'}, # Flux at 600 MHz (mJy)
@@ -129,8 +132,10 @@ PSR_TIMING = {'P0':      {'ref': True,  'err': True,  'units': 's',             
               'S1600':   {'ref': True,  'err': True,  'units': 'mJy',            'format': 'f8'}, # Flux at 1600 MHz (mJy)
               'S3000':   {'ref': True,  'err': True,  'units': 'mJy',            'format': 'f8'}, # Flux at 3000 MHz (mJy)
               'S4000':   {'ref': True,  'err': False, 'units': 'mJy',            'format': 'f8'}, # Flux at 4000 MHz (mJy)
+              'S5000':   {'ref': True,  'err': True,  'units': 'mJy',            'format': 'f8'}, # Flux at 5000 MHz (mJy)
               'S6000':   {'ref': True,  'err': True,  'units': 'mJy',            'format': 'f8'}, # Flux at 6000 MHz (mJy)
               'S8000':   {'ref': True,  'err': True,  'units': 'mJy',            'format': 'f8'}, # Flux at 8000 MHz (mJy)
+              'S9000':   {'ref': True,  'err': False, 'units': 'mJy',            'format': 'f8'}, # Flux at 9000 MHz (mJy)
               'S10G':    {'ref': False, 'err': False, 'units': 'mJy',            'format': 'f8'}, # Flux at 10 GHz (mJy)
               'S20G':    {'ref': False, 'err': False, 'units': 'mJy',            'format': 'f8'}, # Flux at 20 GHz (mJy)
               'S50G':    {'ref': False, 'err': False, 'units': 'mJy',            'format': 'f8'}, # Flux at 50 GHz (mJy)
@@ -157,6 +162,7 @@ PSR_BINARY = {'BINARY':   {'ref': True,  'err': False, 'units': None,       'for
               'FB0':      {'ref': True,  'err': True,  'units': 'Hz',       'format': 'f8'},  # Orbital frequency (Hz)
               'FB1':      {'ref': True,  'err': True,  'units': 'Hz s^-1',  'format': 'f8'},  # 1st time derivative of orbital frequency (Hz s^-1)
               'FB2':      {'ref': True,  'err': True,  'units': 'Hz s^-2',  'format': 'f8'},  # 2nd time derivative of orbital frequency (Hz s^-2)
+              'FB3':      {'ref': True,  'err': True,  'units': 'Hz s^-3',  'format': 'f8'},  # 3rd time derivative of orbital frequency (Hz s^-3)
               'OMDOT':    {'ref': True,  'err': True,  'units': 'deg/yr',   'format': 'f8'},  # 1st time derivative of periastron longitude (periastron advance) (deg yr^-1)
               'OM2DOT':   {'ref': True,  'err': True,  'units': 'deg/yr^2', 'format': 'f8'},  # 2nd time derivative of periastron longitude (deg yr^-2)
               'A1DOT':    {'ref': True,  'err': True,  'units': 's s^-1',   'format': 'f8'},  # 1st time derivative of projected semi-major axis (lt-s s^-1)
@@ -203,7 +209,8 @@ PSR_BINARY = {'BINARY':   {'ref': True,  'err': False, 'units': None,       'for
               'STIG':     {'ref': True,  'err': True,  'units': None,       'format': 'f8'},  # Ratio of successive Shapiro-delay harmonics (e.g., H4/H3)
               'MASSFN':   {'ref': False, 'err': False, 'units': 'M_sun',    'format': 'f8'},  # The pulsar mass function (solar mass)
               'UPRMASS':  {'ref': False, 'err': False, 'units': 'M_sun',    'format': 'f8'},  # 90% confidence upper companion mass limit, i=26deg (solar mass)
-              'MINOMDOT': {'ref': False, 'err': False, 'units': 'deg/yr',   'format': 'f8'}   # Minimum omega dot, assuming sin i = 1 and M_ns = 1.4Mo (deg/yr)
+              'MINOMDOT': {'ref': False, 'err': False, 'units': 'deg/yr',   'format': 'f8'},  # Minimum omega dot, assuming sin i = 1 and M_ns = 1.4Mo (deg/yr)
+              'XDOT':     {'ref': True,  'err': True,  'units': None,       'format': 'f8'}   # Rate of change of projected semi-major axis 
              }
 
 PSR_BINARY_PARS = list(PSR_BINARY.keys())

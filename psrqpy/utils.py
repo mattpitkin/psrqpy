@@ -93,11 +93,45 @@ def get_catalogue():
                 thisdtstr = 'U128'  # default to string type
                 unitstr = None
 
-            newcolumn = MaskedColumn(name=dataline[0], dtype=thisdtstr, mask=True, unit=unitstr, length=ind+1) 
+            newcolumn = MaskedColumn(name=dataline[0], dtype=thisdtstr,
+                                     mask=True, unit=unitstr, length=ind+1)
             psrtable.add_column(newcolumn)
 
-        psrtable[dataline[0]][ind] = dataline[1]  # Data entry
+            # check if there is an error value and add new column
+            if dataline[0] in PSR_ALL_PARS and PSR_ALL[dataline[0]]['err']:
+                errcolumn = MaskedColumn(name=dataline[0]+'_ERR',
+                                         dtype=thisdtstr, mask=True,
+                                         unit=unitstr, length=ind+1)
+                psrtable.add_column(errcolumn)
+
+            # check if there is a reference and add new column
+            if dataline[0] in PSR_ALL_PARS and PSR_ALL[dataline[0]]['ref']:
+                refcolumn = MaskedColumn(name=dataline[0]+'_REF',
+                                         dtype='U32', mask=True, length=ind+1)
+                psrtable.add_column(refcolumn)
+
+        nidx = 1  # index of data entry
+        psrtable[dataline[0]][ind] = dataline[nidx]  # Data entry
         psrtable[dataline[0]].mask[ind] = False   # Turn off masking for this entry
+
+        if len(dataline) > 2 and dataline[0] in PSR_ALL_PARS:
+            nidx += 1
+            if PSR_ALL[dataline[0]]['err']:
+                # check value is a number not a string (in which case this is a reference)
+                try:
+                    float(dataline[nidx])
+                    isfloat = True
+                except ValueError:
+                    isfloat = False
+            
+                if isfloat:
+                    psrtable[dataline[0]+'_ERR'][ind] = dataline[nidx]  # error entry
+                    psrtable[dataline[0]+'_ERR'].mask[ind] = False
+                    nidx += 1
+
+            if PSR_ALL[dataline[0]]['ref']:
+                psrtable[dataline[0]+'_REF'][ind] = dataline[nidx]  # reference entry
+                psrtable[dataline[0]+'_REF'].mask[ind] = False
 
     psrtable.remove_row(ind)  # Final breakstring comes at the end of the file
 
