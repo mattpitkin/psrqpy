@@ -83,7 +83,7 @@ def get_catalogue(path_to_db=None):
 
     # loop through lines in dbfile
     for line in dbfile.readlines():
-        if isinstance(line,str):
+        if isinstance(line, string_types):
             dataline = line.split()
         else:
             dataline = line.decode().split()   # Splits on whitespace
@@ -110,66 +110,72 @@ def get_catalogue(path_to_db=None):
                                      mask=True, unit=unitstr, length=ind+1)
             psrtable.add_column(newcolumn)
 
-            # check if there is an error value and add new column
-            if (dataline[0] in PSR_ALL_PARS and PSR_ALL[dataline[0]]['err']) or len(dataline) > 2:
-                errcolumn = MaskedColumn(name=dataline[0]+'_ERR',
-                                         dtype='f8', mask=True,
-                                         unit=unitstr, length=ind+1)
-                psrtable.add_column(errcolumn)
-
-            # check if there is a reference and add new column
-            if (dataline[0] in PSR_ALL_PARS and PSR_ALL[dataline[0]]['ref']) or len(dataline) > 2:
-                refcolumn = MaskedColumn(name=dataline[0]+'_REF',
-                                         dtype='U32', mask=True, length=ind+1)
-                psrtable.add_column(refcolumn)
-
         psrtable[dataline[0]][ind] = dataline[1]  # Data entry
         psrtable[dataline[0]].mask[ind] = False   # Turn off masking for this entry
 
         if len(dataline) > 2:
-            if dataline[0] in PSR_ALL_PARS:
-                # check whether 3rd value is a float (so its an error value) or not
+            # check whether 3rd value is a float (so its an error value) or not
+            try:
+                float(dataline[2])
+                isfloat = True
+            except ValueError:
+                isfloat = False
+
+            if isfloat:
+                # error values are last digit errors, so convert to actual
+                # errors by finding the number of decimal places after the
+                # '.' in the value string
+                val = dataline[1].split(':')[-1]  # account for RA and DEC strings
+
                 try:
-                    float(dataline[2])
-                    isfloat = True
+                    float(val)
                 except ValueError:
-                    isfloat = False
+                    raise ValueError("Value with error is not convertable to a float")
 
-                if isfloat:
-                    # error values are last digit errors, so convert to actual
-                    # errors by finding the number of decimal places after the
-                    # '.' in the value string
-                    val = dataline[1].split(':')[-1]  # account for RA and DEC strings
-
-                    try:
-                        float(val)
-                    except ValueError:
-                        raise ValueError("Value with error is not convertable to a float")
-
-                    if dataline[2][0] == '-' or '.' in dataline[2]:
-                        # negative errors or those with decimal points are absolute values
-                        scalefac = 1.
-                    else:
-                        # split on exponent
-                        valsplit = re.split('e|E|d|D', val)
-                        scalefac = 1.
-                        if len(valsplit) == 2:
-                            scalefac = 10**(-int(valesplit[1]))
-
-                        dpidx = valsplit[0].find('.')  # find position of decimal point
-                        if dpidx != -1:  # a point is found
-                            scalefac *= 10**(len(valsplit[0])-dpidx-1)
-
-                    psrtable[dataline[0]+'_ERR'][ind] = float(dataline[2])/scalefac  # error entry
-                    psrtable[dataline[0]+'_ERR'].mask[ind] = False
+                if dataline[2][0] == '-' or '.' in dataline[2]:
+                    # negative errors or those with decimal points are absolute values
+                    scalefac = 1.
                 else:
-                    psrtable[dataline[0]+'_REF'][ind] = dataline[2]  # reference entry
-                    psrtable[dataline[0]+'_REF'].mask[ind] = False
+                    # split on exponent
+                    valsplit = re.split('e|E|d|D', val)
+                    scalefac = 1.
+                    if len(valsplit) == 2:
+                        scalefac = 10**(-int(valsplit[1]))
 
-                if len(dataline) > 3:
-                    # last entry must(!) be a reference
-                    psrtable[dataline[0]+'_REF'][ind] = dataline[3]  # reference entry
-                    psrtable[dataline[0]+'_REF'].mask[ind] = False
+                    dpidx = valsplit[0].find('.')  # find position of decimal point
+                    if dpidx != -1:  # a point is found
+                        scalefac *= 10**(len(valsplit[0])-dpidx-1)
+
+                # add error column if required
+                if dataline[0]+'_ERR' not in psrtable.colnames:
+                    unitstr = None if dataline[0] not in PSR_ALL_PARS else PSR_ALL[dataline[0]]['units']
+                    errcolumn = MaskedColumn(name=dataline[0]+'_ERR',
+                                             dtype='f8', mask=True,
+                                             unit=unitstr, length=ind+1)
+                    psrtable.add_column(errcolumn)
+
+                psrtable[dataline[0]+'_ERR'][ind] = float(dataline[2])/scalefac  # error entry
+                psrtable[dataline[0]+'_ERR'].mask[ind] = False
+            else:
+                # add reference column if required
+                if dataline[0]+'_REF' not in psrtable.colnames:
+                    refcolumn = MaskedColumn(name=dataline[0]+'_REF',
+                                             dtype='U32', mask=True, length=ind+1)
+                    psrtable.add_column(refcolumn)
+
+                psrtable[dataline[0]+'_REF'][ind] = dataline[2]  # reference entry
+                psrtable[dataline[0]+'_REF'].mask[ind] = False
+
+            if len(dataline) > 3:
+                # last entry must(!) be a reference
+                # add reference column if required
+                if dataline[0]+'_REF' not in psrtable.colnames:
+                    refcolumn = MaskedColumn(name=dataline[0]+'_REF',
+                                             dtype='U32', mask=True, length=ind+1)
+                    psrtable.add_column(refcolumn)
+
+                psrtable[dataline[0]+'_REF'][ind] = dataline[3]  # reference entry
+                psrtable[dataline[0]+'_REF'].mask[ind] = False
 
     psrtable.remove_row(ind)  # Final breakstring comes at the end of the file
 
