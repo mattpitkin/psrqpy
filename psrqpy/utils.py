@@ -39,9 +39,6 @@ def get_catalogue(path_to_db=None):
     Returns:
         :class:`~astropy.table.Table`: a table containing the entire catalogue.
 
-    Note:
-        At the moment this function does not return a table that includes the
-        uncertainties on the parameters.
     """
 
     try:
@@ -119,35 +116,42 @@ def get_catalogue(path_to_db=None):
                                          dtype=thisdtstr, mask=True,
                                          unit=unitstr, length=ind+1)
                 psrtable.add_column(errcolumn)
+            elif len(dataline) > 2:
+                # use for "unknown" parameters
+                errcolumn = MaskedColumn(name=dataline[0]+'_ERR',
+                                         dtype='f8', mask=True,
+                                         unit=None, length=ind+1)
+                psrtable.add_column(errcolumn)
 
             # check if there is a reference and add new column
-            if dataline[0] in PSR_ALL_PARS and PSR_ALL[dataline[0]]['ref']:
+            if (dataline[0] in PSR_ALL_PARS and PSR_ALL[dataline[0]]['ref']) or len(dataline) > 2:
                 refcolumn = MaskedColumn(name=dataline[0]+'_REF',
                                          dtype='U32', mask=True, length=ind+1)
                 psrtable.add_column(refcolumn)
 
-        nidx = 1  # index of data entry
-        psrtable[dataline[0]][ind] = dataline[nidx]  # Data entry
+        psrtable[dataline[0]][ind] = dataline[1]  # Data entry
         psrtable[dataline[0]].mask[ind] = False   # Turn off masking for this entry
 
-        if len(dataline) > 2 and dataline[0] in PSR_ALL_PARS:
-            nidx += 1
-            if PSR_ALL[dataline[0]]['err']:
-                # check value is a number not a string (in which case this is a reference)
+        if len(dataline) > 2:
+            if dataline[0] in PSR_ALL_PARS:
+                # check whether 3rd value is a float (so its an error value) or not
                 try:
-                    float(dataline[nidx])
+                    float(dataline[2])
                     isfloat = True
                 except ValueError:
                     isfloat = False
-            
+                
                 if isfloat:
-                    psrtable[dataline[0]+'_ERR'][ind] = dataline[nidx]  # error entry
+                    psrtable[dataline[0]+'_ERR'][ind] = dataline[2]  # error entry
                     psrtable[dataline[0]+'_ERR'].mask[ind] = False
-                    nidx += 1
+                else:
+                    psrtable[dataline[0]+'_REF'][ind] = dataline[2]  # reference entry
+                    psrtable[dataline[0]+'_REF'].mask[ind] = False
 
-            if PSR_ALL[dataline[0]]['ref']:
-                psrtable[dataline[0]+'_REF'][ind] = dataline[nidx]  # reference entry
-                psrtable[dataline[0]+'_REF'].mask[ind] = False
+                if len(dataline) > 3:
+                    # last entry must(!) be a reference
+                    psrtable[dataline[0]+'_REF'][ind] = dataline[3]  # reference entry
+                    psrtable[dataline[0]+'_REF'].mask[ind] = False
 
     psrtable.remove_row(ind)  # Final breakstring comes at the end of the file
 
