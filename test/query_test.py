@@ -16,7 +16,7 @@ for i, p in enumerate(PSR_ALL_PARS):
         # just call class methods rather than creating a new class
         query.generate_query(params=p)
         query.parse_query()
-    t = query.table()
+    t = query.table
 
     # check error and reference exist if expected
     if PSR_ALL[p]['err']:
