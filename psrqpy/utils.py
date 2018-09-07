@@ -111,16 +111,10 @@ def get_catalogue(path_to_db=None):
             psrtable.add_column(newcolumn)
 
             # check if there is an error value and add new column
-            if dataline[0] in PSR_ALL_PARS and PSR_ALL[dataline[0]]['err']:
-                errcolumn = MaskedColumn(name=dataline[0]+'_ERR',
-                                         dtype=thisdtstr, mask=True,
-                                         unit=unitstr, length=ind+1)
-                psrtable.add_column(errcolumn)
-            elif len(dataline) > 2:
-                # use for "unknown" parameters
+            if (dataline[0] in PSR_ALL_PARS and PSR_ALL[dataline[0]]['err']) or len(dataline) > 2:
                 errcolumn = MaskedColumn(name=dataline[0]+'_ERR',
                                          dtype='f8', mask=True,
-                                         unit=None, length=ind+1)
+                                         unit=unitstr, length=ind+1)
                 psrtable.add_column(errcolumn)
 
             # check if there is a reference and add new column
@@ -140,9 +134,33 @@ def get_catalogue(path_to_db=None):
                     isfloat = True
                 except ValueError:
                     isfloat = False
-                
+
                 if isfloat:
-                    psrtable[dataline[0]+'_ERR'][ind] = dataline[2]  # error entry
+                    # error values are last digit errors, so convert to actual
+                    # errors by finding the number of decimal places after the
+                    # '.' in the value string
+                    val = dataline[1].split(':')[-1]  # account for RA and DEC strings
+
+                    try:
+                        float(val)
+                    except ValueError:
+                        raise ValueError("Value with error is not convertable to a float")
+
+                    if dataline[2][0] == '-' or '.' in dataline[2]:
+                        # negative errors or those with decimal points are absolute values
+                        scalefac = 1.
+                    else:
+                        # split on exponent
+                        valsplit = re.split('e|E|d|D', val)
+                        scalefac = 1.
+                        if len(valsplit) == 2:
+                            scalefac = 10**(-int(valesplit[1]))
+
+                        dpidx = valsplit[0].find('.')  # find position of decimal point
+                        if dpidx != -1:  # a point is found
+                            scalefac *= 10**(len(valsplit[0])-dpidx-1)
+
+                    psrtable[dataline[0]+'_ERR'][ind] = float(dataline[2])/scalefac  # error entry
                     psrtable[dataline[0]+'_ERR'].mask[ind] = False
                 else:
                     psrtable[dataline[0]+'_REF'][ind] = dataline[2]  # reference entry
