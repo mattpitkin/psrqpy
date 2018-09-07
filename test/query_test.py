@@ -8,9 +8,14 @@ from psrqpy import QueryATNF
 from psrqpy.config import *
 
 # query all parameters for one pulsar (the Crab) one at a time
-for p in PSR_ALL_PARS:
+for i, p in enumerate(PSR_ALL_PARS):
     print('Parameter: "{}"'.format(p))
-    query = QueryATNF(params=p, psrs=['J0534+2200'], include_refs=True)
+    if i == 0:
+        query = QueryATNF(params=p, psrs=['J0534+2200'], include_refs=True)
+    else:
+        # just call class methods rather than creating a new class
+        query.generate_query(params=p)
+        query.parse_query()
     t = query.table()
 
     # check error and reference exist if expected
@@ -25,5 +30,3 @@ for p in PSR_ALL_PARS:
             ref = t[p+'_REF']
         except IOError:
             raise IOError('No reference found for parameter "{}"'.format(p))
-
-    del query, t
