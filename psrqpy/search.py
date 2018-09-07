@@ -205,15 +205,15 @@ class QueryATNF(object):
         # set conditions
         self._conditions_query = self.parse_conditions(condition, psrtype=psrtype, assoc=assoc, bincomp=bincomp, exactmatch=exactmatch)
 
-        # get references is required
+        # get references if required
         if self._include_refs:
             self._refs = get_references()
 
         # perform query
-        self._query_content = self.generate_query()
+        self.generate_query()
 
         # parse the query with BeautifulSoup into a dictionary
-        self._query_output = self.parse_query()
+        self.parse_query()
 
     def save(self, fname):
         """
@@ -277,10 +277,6 @@ class QueryATNF(object):
                 pulsars (requires `coord1` and `coord2` to be set).
             get_ephemeris (bool): a boolean stating whether to get pulsar ephemerides rather than
                 a table of parameter values (only works if pulsar names are given)
-
-        Returns:
-            str: the :attr:`~requests.Response.content` of a :class:`~requests.Response` returned
-            by :func:`~requests.get` for the ATNF pulsar catalogue query page.
 
         """
 
@@ -377,7 +373,7 @@ class QueryATNF(object):
         if psrrequest.status_code != 200:
             raise Exception('Error... their was a problem with the request: status code {}'.format(psrrequest.status_code))
 
-        return psrrequest.content
+        self._query_content = psrrequest.content
 
     def parse_query(self, requestcontent=''):
         """
@@ -386,9 +382,6 @@ class QueryATNF(object):
         Args:
             requestcontent (str): The content of a :class:`~requests.Response` returned by
                 :func:`~requests.get`
-
-        Returns:
-            :class:`collections.OrderedDict`: an ordered dictionary of requested parameter values
 
         """
 
@@ -524,7 +517,8 @@ class QueryATNF(object):
 
                                         self._query_output[p+'_REFURL'][idx] = thisref['ADS URL']
                                 else:
-                                    warnings.warn('Reference tag "{}" not found so omitting reference'.format(reftag), UserWarning)
+                                    if reftag != '*':
+                                        warnings.warn('Reference tag "{}" not found so omitting reference'.format(reftag), UserWarning)
                             vidx += 1
         else:  # getting ephemeris
             # split ephemerides for each requested pulsar (they are seperated by '@-----'...)
@@ -539,8 +533,6 @@ class QueryATNF(object):
                 # query output in this case is a dictionary of ephemerides
                 for psr, psreph in zip(self._psrs, psrephs):
                     self._query_output[psr] = psreph
-
-        return self._query_output
 
     def get_dict(self):
         """
