@@ -19,7 +19,7 @@ from collections import OrderedDict
 from .config import ATNF_BASE_URL, ATNF_VERSION, ADS_URL, ATNF_TARBALL, PSR_ALL, PSR_ALL_PARS, GLITCH_URL
 
 # problematic references that are hard to parse
-PROB_REFS = ['bwck08']
+PROB_REFS = ['bwck08', 'crf+18']
 
 
 def get_catalogue(path_to_db=None):
