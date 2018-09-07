@@ -77,8 +77,7 @@ PSR_GENERAL = {'NAME':     {'ref': True,  'err': False, 'units': None,       'fo
                'GLF0D':    {'ref': False, 'err': False, 'units': 'Hz',       'format': 'f8'},   # Decaying frequency increment at glitch
                'GLTD':     {'ref': False, 'err': False, 'units': 'd',        'format': 'f8'},   # Time constant for decaying frequency increment
                'CLK':      {'ref': True,  'err': False, 'units': None,       'format': 'U32'},  # Reference clock used for timing solution
-               'EPHEM':    {'ref': True,  'err': False, 'units': None,       'format': 'U32'}  # Solar-system ephemeris used for timing solution
-              }
+               'EPHEM':    {'ref': True,  'err': False, 'units': None,       'format': 'U32'}} # Solar-system ephemeris used for timing solution
 
 # just return the parameter names
 PSR_GENERAL_PARS = list(PSR_GENERAL.keys())
@@ -141,8 +140,7 @@ PSR_TIMING = {'P0':      {'ref': True,  'err': True,  'units': 's',             
               'S50G':    {'ref': False, 'err': False, 'units': 'mJy',            'format': 'f8'}, # Flux at 50 GHz (mJy)
               'S100G':   {'ref': True,  'err': True,  'units': 'mJy',            'format': 'f8'}, # Flux at 100 GHz (mJy)
               'S150G':   {'ref': True,  'err': True,  'units': 'mJy',            'format': 'f8'}, # Flux at 150 GHz (mJy)
-              'SPINDX':  {'ref': True,  'err': True,  'units': None,             'format': 'f8'}  # Radio spectral index
-             }
+              'SPINDX':  {'ref': True,  'err': True,  'units': None,             'format': 'f8'}} # Radio spectral index
 
 PSR_TIMING_PARS = list(PSR_TIMING.keys())
 
@@ -176,7 +174,7 @@ PSR_BINARY = {'BINARY':   {'ref': True,  'err': False, 'units': None,       'for
               'A1_2':     {'ref': True,  'err': True,  'units': 's',        'format': 'f8'},  # Projected semi-major axis of orbit [2nd orbit] (s)
               'OM_2':     {'ref': True,  'err': True,  'units': 'deg',      'format': 'f8'},  # Longitude of periastron [2nd orbit] (deg)
               'ECC_2':    {'ref': True,  'err': True,  'units': None,       'format': 'f8'},  # Eccentricity [2nd orbit]
-              'OMDOT_2':  {'ref': False, 'err': False, 'units': 'deg/yr',   'format': 'f8'},  # Periastron advance [2nd orbit] (deg/yr) 
+              'OMDOT_2':  {'ref': False, 'err': False, 'units': 'deg/yr',   'format': 'f8'},  # Periastron advance [2nd orbit] (deg/yr)
               'PBDOT_2':  {'ref': False, 'err': False, 'units': None,       'format': 'f8'},  # 1st time derivative of binary period [2nd orbit]
               'EPS1_2':   {'ref': True,  'err': True,  'units': None,       'format': 'f8'},  # ECC_2 x sin(OM_2) [2nd orbit]
               'EPS2_2':   {'ref': True,  'err': True,  'units': None,       'format': 'f8'},  # ECC_2 x cos(OM_2) [2nd orbit]
@@ -210,8 +208,7 @@ PSR_BINARY = {'BINARY':   {'ref': True,  'err': False, 'units': None,       'for
               'MASSFN':   {'ref': False, 'err': False, 'units': 'M_sun',    'format': 'f8'},  # The pulsar mass function (solar mass)
               'UPRMASS':  {'ref': False, 'err': False, 'units': 'M_sun',    'format': 'f8'},  # 90% confidence upper companion mass limit, i=26deg (solar mass)
               'MINOMDOT': {'ref': False, 'err': False, 'units': 'deg/yr',   'format': 'f8'},  # Minimum omega dot, assuming sin i = 1 and M_ns = 1.4Mo (deg/yr)
-              'XDOT':     {'ref': True,  'err': True,  'units': None,       'format': 'f8'}   # Rate of change of projected semi-major axis 
-             }
+              'XDOT':     {'ref': True,  'err': True,  'units': None,       'format': 'f8'}}  # Rate of change of projected semi-major axis
 
 PSR_BINARY_PARS = list(PSR_BINARY.keys())
 
@@ -227,8 +224,7 @@ PSR_DERIVED = {'R_LUM':    {'ref': False, 'err': False, 'units': 'mJy kpc^2',   
                'P1_I':     {'ref': False, 'err': False, 'units': None,             'format': 'f8'}, # Period derivative corrected for Shklovskii (proper motion) effect
                'AGE_I':    {'ref': False, 'err': False, 'units': 'yr',             'format': 'f8'}, # Spin down age from P1_i (yr)
                'BSURF_I':  {'ref': False, 'err': False, 'units': 'G',              'format': 'f8'}, # Surface magnetic dipole from P1_i (gauss)
-               'B_LC':     {'ref': False, 'err': False, 'units': 'G',              'format': 'f8'}  # Magnetic field at light cylinder (gauss)
-              }
+               'B_LC':     {'ref': False, 'err': False, 'units': 'G',              'format': 'f8'}} # Magnetic field at light cylinder (gauss)
 
 PSR_DERIVED_PARS = list(PSR_DERIVED.keys())
 
@@ -258,8 +254,7 @@ PSR_TYPES = ['AXP',           # Anomalous X-ray Pulsar or Soft Gamma-ray Repeate
              'NRAD',          # Spin-powered pulsar with pulsed emission only at infrared or higher frequencies
              'RADIO',         # Pulsars with pulsed emission in the radio band
              'RRAT',          # Pulsars with intermittently pulsed radio emission
-             'XINS'           # Isolated neutron stars with pulsed thermal X-ray emission but no detectable radio emission
-             ]
+             'XINS']          # Isolated neutron stars with pulsed thermal X-ray emission but no detectable radio emission
 """: `types <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#psr_types>`_ of
 pulsar for use in ``type()`` when setting logical conditions.
 """
@@ -268,17 +263,15 @@ PSR_BINARY_TYPE = ['MS',      # Main-sequence star
                    'NS',      # Neutron star
                    'CO',      # CO or ONeMg White Dwarf
                    'He',      # Helium White Dwarf
-                   'UL'       # Ultra-light companion or planet (mass < 0.08 solar masses)
-                  ]
+                   'UL']      # Ultra-light companion or planet (mass < 0.08 solar masses)
 """: binary companion
 `types <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=normal#bincomp_type>`_
 for use in ``bincomp()`` when setting logical conditions.
 """
 
 #: other objects associated with the pulsar (this is not an exhaustive list for use in ``assoc()`` when setting logical conditions)
-PSR_ASSOC_TYPE = ['GC',  # globular cluster
-                  'SNR'  # supernova remnant
-                 ]
+PSR_ASSOC_TYPE = ['GC',   # globular cluster
+                  'SNR']  # supernova remnant
 
 #: URL for the NASA ADS
 ADS_URL = 'https://ui.adsabs.harvard.edu/#abs/{}/'
