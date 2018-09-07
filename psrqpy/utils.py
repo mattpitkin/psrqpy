@@ -39,9 +39,6 @@ def get_catalogue(path_to_db=None):
     Returns:
         :class:`~astropy.table.Table`: a table containing the entire catalogue.
 
-    Note:
-        At the moment this function does not return a table that includes the
-        uncertainties on the parameters.
     """
 
     try:
@@ -86,7 +83,7 @@ def get_catalogue(path_to_db=None):
 
     # loop through lines in dbfile
     for line in dbfile.readlines():
-        if isinstance(line,str):
+        if isinstance(line, string_types):
             dataline = line.split()
         else:
             dataline = line.decode().split()   # Splits on whitespace
@@ -109,11 +106,76 @@ def get_catalogue(path_to_db=None):
                 thisdtstr = 'U128'  # default to string type
                 unitstr = None
 
-            newcolumn = MaskedColumn(name=dataline[0], dtype=thisdtstr, mask=True, unit=unitstr, length=ind+1) 
+            newcolumn = MaskedColumn(name=dataline[0], dtype=thisdtstr,
+                                     mask=True, unit=unitstr, length=ind+1)
             psrtable.add_column(newcolumn)
 
         psrtable[dataline[0]][ind] = dataline[1]  # Data entry
         psrtable[dataline[0]].mask[ind] = False   # Turn off masking for this entry
+
+        if len(dataline) > 2:
+            # check whether 3rd value is a float (so its an error value) or not
+            try:
+                float(dataline[2])
+                isfloat = True
+            except ValueError:
+                isfloat = False
+
+            if isfloat:
+                # error values are last digit errors, so convert to actual
+                # errors by finding the number of decimal places after the
+                # '.' in the value string
+                val = dataline[1].split(':')[-1]  # account for RA and DEC strings
+
+                try:
+                    float(val)
+                except ValueError:
+                    raise ValueError("Value with error is not convertable to a float")
+
+                if dataline[2][0] == '-' or '.' in dataline[2]:
+                    # negative errors or those with decimal points are absolute values
+                    scalefac = 1.
+                else:
+                    # split on exponent
+                    valsplit = re.split('e|E|d|D', val)
+                    scalefac = 1.
+                    if len(valsplit) == 2:
+                        scalefac = 10**(-int(valsplit[1]))
+
+                    dpidx = valsplit[0].find('.')  # find position of decimal point
+                    if dpidx != -1:  # a point is found
+                        scalefac *= 10**(len(valsplit[0])-dpidx-1)
+
+                # add error column if required
+                if dataline[0]+'_ERR' not in psrtable.colnames:
+                    unitstr = None if dataline[0] not in PSR_ALL_PARS else PSR_ALL[dataline[0]]['units']
+                    errcolumn = MaskedColumn(name=dataline[0]+'_ERR',
+                                             dtype='f8', mask=True,
+                                             unit=unitstr, length=ind+1)
+                    psrtable.add_column(errcolumn)
+
+                psrtable[dataline[0]+'_ERR'][ind] = float(dataline[2])/scalefac  # error entry
+                psrtable[dataline[0]+'_ERR'].mask[ind] = False
+            else:
+                # add reference column if required
+                if dataline[0]+'_REF' not in psrtable.colnames:
+                    refcolumn = MaskedColumn(name=dataline[0]+'_REF',
+                                             dtype='U32', mask=True, length=ind+1)
+                    psrtable.add_column(refcolumn)
+
+                psrtable[dataline[0]+'_REF'][ind] = dataline[2]  # reference entry
+                psrtable[dataline[0]+'_REF'].mask[ind] = False
+
+            if len(dataline) > 3:
+                # last entry must(!) be a reference
+                # add reference column if required
+                if dataline[0]+'_REF' not in psrtable.colnames:
+                    refcolumn = MaskedColumn(name=dataline[0]+'_REF',
+                                             dtype='U32', mask=True, length=ind+1)
+                    psrtable.add_column(refcolumn)
+
+                psrtable[dataline[0]+'_REF'][ind] = dataline[3]  # reference entry
+                psrtable[dataline[0]+'_REF'].mask[ind] = False
 
     psrtable.remove_row(ind)  # Final breakstring comes at the end of the file
 
@@ -277,7 +339,7 @@ def get_glitch_catalogue(psr=None):
     else:
         if psr not in table['NAME'] and psr not in table['JNAME']:
             warnings.warn("Pulsar '{}' not found in glitch catalogue".format(psr), UserWarning)
-            return None 
+            return None
         else:
             if psr in table['NAME']:
                 return table[table['NAME'] == psr]
@@ -372,7 +434,7 @@ def get_references(useads=False):
                 authors = re.sub(r'\s+', ' ', refdata[0]).strip().strip('.')  # remove line breaks and extra spaces (and final full-stop)
                 sepauthors = authors.split('.,')
             elif utext is not None:
-                year = int(re.sub('\D', '', dotyeardotlist[1]))  # remove any non-number values
+                year = int(re.sub(r'\D', '', dotyeardotlist[1]))  # remove any non-number values
                 authors = dotyeardotlist[0]
                 sepauthors = authors.split('.,')
             else:

@@ -59,17 +59,9 @@ A simple example of a query is to get the frequency 'F0' for all pulsars in the 
    >>> from psrqpy import QueryATNF
    >>> query = QueryATNF(params=['F0'])
 
-where the parameter names are case insensitive. The returned :class:`~psrqpy.search.QueryATNF` query will
-contain a dictionary keyed on the parameter names (converted
-to upper case), with the
-dictionary values being :class:`numpy.ndarray` arrays containing the parameter values. This can
-be accessed with
+where the parameter names are case insensitive. The returned :class:`~psrqpy.search.QueryATNF` query willbe stored as an :class:`astropy.table.Table`, which can be accessed via
 
-   >>> qdict = query.get_dict()
-
-or, perhaps more conveniently, the output can be viewed as an :class:`astropy.table.Table` via
-
-   >>> qtable = query.table()
+   >>> qtable = query.table
 
 The number of pulsars can easily be accessed, e.g.,
 
@@ -133,7 +125,7 @@ J0537-6910, then we could get their sky positions with:
 
     >>> from psrqpy import QueryATNF
     >>> query = QueryATNF(params=['RAJ', 'DECJ'], psrs=['J0534+2200', 'J0537-6910'])
-    >>> print(query.table())
+    >>> print(query.table)
        JNAME        RAJ      RAJ_ERR     DECJ     DECJ_ERR
     ---------- ------------ ------- ------------ --------
     J0534+2200 05:34:31.973   0.005 +22:00:52.06     0.06
@@ -189,7 +181,7 @@ by a central right ascension and declination, and with a given radius (in degree
     >>> # set the boundary circle centre (RAJ then DECJ) and radius
     >>> c = ['12:34:56.7', '-02:54:12.3', 10.]
     >>> query = QueryATNF(params=['RAJ', 'DECJ'], circular_boundary=c)
-    >>> print(query.table())
+    >>> print(query.table)
       JNAME     RAJ  RAJ_ERR  DECJ  DECJ_ERR
     ---------- ----- ------- ------ --------
     J1142+0119 11:42     0.0 +01:19      0.0
@@ -209,7 +201,7 @@ For example we could get the reference for the orbital period of J0737-3039A wit
 
     >>> from psrqpy import QueryATNF
     >>> query = QueryATNF(params='PB', psrs='J0737-3039A', include_refs=True, adsref=True)
-    >>> print(query.table()['PB_REFURL'][0])
+    >>> print(query.table['PB_REFURL'][0])
     https://ui.adsabs.harvard.edu/#abs/2006Sci...314...97K/
 
 .. _make-p-pdot-diagram:
