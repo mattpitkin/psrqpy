@@ -579,10 +579,10 @@ class QueryATNF(object):
                 self._query_params.append('JNAME') # add JNAME parameter
 
                 # re-do query
-                self._query_content = self.generate_query()
+                self.generate_query()
 
                 # parse the query with BeautifulSoup into a dictionary
-                self._query_output = self.parse_query()
+                self.parse_query()
                 nameattr = 'JNAME'
             elif 'JNAME' in self._query_params:
                 nameattr = 'JNAME'
@@ -895,8 +895,8 @@ class QueryATNF(object):
         # redo query if required
         if len(self._query_params) != nparams:
             # perform query
-            self._query_content = self.generate_query()
-            self._query_output = self.parse_query()
+            self.generate_query()
+            self.parse_query()
 
         if not self.num_pulsars:
             print("No pulsars found, so no P-Pdot plot has been produced")
