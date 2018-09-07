@@ -25,17 +25,23 @@ PROB_REFS = ['bwck08', 'crf+18']
 def get_catalogue(path_to_db=None):
     """
     This function will attempt to download the entire ATNF catalogue `tarball
-    <http://www.atnf.csiro.au/people/pulsar/psrcat/downloads/psrcat_pkg.tar.gz>`_ and convert it to
-    an :class:`astropy.table.Table`. This is based on the method in the `ATNF.ipynb
-    <https://github.com/astrophysically/ATNF-Pulsar-Cat/blob/master/ATNF.ipynb>`_ notebook by
-    Joshua Tan (`@astrophysically <https://github.com/astrophysically/>`_).
+    <http://www.atnf.csiro.au/people/pulsar/psrcat/downloads/psrcat_pkg.tar.gz>`_
+    and convert it to an :class:`astropy.table.Table`. This is based on the
+    method in the `ATNF.ipynb
+    <https://github.com/astrophysically/ATNF-Pulsar-Cat/blob/master/ATNF.ipynb>`_
+    notebook by Joshua Tan (`@astrophysically <https://github.com/astrophysically/>`_).
+
+    Args:
+        path_to_db (str): if the path to a local version of the database file
+            is given then that will be read in rather than attempting to
+            download the file (defaults to None).
 
     Returns:
         :class:`~astropy.table.Table`: a table containing the entire catalogue.
 
     Note:
-        At the moment this function does not return a table that includes the uncertainties on the
-        parameters.
+        At the moment this function does not return a table that includes the
+        uncertainties on the parameters.
     """
 
     try:
@@ -155,8 +161,8 @@ def get_catalogue(path_to_db=None):
 
 def get_version():
     """
-    Return a string with the ATNF catalogue version number, or default to that defined in
-    `ATNF_VERSION`.
+    Return a string with the ATNF catalogue version number, or default to that
+    defined in `ATNF_VERSION`.
 
     Returns:
         str: the ATNF catalogue version number.
@@ -185,10 +191,10 @@ def get_version():
 
 def get_glitch_catalogue(psr=None):
     """
-    Return a :class:`~astropy.table.Table` containing the `Jodrell Bank pulsar glitch catalogue
-    <http://www.jb.man.ac.uk/pulsar/glitches/gTable.html>`_.  If using data from the glitch
-    catalogue then please cite `Espinoza et al. (2011)
-    <http://adsabs.harvard.edu/abs/2011MNRAS.414.1679E>`_ and the URL
+    Return a :class:`~astropy.table.Table` containing the `Jodrell Bank pulsar
+    glitch catalogue <http://www.jb.man.ac.uk/pulsar/glitches/gTable.html>`_.
+    If using data from the glitch catalogue then please cite `Espinoza et al.
+    (2011) <http://adsabs.harvard.edu/abs/2011MNRAS.414.1679E>`_ and the URL
     `<http://www.jb.man.ac.uk/pulsar/glitches.html>`_.
 
     The output table will contain the following columns:
@@ -205,14 +211,16 @@ def get_glitch_catalogue(psr=None):
      * `Reference`: the glitch publication reference
 
     Args:
-        psr (str): if a pulsar name is given then only the glitches for that pulsar are returned,
-            otherwise all glitches are returned.
+        psr (str): if a pulsar name is given then only the glitches for that
+            pulsar are returned, otherwise all glitches are returned.
 
     Returns:
-        :class:`~astropy.table.Table`: a table containing the entire glitch catalogue.
+        :class:`~astropy.table.Table`: a table containing the entire glitch
+            catalogue.
 
     Example:
-        An example of using this to extract the glitches for the Crab Pulsar would be:
+        An example of using this to extract the glitches for the Crab Pulsar
+        would be:
 
         >>> import psrqpy
         >>> gtable = psrqpy.get_glitch_catalogue(psr='J0534+2200')
@@ -273,7 +281,8 @@ def get_glitch_catalogue(psr=None):
             tabledict['JNAME'].append(jname)
             tabledict['Glitch number'].append(int(tds[3].contents[0].string))
 
-            for j, pname in enumerate(['MJD', 'MJD_ERR', 'DeltaF/F', 'DeltaF/F_ERR', 'DeltaF1/F1',
+            for j, pname in enumerate(['MJD', 'MJD_ERR', 'DeltaF/F',
+                                       'DeltaF/F_ERR', 'DeltaF1/F1',
                                        'DeltaF1/F1_ERR']):
                 try:
                     val = float(tds[4+j].contents[0].string)
@@ -313,12 +322,13 @@ def get_glitch_catalogue(psr=None):
 def get_references(useads=False):
     """
     Return a dictionary of paper
-    `reference <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_ref.html>`_ in the ATNF
-    catalogue. The keys are the ref strings given in the ATNF catalogue.
+    `reference <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_ref.html>`_
+    in the ATNF catalogue. The keys are the ref strings given in the ATNF
+    catalogue.
 
     Args:
-        useads (bool): boolean to set whether to use the python mod:`ads` module to get
-            the NASA ADS URL for the references
+        useads (bool): boolean to set whether to use the python mod:`ads`
+            module to get the NASA ADS URL for the references
 
     Returns:
         dict: a dictionary of references.
@@ -520,8 +530,8 @@ def get_references(useads=False):
 
 def characteristic_age(period, pdot, braking_idx=3.):
     """
-    Function defining the characteristic age of a pulsar. Returns the characteristic
-    age in using
+    Function defining the characteristic age of a pulsar. Returns the
+    characteristic age in using
 
     .. math::
 
@@ -584,8 +594,9 @@ def age_pdot(period, tau=1e6, braking_idx=3.):
 
 def B_field(period, pdot):
     """
-    Function defining the polar magnetic field strength at the surface of the pulsar
-    in gauss (Equation 5.12 of Lyne & Graham-Smith, Pulsar Astronmy, 2nd edition) with
+    Function defining the polar magnetic field strength at the surface of the
+    pulsar in gauss (Equation 5.12 of Lyne & Graham-Smith, Pulsar Astronmy, 2nd
+    edition) with
 
     .. math::
 
@@ -616,8 +627,8 @@ def B_field(period, pdot):
 
 def B_field_pdot(period, Bfield=1e10):
     """
-    Function to get the period derivative from a given pulsar period and magnetic
-    field strength using
+    Function to get the period derivative from a given pulsar period and
+    magnetic field strength using
 
     .. math::
 
@@ -625,7 +636,8 @@ def B_field_pdot(period, Bfield=1e10):
 
     Args:
         period (list, :class:`~numpy.ndarray`): a list of period values
-        Bfield (float): the polar magnetic field strength (Defaults to :math:`10^{10}` G)
+        Bfield (float): the polar magnetic field strength (Defaults to
+            :math:`10^{10}` G)
 
     Returns:
         :class:`numpy.ndarray`: an array of period derivatives
@@ -643,14 +655,15 @@ def B_field_pdot(period, Bfield=1e10):
 
 def death_line(logP, linemodel='Ip', rho6=1.):
     """
-    The pulsar death line. Returns the base-10 logarithm of the period derivative for the given
-    values of the period.
+    The pulsar death line. Returns the base-10 logarithm of the period
+    derivative for the given values of the period.
 
     Args:
         logP (list, :class:`~numpy.ndarray`): the base-10 log values of period.
-        linemodel (str): a string with one of the above model names. Defaults to ``'Ip'``.
-        rho6 (float): the value of the :math:`\\rho_6` parameter from [ZHM]_ . Defaults to 1 is,
-            which is equivalent to :math:`10^6` cm.
+        linemodel (str): a string with one of the above model names. Defaults
+            to ``'Ip'``.
+        rho6 (float): the value of the :math:`\\rho_6` parameter from [ZHM]_ .
+            Defaults to 1 is, which is equivalent to :math:`10^6` cm.
 
     Returns:
         :class:`numpy.ndarray`: a vector of period derivative values
@@ -686,23 +699,27 @@ def death_line(logP, linemodel='Ip', rho6=1.):
 
 def label_line(ax, line, label, color='k', fs=14, frachoffset=0.1):
     """
-    Add an annotation to the given line with appropriate placement and rotation.
+    Add an annotation to the given line with appropriate placement and
+    rotation.
 
     Based on code from `"How to rotate matplotlib annotation to match a line?"
     <http://stackoverflow.com/a/18800233/230468>`_ and `this
     <https://stackoverflow.com/a/38414616/1862861>`_ answer.
 
     Args:
-        ax (:class:`matplotlib.axes.Axes`): Axes on which the label should be added.
+        ax (:class:`matplotlib.axes.Axes`): Axes on which the label should be
+            added.
         line (:class:`matplotlib.lines.Line2D`): Line which is being labeled.
         label (str): Text which should be drawn as the label.
         color (str): a color string for the label text. Defaults to ``'k'``
         fs (int): the font size for the label text. Defaults to 14.
-        frachoffset (float): a number between 0 and 1 giving the fractional offset of the label
-            text along the x-axis. Defaults to 0.1, i.e. 10%.
+        frachoffset (float): a number between 0 and 1 giving the fractional
+            offset of the label text along the x-axis. Defaults to 0.1, i.e.,
+            10%.
 
     Returns:
-        :class:`matplotlib.text.Text`: an object containing the label information
+        :class:`matplotlib.text.Text`: an object containing the label
+            information
 
     """
     xdata, ydata = line.get_data()
