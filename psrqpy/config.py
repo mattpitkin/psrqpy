@@ -134,7 +134,6 @@ PSR_TIMING = {'P0':      {'ref': True,  'err': True,  'units': 's',             
               'S5000':   {'ref': True,  'err': True,  'units': 'mJy',            'format': 'f8'}, # Flux at 5000 MHz (mJy)
               'S6000':   {'ref': True,  'err': True,  'units': 'mJy',            'format': 'f8'}, # Flux at 6000 MHz (mJy)
               'S8000':   {'ref': True,  'err': True,  'units': 'mJy',            'format': 'f8'}, # Flux at 8000 MHz (mJy)
-              'S9000':   {'ref': True,  'err': False, 'units': 'mJy',            'format': 'f8'}, # Flux at 9000 MHz (mJy)
               'S10G':    {'ref': False, 'err': False, 'units': 'mJy',            'format': 'f8'}, # Flux at 10 GHz (mJy)
               'S20G':    {'ref': False, 'err': False, 'units': 'mJy',            'format': 'f8'}, # Flux at 20 GHz (mJy)
               'S50G':    {'ref': False, 'err': False, 'units': 'mJy',            'format': 'f8'}, # Flux at 50 GHz (mJy)
@@ -160,7 +159,6 @@ PSR_BINARY = {'BINARY':   {'ref': True,  'err': False, 'units': None,       'for
               'FB0':      {'ref': True,  'err': True,  'units': 'Hz',       'format': 'f8'},  # Orbital frequency (Hz)
               'FB1':      {'ref': True,  'err': True,  'units': 'Hz s^-1',  'format': 'f8'},  # 1st time derivative of orbital frequency (Hz s^-1)
               'FB2':      {'ref': True,  'err': True,  'units': 'Hz s^-2',  'format': 'f8'},  # 2nd time derivative of orbital frequency (Hz s^-2)
-              'FB3':      {'ref': True,  'err': True,  'units': 'Hz s^-3',  'format': 'f8'},  # 3rd time derivative of orbital frequency (Hz s^-3)
               'OMDOT':    {'ref': True,  'err': True,  'units': 'deg/yr',   'format': 'f8'},  # 1st time derivative of periastron longitude (periastron advance) (deg yr^-1)
               'OM2DOT':   {'ref': True,  'err': True,  'units': 'deg/yr^2', 'format': 'f8'},  # 2nd time derivative of periastron longitude (deg yr^-2)
               'A1DOT':    {'ref': True,  'err': True,  'units': 's s^-1',   'format': 'f8'},  # 1st time derivative of projected semi-major axis (lt-s s^-1)
@@ -207,8 +205,7 @@ PSR_BINARY = {'BINARY':   {'ref': True,  'err': False, 'units': None,       'for
               'STIG':     {'ref': True,  'err': True,  'units': None,       'format': 'f8'},  # Ratio of successive Shapiro-delay harmonics (e.g., H4/H3)
               'MASSFN':   {'ref': False, 'err': False, 'units': 'M_sun',    'format': 'f8'},  # The pulsar mass function (solar mass)
               'UPRMASS':  {'ref': False, 'err': False, 'units': 'M_sun',    'format': 'f8'},  # 90% confidence upper companion mass limit, i=26deg (solar mass)
-              'MINOMDOT': {'ref': False, 'err': False, 'units': 'deg/yr',   'format': 'f8'},  # Minimum omega dot, assuming sin i = 1 and M_ns = 1.4Mo (deg/yr)
-              'XDOT':     {'ref': True,  'err': True,  'units': None,       'format': 'f8'}}  # Rate of change of projected semi-major axis
+              'MINOMDOT': {'ref': False, 'err': False, 'units': 'deg/yr',   'format': 'f8'}}  # Minimum omega dot, assuming sin i = 1 and M_ns = 1.4Mo (deg/yr)
 
 PSR_BINARY_PARS = list(PSR_BINARY.keys())
 
