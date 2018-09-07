@@ -364,7 +364,7 @@ class QueryATNF(object):
 
     def parse_query(self, requestcontent=''):
         """
-        Parse the query returned by requests
+        Parse the query returned by requests.
 
         Args:
             requestcontent (str): The content of a :class:`~requests.Response` returned by
@@ -407,14 +407,15 @@ class QueryATNF(object):
                             # if there are no pulsars left in the list then return None
                             if len(self._psrs) == 0:
                                 print('No requested pulsars were found in the catalogue')
-                                self._query_output = None
+                                query_output = None
                                 self._npulsars = 0
                                 self._pulsars = None
-                                return None
+                                self.table(None)
+                                return
 
         # actual table or ephemeris values should be in the final <pre> tag
         qoutput = pretags[-1].text
-        self._query_output = OrderedDict()
+        query_output = OrderedDict()
         self._npulsars = 0
         self._pulsars = None  # reset to None in case a previous query had already been performed
 
@@ -431,16 +432,16 @@ class QueryATNF(object):
 
                 for p in self._query_params:
                     if p in PSR_ALL_PARS:
-                        self._query_output[p] = np.zeros(self._npulsars, dtype=PSR_ALL[p]['format'])
+                        query_output[p] = np.zeros(self._npulsars, dtype=PSR_ALL[p]['format'])
 
                         if PSR_ALL[p]['err'] and self._include_errs:
-                            self._query_output[p+'_ERR'] = np.zeros(self._npulsars, dtype='f8')  # error can only be floats
+                            query_output[p+'_ERR'] = np.zeros(self._npulsars, dtype='f8')  # error can only be floats
 
                         if PSR_ALL[p]['ref'] and self._include_refs:
-                            self._query_output[p+'_REF'] = np.zeros(self._npulsars, dtype='S1024')
+                            query_output[p+'_REF'] = np.zeros(self._npulsars, dtype='S1024')
 
                             if self._adsref:  # also add reference URL for NASA ADS
-                                self._query_output[p+'_REFURL'] = np.zeros(self._npulsars, dtype='S1024')
+                                query_output[p+'_REFURL'] = np.zeros(self._npulsars, dtype='S1024')
 
                 for idx, line in enumerate(plist):
                     # split the line on whitespace or \xa0 using re (if just using split it ignores \xa0,
@@ -452,25 +453,25 @@ class QueryATNF(object):
                     for p in self._query_params:
                         if PSR_ALL[p]['format'] == 'f8':
                             if pvals[vidx] == '*':
-                                self._query_output[p][idx] = None  # put NaN entry in numpy array
+                                query_output[p][idx] = None  # put NaN entry in numpy array
                             else:
-                                self._query_output[p][idx] = float(pvals[vidx])
+                                query_output[p][idx] = float(pvals[vidx])
                         elif PSR_ALL[p]['format'] == 'i4':
                             if pvals[vidx] == '*':
-                                self._query_output[p][idx] = None
+                                query_output[p][idx] = None
                             else:
-                                self._query_output[p][idx] = int(pvals[vidx])
+                                query_output[p][idx] = int(pvals[vidx])
                         else:
-                            self._query_output[p][idx] = pvals[vidx]
+                            query_output[p][idx] = pvals[vidx]
                         vidx += 1
 
                         # get errors
                         if PSR_ALL[p]['err']:
                             if self._include_errs:
                                 if pvals[vidx] == '*':
-                                    self._query_output[p+'_ERR'][idx] = None
+                                    query_output[p+'_ERR'][idx] = None
                                 else:
-                                    self._query_output[p+'_ERR'][idx] = float(pvals[vidx])
+                                    query_output[p+'_ERR'][idx] = float(pvals[vidx])
                             vidx += 1
 
                         # get references
@@ -482,7 +483,7 @@ class QueryATNF(object):
                                     thisref = self._refs[reftag]
                                     refstring = '{authorlist}, {year}, {title}, {journal}, {volume}'
                                     refstring2 = re.sub(r'\s+', ' ', refstring.format(**thisref))  # remove any superfluous whitespace
-                                    self._query_output[p+'_REF'][idx] = ','.join([a for a in refstring2.split(',') if a.strip()])  # remove any superfluous empty ',' seperated values
+                                    query_output[p+'_REF'][idx] = ','.join([a for a in refstring2.split(',') if a.strip()])  # remove any superfluous empty ',' seperated values
 
                                     if self._adsref:
                                         if 'ADS URL' not in thisref:  # get ADS reference
@@ -502,7 +503,7 @@ class QueryATNF(object):
                                             if len(article) > 0:
                                                 self._refs[reftag]['ADS URL'] = ADS_URL.format(list(article)[0].bibcode)
 
-                                        self._query_output[p+'_REFURL'][idx] = thisref['ADS URL']
+                                        query_output[p+'_REFURL'][idx] = thisref['ADS URL']
                                 else:
                                     if reftag != '*':
                                         warnings.warn('Reference tag "{}" not found so omitting reference'.format(reftag), UserWarning)
@@ -519,15 +520,17 @@ class QueryATNF(object):
 
                 # query output in this case is a dictionary of ephemerides
                 for psr, psreph in zip(self._psrs, psrephs):
-                    self._query_output[psr] = psreph
+                    query_output[psr] = psreph
 
-    def get_dict(self):
+        self.table = query_output
+
+    def as_array(self):
         """
         Returns:
-            :class:`~collections.OrderedDict`: the output dictionary generated by the query.
+            :class:`~numpy.ndarray`: the output table as an array.
         """
 
-        return self._query_output
+        return self.table.as_array()
 
     @property
     def num_pulsars(self):
@@ -537,16 +540,21 @@ class QueryATNF(object):
 
         return self._npulsars
 
+    @property
     def table(self):
         """
         Returns:
              :class:`astropy.table.Table`: a table of the pulsar data returned by the query.
         """
 
+        return self.__table
+
+    @table.setter
+    def table(self, query_params):
         from astropy.table import Table
 
         # make a table from the dictionary
-        psrtable = Table(data=self.get_dict())
+        psrtable = Table(data=query_params)
 
         # add units to columns
         for p in self._query_params:
@@ -560,7 +568,7 @@ class QueryATNF(object):
         psrtable.meta['version'] = self.get_version
         psrtable.meta['ATNF Pulsar Catalogue'] = ATNF_BASE_URL
 
-        return psrtable
+        self.__table = psrtable
 
     def get_pulsars(self):
         """
@@ -593,7 +601,7 @@ class QueryATNF(object):
             self._pulsars = Pulsars()
 
             # add pulsars one by one
-            psrtable = self.table()
+            psrtable = self.table
             for row in psrtable:
                 attrs = {}
                 for key in psrtable.colnames:
@@ -785,10 +793,7 @@ class QueryATNF(object):
             str: :func:`str` method returns the str method of an :class:`astropy.table.Table`.
         """
 
-        if self._npulsars > 0:
-            return str(self.table())
-        else:
-            return str(self._query_output)  # should be empty dict
+        return str(self.table)
 
     def __repr__(self):
         """
@@ -796,10 +801,7 @@ class QueryATNF(object):
             str: :func:`repr` method returns the repr method of an :class:`astropy.table.Table`.
         """
 
-        if self._npulsars > 0:
-            return repr(self.table())
-        else:
-            return repr(self._query_output)  # should be empty dict
+        return repr(self.table)
 
     def ppdot(self, intrinsicpdot=False, excludeGCs=False, showtypes=[], showGCs=False,
               showSNRs=False, markertypes={}, deathline=True, deathmodel='Ip', filldeath=True,
@@ -920,7 +922,7 @@ class QueryATNF(object):
         fig, ax = pl.subplots()
 
         # get astropy table of parameters
-        t = self.table()
+        t = self.table
 
         # extract periods and period derivatives
         periods = t['P0']
