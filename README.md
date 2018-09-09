@@ -55,7 +55,7 @@ import psrqpy
 q = psrqpy.QueryATNF(params='F0')
 
 # get frequencies as an astropy table
-t = q.table()
+t = q.table
 
 print(t['F0'])
 ```
@@ -68,7 +68,7 @@ import psrqpy
 q = psrqpy.QueryATNF(params=['F0', 'F1', 'RAJ', 'DecJ'])
 
 # get values as an astropy table
-t = q.table()
+t = q.table
 
 print(t['F0'])
 ```
@@ -81,7 +81,7 @@ import psrqpy
 q = psrqpy.QueryATNF(params=['F0', 'F1', 'RAJ', 'DecJ'], psrs=['J0534+2200', 'J0537-6910'])
 
 # get values as an astropy table
-t = q.table()
+t = q.table
 
 # print the table
 print(t)
