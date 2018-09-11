@@ -21,3 +21,4 @@ __citation__ = """@article{psrqpy,
 from .search import QueryATNF
 from .pulsar import Pulsar, Pulsars
 from .utils import *
+from .conditions import *
