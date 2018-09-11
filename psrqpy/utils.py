@@ -158,7 +158,6 @@ def get_catalogue(path_to_db=None):
                 if dataline[0]+'_REF' not in formats.keys():
                     formats[dataline[0]+'_REF'] = np.unicode
 
-    #psrtable.remove_row(ind)  # Final breakstring comes at the end of the file
     del psrlist[-1]  # Final breakstring comes at the end of the file
 
     # add RA and DEC in degs and JNAME/BNAME
