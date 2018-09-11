@@ -42,7 +42,9 @@ def get_catalogue(path_to_db=None):
     """
 
     try:
-        from astropy.table import Table, MaskedColumn
+        from astropy.table import Table
+        from astropy.coordinates import SkyCoord
+        import astropy.units as aunits
     except ImportError:
         raise ImportError('Problem importing astropy')
 
@@ -77,9 +79,9 @@ def get_catalogue(path_to_db=None):
     breakstring = '@'    # break between each pulsar
     commentstring = '#'  # specifies line is a comment
 
-    psrtable = Table(masked=True)
-    ind = 0  # Keeps track of how many objects
-    psrtable.add_row(None)  # db file jumps right in! Better add the first row.
+    # create list of dictionaries - one for each pulsar
+    psrlist = [{}]
+    formats = {}  # dictionary of formats for each parameter
 
     # loop through lines in dbfile
     for line in dbfile.readlines():
@@ -93,25 +95,17 @@ def get_catalogue(path_to_db=None):
 
         if dataline[0][0] == breakstring:
             # First break comes at the end of the first object and so forth
-            psrtable.add_row(None)
-            ind += 1                 # New object!
-            psrtable.mask[ind] = [True]*len(psrtable.columns)  # Default mask to True
+            psrlist.append({})  # New object!
             continue
 
-        if dataline[0] not in psrtable.colnames:  # Make a new column
-            if dataline[0] in PSR_ALL_PARS:
-                thisdtstr = PSR_ALL[dataline[0]]['format']
-                unitstr = PSR_ALL[dataline[0]]['units']
-            else:
-                thisdtstr = 'U128'  # default to string type
-                unitstr = None
-
-            newcolumn = MaskedColumn(name=dataline[0], dtype=thisdtstr,
-                                     mask=True, unit=unitstr, length=ind+1)
-            psrtable.add_column(newcolumn)
-
-        psrtable[dataline[0]][ind] = dataline[1]  # Data entry
-        psrtable[dataline[0]].mask[ind] = False   # Turn off masking for this entry
+        try:
+            psrlist[-1][dataline[0]] = float(dataline[1])
+            if dataline[0] not in formats.keys():
+                formats[dataline[0]] = np.float64
+        except ValueError:
+            psrlist[-1][dataline[0]] = dataline[1]
+            if dataline[0] not in formats.keys():
+                formats[dataline[0]] = np.unicode
 
         if len(dataline) > 2:
             # check whether 3rd value is a float (so its an error value) or not
@@ -147,42 +141,87 @@ def get_catalogue(path_to_db=None):
                         scalefac *= 10**(len(valsplit[0])-dpidx-1)
 
                 # add error column if required
-                if dataline[0]+'_ERR' not in psrtable.colnames:
-                    unitstr = None if dataline[0] not in PSR_ALL_PARS else PSR_ALL[dataline[0]]['units']
-                    errcolumn = MaskedColumn(name=dataline[0]+'_ERR',
-                                             dtype='f8', mask=True,
-                                             unit=unitstr, length=ind+1)
-                    psrtable.add_column(errcolumn)
+                psrlist[-1][dataline[0]+'_ERR'] = float(dataline[2])/scalefac  # error entry
 
-                psrtable[dataline[0]+'_ERR'][ind] = float(dataline[2])/scalefac  # error entry
-                psrtable[dataline[0]+'_ERR'].mask[ind] = False
+                if dataline[0]+'_ERR' not in formats.keys():
+                    formats[dataline[0]+'_ERR'] = np.float64
             else:
                 # add reference column if required
-                if dataline[0]+'_REF' not in psrtable.colnames:
-                    refcolumn = MaskedColumn(name=dataline[0]+'_REF',
-                                             dtype='U32', mask=True, length=ind+1)
-                    psrtable.add_column(refcolumn)
+                psrlist[-1][dataline[0]+'_REF'] = dataline[2]  # reference entry
 
-                psrtable[dataline[0]+'_REF'][ind] = dataline[2]  # reference entry
-                psrtable[dataline[0]+'_REF'].mask[ind] = False
+                if dataline[0]+'_REF' not in formats.keys():
+                    formats[dataline[0]+'_REF'] = np.unicode
 
             if len(dataline) > 3:
                 # last entry must(!) be a reference
-                # add reference column if required
-                if dataline[0]+'_REF' not in psrtable.colnames:
-                    refcolumn = MaskedColumn(name=dataline[0]+'_REF',
-                                             dtype='U32', mask=True, length=ind+1)
-                    psrtable.add_column(refcolumn)
+                psrlist[-1][dataline[0]+'_REF'] = dataline[3]  # reference entry
+                if dataline[0]+'_REF' not in formats.keys():
+                    formats[dataline[0]+'_REF'] = np.unicode
 
-                psrtable[dataline[0]+'_REF'][ind] = dataline[3]  # reference entry
-                psrtable[dataline[0]+'_REF'].mask[ind] = False
+    #psrtable.remove_row(ind)  # Final breakstring comes at the end of the file
+    del psrlist[-1]  # Final breakstring comes at the end of the file
 
-    psrtable.remove_row(ind)  # Final breakstring comes at the end of the file
+    # add RA and DEC in degs and JNAME/BNAME
+    radec = False
+    jname = False
+    bname = False
+    for i, psr in enumerate(list(psrlist)):
+        if 'RAJ' in psr.keys() and 'DECJ' in psr.keys():
+            coord = SkyCoord(psr['RAJ'], psr['DECJ'], unit=(aunits.hourangle, aunits.deg))
+            psrlist[i]['RAJD'] = coord.ra.deg    # right ascension in degrees
+            psrlist[i]['DECJD'] = coord.dec.deg  # declination in degrees
+            radec = True
+
+        # add 'JNAME', 'BNAME' and 'NAME'
+        if 'PSRJ' in psr.keys():
+            psrlist[i]['JNAME'] = psr['PSRJ']
+            psrlist[i]['NAME'] = psr['PSRJ']
+            jname = True
+
+        if 'PSRB' in psr.keys():
+            psrlist[i]['BNAME'] = psr['PSRB']
+            bname = True
+
+            if 'NAME' not in psrlist[i].keys():
+                psrlist[i]['NAME'] = psr['PSRB']
+
+    if radec:
+        formats['RAJD'] = np.float64
+        formats['DECJD'] = np.float64
+
+    if jname:
+        formats['JNAME'] = np.unicode
+    if bname:
+        formats['BNAME'] = np.unicode
+    if jname or bname:
+        formats['NAME'] = np.unicode
+
+    # fill in all entries with all parameters
+    for i, psr in enumerate(list(psrlist)):
+        for key in formats.keys():
+            if key not in psr.keys():
+                psrlist[i][key] = None  # blank value
 
     dbfile.close()   # close tar file
     if not path_to_db:
         pulsargz.close()
-        fp.close()       # close StringIO
+        fp.close()   # close StringIO
+
+    # convert into astropy table
+    psrtable = Table(data=psrlist)
+
+    # add data format
+    for key in formats.keys():
+        psrtable[key] = psrtable[key].astype(formats[key])
+
+    # add units if known
+    for key in PSR_ALL_PARS:
+        if key in psrtable.colnames:
+            if PSR_ALL[key]['units']:
+                psrtable.columns[key].unit = PSR_ALL[key]['units']
+
+                if PSR_ALL[key]['err'] and key+'_ERR' in psrtable.colnames:
+                    psrtable.columns[key+'_ERR'].unit = PSR_ALL[key]['units']
 
     return psrtable
 
