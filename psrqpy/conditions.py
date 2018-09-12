@@ -96,13 +96,13 @@ class Tokenizer(object):
 
     def peek(self):
         return self.tokens[self.i]
-	
+
     def hasNext(self):
         return self.i < len(self.tokens)
 
     def nextTokenType(self):
         return self.tokenTypes[self.i]
-	
+
     def nextTokenTypeIsOperator(self):
         t = self.tokenTypes[self.i]
         return (t == TokenType.GT or t == TokenType.GTE or t == TokenType.LT or
@@ -253,10 +253,10 @@ class ConditionParser(object):
                 raise Exception('NUM, STR, or VAR expected, but got ' + self.tokenizer.next())
         else:
             raise Exception('NUM, STR, or VAR expected, but got ' + self.tokenizer.next())
-	
+
     def evaluate(self, table, exactMatch=False):
         return self.evaluateRecursive(self.root, table, exactMatch=exactMatch)
-	
+
     def evaluateRecursive(self, treeNode, table, exactMatch):
         if treeNode.tokenType == TokenType.NUM:
             return treeNode.value
