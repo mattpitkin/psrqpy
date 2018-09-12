@@ -13,28 +13,30 @@ from .config import *
 
 
 # string of logical expressions for use in regex parser
-LOGEXPRS = (r'(\bAND\b'     # logical AND
-            r'|\band\b'     # logical AND
-            r'|\&\&'        # logical AND
-            r'|\bOR\b'      # logical OR
-            r'|\bor\b'      # logical OR
-            r'|\|\|'        # logical OR
-            r'|!='          # not equal to
-            r'|=='          # equal to
-            r'|<='          # less than or equal to
-            r'|>='          # greater than or equal to
-            r'|<'           # less than
-            r'|>'           # greater than
-            r'|\('          # left opening bracket
-            r'|\)'          # right closing bracket
-            r'|\bNOT\b'     # logical NOT
-            r'|\bnot\b'     # logical NOT
-            r'|!'           # logical NOT
-            r'|~'           # logical NOT
-            r'|\bASSOC\b'   # pulsar association
-            r'|\bassoc\b'   # pulsar association
-            r'|\bTYPE\b'    # pulsar type
-            r'|\btype\b)')  # pulsar type
+LOGEXPRS = (r'(\bAND\b'        # logical AND
+            r'|\band\b'        # logical AND
+            r'|\&\&'           # logical AND
+            r'|\bOR\b'         # logical OR
+            r'|\bor\b'         # logical OR
+            r'|\|\|'           # logical OR
+            r'|!='             # not equal to
+            r'|=='             # equal to
+            r'|<='             # less than or equal to
+            r'|>='             # greater than or equal to
+            r'|<'              # less than
+            r'|>'              # greater than
+            r'|\('             # left opening bracket
+            r'|\)'             # right closing bracket
+            r'|\bNOT\b'        # logical NOT
+            r'|\bnot\b'        # logical NOT
+            r'|!'              # logical NOT
+            r'|~'              # logical NOT
+            r'|\bASSOC\b'      # pulsar association
+            r'|\bassoc\b'      # pulsar association
+            r'|\bTYPE\b'       # pulsar type
+            r'|\btype\b)'      # pulsar type
+            r'|\bBINCOMP\b'    # pulsar binary companion type
+            r'|\bbincomp\b)')  # pulsar binary companion type
 
 
 class TokenType(object):
@@ -58,6 +60,7 @@ class TokenType(object):
     NOT = 12      # logical NOT
     ASSOC = 13    # pulsar association
     TYPE = 14     # pulsar type
+    BINCOMP = 15  # pulsar binary companion type
 
 
 class TreeNode(object):
@@ -111,7 +114,8 @@ class Tokenizer(object):
 
     def nextTokenTypeIsMatch(self):
         t = self.tokenTypes[self.i]
-        return (t == TokenType.ASSOC or t == TokenType.TYPE)
+        return (t == TokenType.ASSOC or t == TokenType.TYPE or
+                t == TokenType.BINCOMP)
 
     def tokenize(self):
         reg = re.compile(LOGEXPRS)
@@ -146,6 +150,8 @@ class Tokenizer(object):
                 self.tokenTypes.append(TokenType.ASSOC)
             elif t.upper() == 'TYPE':
                 self.tokenTypes.append(TokenType.TYPE)
+            elif t.upper() == 'BINCOMP':
+                self.tokenTypes.append(TokenType.BINCOMP)
             else:
                 try:
                     number = float(t)
@@ -304,11 +310,20 @@ class ConditionParser(object):
             else:
                 raise KeyError("No 'ASSOC' in table")
         elif treeNode.tokenType == TokenType.TYPE:
-            if 'TYPE' in table.colnames:
+            if treeNode.this.value.upper() == 'BINARY':
+                if 'BINARY' in table.colnames:
+                    # special case if 'TYPE' is binary
+                    binary = table['BINARY']
+                    return binary != 'None'
+                else:
+                    raise KeyError("No 'BINARY' in table")
+            elif 'TYPE' in table.colnames:
                 types = table['TYPE']
 
-                if treeNode.this.value not in PSR_TYPES:
-                    raise KeyError("Type '{}' is not a valid type".format(treeNode.this.value))
+                if treeNode.this.value.upper() == 'BINARY':
+                    # special case if 'TYPE' is binary
+                    binary = table['BINARY']
+                    return binary != 'None'
 
                 if exactMatch:
                     # only return exact matches
@@ -318,5 +333,10 @@ class ConditionParser(object):
                     return np.array([treeNode.this.value in t for t in types])
             else:
                 raise KeyError("No 'TYPE' in table")
+        elif treeNode.tokenType == TokenType.BINCOMP:
+            if 'BINCOMP' in table.colnames:
+                bincomps = table['BINCOMP']
+
+                return np.array([treeNode.this.value in b for b in bincomps])
         else:
             raise TypeError("Unexpected type '{}'".format(str(treeNode.tokenType)))
