@@ -23,6 +23,7 @@ from .config import ATNF_BASE_URL, ATNF_VERSION, ADS_URL, ATNF_TARBALL, PSR_ALL,
 def warning_format(message, category, filename, lineno, file=None, line=None):
     return '{}: {}'.format(category.__name__, message)
 
+
 warnings.formatwarning = warning_format
 
 
@@ -265,7 +266,7 @@ def get_glitch_catalogue(psr=None):
     else:
         if psr not in table['NAME'] and psr not in table['JNAME']:
             warnings.warn("Pulsar '{}' not found in glitch catalogue".format(psr), UserWarning)
-            return None 
+            return None
         else:
             if psr in table['NAME']:
                 return table[table['NAME'] == psr]
@@ -359,7 +360,7 @@ def get_references(useads=False):
                 authors = re.sub(r'\s+', ' ', refdata[0]).strip().strip('.')  # remove line breaks and extra spaces (and final full-stop)
                 sepauthors = authors.split('.,')
             elif utext is not None:
-                year = int(re.sub('\D', '', dotyeardotlist[1]))  # remove any non-number values
+                year = int(re.sub(r'\D', '', dotyeardotlist[1]))  # remove any non-number values
                 authors = dotyeardotlist[0]
                 sepauthors = authors.split('.,')
             else:
@@ -604,7 +605,7 @@ def condition(table, expression, exactMatch=False):
             elif tokens[i+1] != '(' or tokens[i+3] != ')':
                 warnings.warn("A '{}' must be followed by a '(NAME)': ignoring in query".format(tokens[i].upper()), UserWarning)
             else:
-                if  tokens[i].upper() == 'ASSOC':
+                if tokens[i].upper() == 'ASSOC':
                     if 'ASSOC' not in tab.keys():
                         warnings.warn("'ASSOC' parameter not in table: ignoring in query", UserWarning)
                     elif exactMatch:
