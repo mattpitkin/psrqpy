@@ -640,23 +640,28 @@ def condition(table, expression, exactMatch=False):
     Apply a logical expression to a table of values.
 
     Args:
-        table (:class:`astropy.table.Table`, :class:`pandas.DataFrame`): a
+        table (:class:`astropy.table.Table` or :class:`pandas.DataFrame`): a
             table of pulsar data
-        expression (str, :class:`~numpy.ndarray): a string containing a set of
+        expression (str, :class:`~numpy.ndarray`): a string containing a set of
             logical conditions with respect to pulsar parameter names (also
             containing `conditions
             <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=normal#condition>`_
             allowed when accessing the ATNF Pulsar Catalogue), or a boolean
             array of the same length as the table.
-        exactMatch
+        exactMatch (bool): set to true to exactly match some string comparison
+            expressions, e.g., if asking for `'ASSOC(SNR)'` and `exactMatch` is
+            True then only pulsar with an association that is just `'SNR'` will
+            be returned, whereas if it is False then there could be multiple
+            associations including `'SNR'`.
 
     Returns:
-        table: the table of values conforming to the input condition.
-            Depending on the type of input table the returned table will either
-            be a :class:`astropy.table.Table` or :class:`pandas.DataFrame`.
+        :class:`astropy.table.Table` or :class:`pandas.DataFrame`: the table of
+            values conforming to the input condition. Depending on the type of
+            input table the returned table will either be a
+            :class:`astropy.table.Table` or :class:`pandas.DataFrame`.
 
     Example:
-        Some examples this might be:
+        Some examples of this might are:
 
         1. finding all pulsars with frequencies greater than 100 Hz
 
