@@ -23,6 +23,7 @@ from .config import ATNF_BASE_URL, ATNF_VERSION, ADS_URL, ATNF_TARBALL, PSR_ALL,
 def warning_format(message, category, filename, lineno, file=None, line=None):
     return '{}: {}'.format(category.__name__, message)
 
+
 warnings.formatwarning = warning_format
 
 
@@ -725,7 +726,7 @@ def condition(table, expression, exactMatch=False):
             elif tokens[i+1] != '(' or tokens[i+3] != ')':
                 warnings.warn("A '{}' must be followed by a '(NAME)': ignoring in query".format(tokens[i].upper()), UserWarning)
             else:
-                if  tokens[i].upper() == 'ASSOC':
+                if tokens[i].upper() == 'ASSOC':
                     if 'ASSOC' not in tab.keys():
                         warnings.warn("'ASSOC' parameter not in table: ignoring in query", UserWarning)
                     elif exactMatch:
