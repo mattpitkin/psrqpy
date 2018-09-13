@@ -1,7 +1,5 @@
 """
 Parser for logical conditions.
-
-Adapted from https://gist.github.com/leehsueh/1290686
 """
 
 from __future__ import print_function, division
@@ -10,7 +8,14 @@ import re
 import numpy as np
 from .config import *
 
+from six import string_types
 
+# set formatting of warnings to not include line number and code (see
+# e.g. https://pymotw.com/3/warnings/#formatting)
+def warning_format(message, category, filename, lineno, file=None, line=None):
+    return '{}: {}'.format(category.__name__, message)
+
+warnings.formatwarning = warning_format
 
 # string of logical expressions for use in regex parser
 LOGEXPRS = (r'(\bAND\b'        # logical AND
@@ -36,307 +41,166 @@ LOGEXPRS = (r'(\bAND\b'        # logical AND
             r'|\bTYPE\b'       # pulsar type
             r'|\btype\b)'      # pulsar type
             r'|\bBINCOMP\b'    # pulsar binary companion type
-            r'|\bbincomp\b)')  # pulsar binary companion type
+            r'|\bbincomp\b'    # pulsar binary companion type
+            r'|\bEXIST\b'      # pulsar parameter exists in the catalogue
+            r'|\bexist\b'      # pulsar parameter exists in the catalogue
+            r'|\bERROR\b'      # condition on parameter error
+            r'|\berror\b)'     # condition on parameter error
 
 
-class TokenType(object):
+def condition(table, expression, exactMatch=False):
     """
-    Object containing an enumerated list of token types parsed from the
-    expression string.
+    Apply a logical expression to a table of values.
+
+    Args:
+        table (:class:`astropy.table.Table`, :class:`pandas.DataFrame`): a
+            table of pulsar data
+        expression (str, :class:`~numpy.ndarray): a string containing a set of
+            logical conditions with respect to pulsar parameter names (also
+            containing `conditions
+            <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=normal#condition>`_
+            allowed when accessing the ATNF Pulsar Catalogue), or a boolean
+            array of the same length as the table.
+        exactMatch
+
+    Returns:
+        table: the table of values conforming to the input condition.
+            Depending on the type of input table the returned table will either
+            be a :class:`astropy.table.Table` or :class:`pandas.DataFrame`.
+
+    Example:
+        Some examples this might be:
+
+        1. finding all pulsars with frequencies greater than 100 Hz
+
+        >>> newtable = condition(psrtable, 'F0 > 100')
+
+        2. finding all pulsars with frequencies greater than 50 Hz and
+        period derivatives less than 1e-15 s/s.
+
+        >>> newtable = condition(psrtable, '(F0 > 50) & (P1 < 1e-15)')
+
+        3. finding all pulsars in binary systems
+
+        >>> newtable = condition(psrtable, 'TYPE(BINARY)')
+
+        4. parsing a boolean array equivalent to the first example
+
+        >>> newtable = condition(psrtable, psrtable['F0'] > 100)
+
     """
 
-    NUM = 0       # a numeric value
-    VAR = 1       # a named variable
-    GT = 2        # greater than '>'
-    GTE = 3       # greater than or equal to '>='
-    LT = 4        # less than '<'
-    LTE = 5       # less than or equal to '<='
-    EQ = 6        # equal to '=='
-    NEQ = 7       # not equal to '!='
-    LP = 8        # left bracket '('
-    RP = 9        # right bracket ')'
-    AND = 10      # logical AND
-    OR = 11       # logical OR
-    NOT = 12      # logical NOT
-    ASSOC = 13    # pulsar association
-    TYPE = 14     # pulsar type
-    BINCOMP = 15  # pulsar binary companion type
+    from astropy.table import Table
+    from pandas import DataFrame
 
+    # check if expression is just a boolean array
+    if isinstance(expression, np.ndarray):
+        if expression.dtype != np.bool:
+            raise TypeError("Numpy array must be a boolean array")
+        elif len(expression) != len(table):
+            raise Exception("Boolean array and table must be the same length")
+        else:
+            return table[expression]
+    else:
+        if not isinstance(expression, string_types):
+            raise TypeError("Expression must be a boolean array or a string")
 
-class TreeNode(object):
-    tokenType = None
-    value = None
-    left = None
-    right = None
-    this = None
-    isOp = False
-    isGroup = False
-    isMatch = False
+    # parse the expression string and split into tokens
+    reg = re.compile(LOGEXPRS)
+    tokens = reg.split(expression)
+    tokens = [t.strip() for t in tokens if t.strip() != '']
 
-    def __init__(self, tokenType):
-        self.tokenType = tokenType
+    if isinstance(table, Table):
+        # convert astropy table to pandas DataFrame
+        tab = table.to_pandas()
+    elif not isinstance(table, DataFrame)
+        raise TypeError("Table must be a pandas DataFrame or astropy Table")
+    else:
+        tab = table
 
+    matchTypes = ['ASSOC', 'TYPE', 'BINCOMP', 'EXIST', 'ERROR']
 
-class Tokenizer(object):
-    expression = None
-    tokens = None
-    tokenTypes = None
-    i = 0
-
-    def __init__(self, exp):
-        self.expression = exp
-
-    def next(self):
-        self.i += 1
-        return self.tokens[self.i-1]
-
-    @property
-    def idx(self):
-        return self.i
-
-    def peek(self):
-        return self.tokens[self.i]
-
-    def hasNext(self):
-        return self.i < len(self.tokens)
-
-    def nextTokenType(self):
-        return self.tokenTypes[self.i]
-
-    def nextTokenTypeIsOperator(self):
-        t = self.tokenTypes[self.i]
-        return (t == TokenType.GT or t == TokenType.GTE or t == TokenType.LT or
-                t == TokenType.LTE or t == TokenType.EQ or t == TokenType.NEQ)
-
-    def nextTokenTypeIsGroup(self):
-        t = self.tokenTypes[self.i]
-        return (t == TokenType.NOT or self.nextTokenTypeIsMatch())
-
-    def nextTokenTypeIsMatch(self):
-        t = self.tokenTypes[self.i]
-        return (t == TokenType.ASSOC or t == TokenType.TYPE or
-                t == TokenType.BINCOMP)
-
-    def tokenize(self):
-        reg = re.compile(LOGEXPRS)
-        self.tokens = reg.split(self.expression)
-        self.tokens = [t.strip() for t in self.tokens if t.strip() != '']
-
-        self.tokenTypes = []
-        for t in self.tokens:
-            if t.upper() == 'AND' or t == '&&':
-                self.tokenTypes.append(TokenType.AND)
-            elif t.upper() == 'OR' or t == '||':
-                self.tokenTypes.append(TokenType.OR)
-            elif t.upper() == 'NOT' or t == '!' or t == '~':
-                self.tokenTypes.append(TokenType.NOT)
-            elif t == '(':
-                self.tokenTypes.append(TokenType.LP)
-            elif t == ')':
-                self.tokenTypes.append(TokenType.RP)
-            elif t == '<':
-                self.tokenTypes.append(TokenType.LT)
-            elif t == '<=':
-                self.tokenTypes.append(TokenType.LTE)
-            elif t == '>':
-                self.tokenTypes.append(TokenType.GT)
-            elif t == '>=':
-                self.tokenTypes.append(TokenType.GTE)
-            elif t == '==':
-                self.tokenTypes.append(TokenType.EQ)
-            elif t == '!=':
-                self.tokenTypes.append(TokenType.NEQ)
-            elif t.upper() == 'ASSOC':
-                self.tokenTypes.append(TokenType.ASSOC)
-            elif t.upper() == 'TYPE':
-                self.tokenTypes.append(TokenType.TYPE)
-            elif t.upper() == 'BINCOMP':
-                self.tokenTypes.append(TokenType.BINCOMP)
+    # parse through tokens and replace as required
+    ntokens = len(tokens)
+    newtokens = []
+    while i < ntokens:
+        if tokens[i] in ['&&', 'AND']:
+            # replace synonyms for '&' or 'and'
+            newtokens.append('&')
+        elif tokens[i] in ['||', 'OR']:
+            # replace synonyms for '|' or 'or'
+            newtokens.append('|')
+        elif tokens[i] in ['!', 'NOT', 'not']:
+            # replace synonyms for '~'
+            newtokens.append('~')
+        elif tokens[i].upper() in matchTypes:
+            if ntokens < i+3:
+                warnings.warn("A '{}' must be followed by a '(NAME)': ignoring in query".format(tokens[i].upper()), UserWarning)
+            elif tokens[i+1] != '(' or tokens[i+3] != ')'
+                warnings.warn("A '{}' must be followed by a '(NAME)': ignoring in query".format(tokens[i].upper()), UserWarning)
             else:
-                try:
-                    number = float(t)
-                    self.tokenTypes.append(TokenType.NUM)
-                except ValueError:
-                    if re.search('^[a-zA-Z0-9_]+$', t):
-                        self.tokenTypes.append(TokenType.VAR)
+                if  tokens[i].upper() == 'ASSOC':
+                    if 'ASSOC' not in tab.keys():
+                        warnings.warn("'ASSOC' parameter not in table: ignoring in query", UserWarning)
+                    elif exactMatch:
+                        newtokens.append('(ASSOC == "{}")'.format(tokens[i+2]))
                     else:
-                        self.tokenTypes.append(None)
-
-
-class ConditionParser(object):
-    tokenizer = None
-    root = None
-
-    def __init__(self, expression):
-        self.tokenizer = Tokenizer(expression)
-        self.tokenizer.tokenize()
-        self.parse()
-
-    def parse(self):
-        self.root = self.parseExpression()
-
-    def parseExpression(self):
-        andTerm1 = self.parseAndTerm()
-        while self.tokenizer.hasNext() and self.tokenizer.nextTokenType() == TokenType.OR:
-            self.tokenizer.next()
-            andTermX = self.parseAndTerm()
-            andTerm = TreeNode(TokenType.OR)
-            andTerm.left = andTerm1
-            andTerm.right = andTermX
-            andTerm1 = andTerm
-        return andTerm1
-
-    def parseAndTerm(self):
-        condition1 = self.parseCondition()
-        while self.tokenizer.hasNext() and self.tokenizer.nextTokenType() == TokenType.AND:
-            self.tokenizer.next()
-            conditionX = self.parseCondition()
-            condition = TreeNode(TokenType.AND)
-            condition.left = condition1
-            condition.right = conditionX
-            condition1 = condition
-        return condition1
-
-    def parseCondition(self):
-        tokenType = self.tokenizer.nextTokenType()
-
-        if self.tokenizer.hasNext() and tokenType == TokenType.LP:
-            self.tokenizer.next()
-            expression = self.parseExpression()
-            if self.tokenizer.hasNext() and self.tokenizer.nextTokenType() == TokenType.RP:
-                self.tokenizer.next()
-                return expression
-            else:
-                raise Exception("Closing ')' expected, but got '{}'".format(self.tokenizer.next()))
-
-        if self.tokenizer.hasNext() and self.tokenizer.nextTokenTypeIsGroup():
-            matchType = self.tokenizer.nextTokenTypeIsMatch()
-            condition = TreeNode(tokenType)
-            self.tokenizer.next()
-            condition.this = self.parseCondition()
-            condition.isGroup = True
-
-            if matchType:
-                condition.isMatch = True
-                # a "matching" expression, e.g., an association
-                if condition.this.tokenType != TokenType.VAR:
-                    raise Exception("Problem passing 'matchType' expression")
-
-            return condition
-
-        terminal1 = self.parseTerminal()
-        if not self.tokenizer.hasNext() or self.tokenizer.nextTokenType() == TokenType.RP:
-            return terminal1
-        elif self.tokenizer.hasNext() and self.tokenizer.nextTokenTypeIsOperator():
-            condition = TreeNode(self.tokenizer.nextTokenType())
-            self.tokenizer.next()
-            terminal2 = self.parseTerminal()
-            condition.left = terminal1
-            condition.right = terminal2
-            condition.isOp = True
-            return condition
+                        assoc = np.array([tokens[i+2] in a for a in table['ASSOC']])
+                        newtokens.append('(@assoc)')
+                elif tokens[i].upper() == 'TYPE':
+                    if tokens[i+2].upper() == 'BINARY':
+                        if 'BINARY' not in tab.keys():
+                            warnings.warn("'BINARY' parameter not in table: ignoring in query", UserWarning)
+                        else:
+                            newtokens.append('(BINARY != "None")')
+                    else:
+                        if 'TYPE' not in tab.keys():
+                            warnings.warn("'TYPE' parameter not in table: ignoring in query", UserWarning)
+                        elif exactMatch:
+                            newtokens.append('(TYPE == "{}")'.format(tokens[i+2]))
+                        else:
+                            ttype = np.array([tokens[i+2] in a for a in table['TYPE']])
+                            newtokens.append('(@ttype)')
+                elif tokens[i].upper() == 'BINCOMP':
+                    if 'BINCOMP' not in tab.keys():
+                        warnings.warn("'BINCOMP' parameter not in table: ignoring in query", UserWarning)
+                    elif exactMatch:
+                        newtokens.append('(BINCOMP == "{}")'.format(tokens[i+2]))
+                    else:
+                        bincomp = np.array([tokens[i+2] in a for a in table['BINCOMP']])
+                        newtokens.append('(@bincomp)')
+                elif tokens[i].upper() == 'EXIST':
+                    if tokens[i+2] not in tab.keys():
+                        warnings.warn("'{}' does not exist for any pulsar".format(tokens[i+2]), UserWarning)
+                        # create an empty DataFrame
+                        tab = DataFrame(columns=table.keys())
+                        break
+                    else:
+                        newtokens.append('({} != None)'.format(tokens[i+2]))
+                elif tokens[i].upper() == 'ERROR':
+                    if tokens[i+2]+'_ERR' not in tab.keys():
+                        warnings.warn("Error value for '{}' not present: ignoring in query".format(tokens[i+2]), UserWarning)
+                    else:
+                        newtokens.append('{}_ERR'.format(tokens[i+2]))
+            i += 2
         else:
-            raise Exception("Operator expected, but got '{}'".format(self.tokenizer.next()))
+            newtokens.append(tokens[i])
 
-    def parseTerminal(self):
-        if self.tokenizer.hasNext():
-            tokenType = self.tokenizer.nextTokenType()
-            if tokenType == TokenType.NUM:
-                n = TreeNode(tokenType)
-                n.value = float(self.tokenizer.next())
-                return n
-            elif tokenType == TokenType.VAR:
-                n = TreeNode(tokenType)
-                n.value = self.tokenizer.next()
-                return n
-            else:
-                raise Exception('NUM, STR, or VAR expected, but got ' + self.tokenizer.next())
-        else:
-            raise Exception('NUM, STR, or VAR expected, but got ' + self.tokenizer.next())
+        i += 1
 
-    def evaluate(self, table, exactMatch=False):
-        return self.evaluateRecursive(self.root, table, exactMatch=exactMatch)
+    # evaluate the expression
+    try:
+        newtab = tab.query(''.join(newtokens))
+    except RuntimeError:
+        raise RuntimeError("Could not parse the query")
 
-    def evaluateRecursive(self, treeNode, table, exactMatch):
-        if treeNode.tokenType == TokenType.NUM:
-            return treeNode.value
-        if treeNode.tokenType == TokenType.VAR:
-            if treeNode.value not in table.colnames:
-                raise KeyError("Parameter '{}' not in table".format(treeNode.value))
-            return table[treeNode.value]
+    if isinstance(table, Table):
+        # convert back to an astropy table
+        tab = Table.from_pandas(tab)
 
-        if treeNode.this is not None:
-            if treeNode.isGroup:
-                if treeNode.tokenType == TokenType.NOT:
-                    this = self.evaluateRecursive(treeNode.this, table, exactMatch)
-                    return ~this.astype(np.bool)  # make sure its a boolean
-                elif treeNode.isMatch:
-                    return self.evaluateMatch(treeNode, table, exactMatch)
-                else:
-                    raise TypeError("Unexpected type '{}'".format(str(treeNode.tokenType)))
+        # re-add any units/types
+        for key in table.colnames:
+            tab.columns[key].unit = table.columns[key].unit
+            tab[key] = tab[key].astype(table[key].dtype)
 
-        left = self.evaluateRecursive(treeNode.left, table, exactMatch)
-        right = self.evaluateRecursive(treeNode.right, table, exactMatch)
-        if treeNode.tokenType == TokenType.GT:
-            return left > right
-        elif treeNode.tokenType == TokenType.GTE:
-            return left >= right
-        elif treeNode.tokenType == TokenType.LT:
-            return left < right
-        elif treeNode.tokenType == TokenType.LTE:
-            return left <= right
-        elif treeNode.tokenType == TokenType.EQ:
-            return left == right
-        elif treeNode.tokenType == TokenType.NEQ:
-            return left != right
-        elif treeNode.tokenType == TokenType.AND:
-            return left & right
-        elif treeNode.tokenType == TokenType.OR:
-            return left | right
-        else:
-            raise TypeError("Unexpected type '{}'".format(str(treeNode.tokenType)))
-
-    def evaluateMatch(self, treeNode, table, exactMatch):
-        if treeNode.tokenType == TokenType.ASSOC:
-            if 'ASSOC' in table.colnames:
-                assocs = table['ASSOC']
-
-                if exactMatch:
-                    # only return exact matches
-                    return assocs == treeNode.this.value
-                else:
-                    # return True if containing the value
-                    return np.array([treeNode.this.value in a for a in assocs])
-            else:
-                raise KeyError("No 'ASSOC' in table")
-        elif treeNode.tokenType == TokenType.TYPE:
-            if treeNode.this.value.upper() == 'BINARY':
-                if 'BINARY' in table.colnames:
-                    # special case if 'TYPE' is binary
-                    binary = table['BINARY']
-                    return binary != 'None'
-                else:
-                    raise KeyError("No 'BINARY' in table")
-            elif 'TYPE' in table.colnames:
-                types = table['TYPE']
-
-                if treeNode.this.value.upper() == 'BINARY':
-                    # special case if 'TYPE' is binary
-                    binary = table['BINARY']
-                    return binary != 'None'
-
-                if exactMatch:
-                    # only return exact matches
-                    return types == treeNode.this.value
-                else:
-                    # return True if containing the value
-                    return np.array([treeNode.this.value in t for t in types])
-            else:
-                raise KeyError("No 'TYPE' in table")
-        elif treeNode.tokenType == TokenType.BINCOMP:
-            if 'BINCOMP' in table.colnames:
-                bincomps = table['BINCOMP']
-
-                return np.array([treeNode.this.value in b for b in bincomps])
-        else:
-            raise TypeError("Unexpected type '{}'".format(str(treeNode.tokenType)))
+    return tab
