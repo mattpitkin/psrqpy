@@ -630,7 +630,7 @@ LOGEXPRS = (r'(\bAND\b'        # logical AND
             r'|\bEXIST\b'      # pulsar parameter exists in the catalogue
             r'|\bexist\b'      # pulsar parameter exists in the catalogue
             r'|\bERROR\b'      # condition on parameter error
-            r'|\berror\b)'     # condition on parameter error
+            r'|\berror\b)')    # condition on parameter error
 
 
 def condition(table, expression, exactMatch=False):
@@ -698,7 +698,7 @@ def condition(table, expression, exactMatch=False):
     if isinstance(table, Table):
         # convert astropy table to pandas DataFrame
         tab = table.to_pandas()
-    elif not isinstance(table, DataFrame)
+    elif not isinstance(table, DataFrame):
         raise TypeError("Table must be a pandas DataFrame or astropy Table")
     else:
         tab = table
@@ -721,7 +721,7 @@ def condition(table, expression, exactMatch=False):
         elif tokens[i].upper() in matchTypes:
             if ntokens < i+3:
                 warnings.warn("A '{}' must be followed by a '(NAME)': ignoring in query".format(tokens[i].upper()), UserWarning)
-            elif tokens[i+1] != '(' or tokens[i+3] != ')'
+            elif tokens[i+1] != '(' or tokens[i+3] != ')':
                 warnings.warn("A '{}' must be followed by a '(NAME)': ignoring in query".format(tokens[i].upper()), UserWarning)
             else:
                 if  tokens[i].upper() == 'ASSOC':
