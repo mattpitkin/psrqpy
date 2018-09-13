@@ -18,6 +18,7 @@ from collections import OrderedDict
 
 from .config import ATNF_BASE_URL, ATNF_VERSION, ADS_URL, ATNF_TARBALL, PSR_ALL, PSR_ALL_PARS, GLITCH_URL
 
+
 # set formatting of warnings to not include line number and code (see
 # e.g. https://pymotw.com/3/warnings/#formatting)
 def warning_format(message, category, filename, lineno, file=None, line=None):
