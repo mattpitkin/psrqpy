@@ -712,15 +712,15 @@ def condition(table, expression, exactMatch=False):
     newtokens = []
     i = 0
     while i < ntokens:
-        if tokens[i] in ['&&', 'AND']:
+        if tokens[i] in [r'&&', r'AND']:
             # replace synonyms for '&' or 'and'
-            newtokens.append('&')
-        elif tokens[i] in ['||', 'OR']:
+            newtokens.append(r'&')
+        elif tokens[i] in [r'||', r'OR']:
             # replace synonyms for '|' or 'or'
-            newtokens.append('|')
-        elif tokens[i] in ['!', 'NOT', 'not']:
+            newtokens.append(r'|')
+        elif tokens[i] in [r'!', r'NOT', r'not']:
             # replace synonyms for '~'
-            newtokens.append('~')
+            newtokens.append(r'~')
         elif tokens[i].upper() in matchTypes:
             if ntokens < i+3:
                 warnings.warn("A '{}' must be followed by a '(NAME)': ignoring in query".format(tokens[i].upper()), UserWarning)
@@ -731,32 +731,32 @@ def condition(table, expression, exactMatch=False):
                     if 'ASSOC' not in tab.keys():
                         warnings.warn("'ASSOC' parameter not in table: ignoring in query", UserWarning)
                     elif exactMatch:
-                        newtokens.append('(ASSOC == "{}")'.format(tokens[i+2]))
+                        newtokens.append(r'(ASSOC == "{}")'.format(tokens[i+2]))
                     else:
                         assoc = np.array([tokens[i+2] in a for a in table['ASSOC']])
-                        newtokens.append('(@assoc)')
+                        newtokens.append(r'(@assoc)')
                 elif tokens[i].upper() == 'TYPE':
                     if tokens[i+2].upper() == 'BINARY':
                         if 'BINARY' not in tab.keys():
                             warnings.warn("'BINARY' parameter not in table: ignoring in query", UserWarning)
                         else:
-                            newtokens.append('(BINARY != "None")')
+                            newtokens.append(r'(BINARY != "None")')
                     else:
                         if 'TYPE' not in tab.keys():
                             warnings.warn("'TYPE' parameter not in table: ignoring in query", UserWarning)
                         elif exactMatch:
-                            newtokens.append('(TYPE == "{}")'.format(tokens[i+2]))
+                            newtokens.append(r'(TYPE == "{}")'.format(tokens[i+2]))
                         else:
                             ttype = np.array([tokens[i+2] in a for a in table['TYPE']])
-                            newtokens.append('(@ttype)')
+                            newtokens.append(r'(@ttype)')
                 elif tokens[i].upper() == 'BINCOMP':
                     if 'BINCOMP' not in tab.keys():
                         warnings.warn("'BINCOMP' parameter not in table: ignoring in query", UserWarning)
                     elif exactMatch:
-                        newtokens.append('(BINCOMP == "{}")'.format(tokens[i+2]))
+                        newtokens.append(r'(BINCOMP == "{}")'.format(tokens[i+2]))
                     else:
                         bincomp = np.array([tokens[i+2] in a for a in table['BINCOMP']])
-                        newtokens.append('(@bincomp)')
+                        newtokens.append(r'(@bincomp)')
                 elif tokens[i].upper() == 'EXIST':
                     if tokens[i+2] not in tab.keys():
                         warnings.warn("'{}' does not exist for any pulsar".format(tokens[i+2]), UserWarning)
@@ -769,7 +769,7 @@ def condition(table, expression, exactMatch=False):
                     if tokens[i+2]+'_ERR' not in tab.keys():
                         warnings.warn("Error value for '{}' not present: ignoring in query".format(tokens[i+2]), UserWarning)
                     else:
-                        newtokens.append('{}_ERR'.format(tokens[i+2]))
+                        newtokens.append(r'{}_ERR'.format(tokens[i+2]))
             i += 2
         else:
             newtokens.append(tokens[i])
