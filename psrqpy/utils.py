@@ -503,7 +503,7 @@ LOGEXPRS = (r'(\bAND\b'        # logical AND
             r'|\bASSOC\b'      # pulsar association
             r'|\bassoc\b'      # pulsar association
             r'|\bTYPE\b'       # pulsar type
-            r'|\btype\b)'      # pulsar type
+            r'|\btype\b'       # pulsar type
             r'|\bBINCOMP\b'    # pulsar binary companion type
             r'|\bbincomp\b'    # pulsar binary companion type
             r'|\bEXIST\b'      # pulsar parameter exists in the catalogue
@@ -587,6 +587,7 @@ def condition(table, expression, exactMatch=False):
     # parse through tokens and replace as required
     ntokens = len(tokens)
     newtokens = []
+    i = 0
     while i < ntokens:
         if tokens[i] in ['&&', 'AND']:
             # replace synonyms for '&' or 'and'
@@ -660,14 +661,14 @@ def condition(table, expression, exactMatch=False):
 
     if isinstance(table, Table):
         # convert back to an astropy table
-        tab = Table.from_pandas(tab)
+        newtab = Table.from_pandas(newtab)
 
         # re-add any units/types
         for key in table.colnames:
-            tab.columns[key].unit = table.columns[key].unit
-            tab[key] = tab[key].astype(table[key].dtype)
+            newtab.columns[key].unit = table.columns[key].unit
+            newtab[key] = newtab[key].astype(table[key].dtype)
 
-    return tab
+    return newtab
 
 
 def characteristic_age(period, pdot, braking_idx=3.):
