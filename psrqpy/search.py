@@ -114,8 +114,8 @@ class QueryATNF(object):
             from the given file, rather than performing a new query. This was
             `loadfromfile` in earlier versions, which still works but has been
             deprecated. Defaults to None.
-        cache (bool): cache the catalogue database file for future use.
-            Defaults to True.
+        cache (bool): cache the catalogue database file for future use. This is
+            ignored it `loadfromdb` is given. Defaults to True.
         webform (bool): query the catalogue webform rather than downloading the
            database file. Defaults to False.
         version (str): a string with the ATNF version to use. This will only be
@@ -128,9 +128,8 @@ class QueryATNF(object):
                  sort_order='asc', psrs=None, include_errs=True,
                  include_refs=False, get_ephemeris=False, version=None,
                  adsref=False, loadfromfile=None, loadquery=None,
-                 loadfromdb=None, cache=True,
-                 circular_boundary=None, coord1=None, coord2=None, radius=0.,
-                 webform=False):
+                 loadfromdb=None, cache=True, circular_boundary=None,
+                 coord1=None, coord2=None, radius=0., webform=False):
         self._psrs = psrs
         self._include_errs = include_errs
         self._include_refs = include_refs
@@ -149,10 +148,10 @@ class QueryATNF(object):
             return
 
         self._dbfile = loadfromdb
-        if not webform and self._dbfile is None:
+        if not webform:
             # download and cache (if requested) the database file
             try:
-                self._table = get_catalogue(path_to_db=loadfromdb, cache=cache)
+                self._table = get_catalogue(path_to_db=self._dbfile, cache=cache)
             except IOError:
                 raise IOError("Could not get catalogue database file")
 
@@ -224,9 +223,9 @@ class QueryATNF(object):
         self.parse_query()
 
         # check sort order is either 'asc' or 'desc' (or some synonyms)
-        if sort_order.lower() in ['asc', 'up', '^']:
+        if sort_order.lower() in ['asc', 'ascending', 'up', '^']:
             self._sort_order = 'asc'
-        elif sort_order.lower() in ['desc', 'descending', 'v']:
+        elif sort_order.lower() in ['desc', 'descending', 'down', 'v']:
             self._sort_order = 'desc'
         else:
             warnings.warn(('Unrecognised sort order "{}", defaulting to'
