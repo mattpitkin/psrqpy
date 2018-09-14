@@ -93,8 +93,7 @@ def get_catalogue(path_to_db=None, cache=True, update=False):
     commentstring = '#'  # specifies line is a comment
 
     # create list of dictionaries - one for each pulsar
-    psrlist = [{}]
-    formats = {}  # dictionary of formats for each parameter
+    psrlist = []
 
     version = None  # catalogue version
 
@@ -118,12 +117,8 @@ def get_catalogue(path_to_db=None, cache=True, update=False):
 
         try:
             psrlist[-1][dataline[0]] = float(dataline[1])
-            if dataline[0] not in formats.keys():
-                formats[dataline[0]] = np.float64
         except ValueError:
             psrlist[-1][dataline[0]] = dataline[1]
-            if dataline[0] not in formats.keys():
-                formats[dataline[0]] = np.unicode
 
         if len(dataline) > 2:
             # check whether 3rd value is a float (so its an error value) or not
@@ -160,72 +155,44 @@ def get_catalogue(path_to_db=None, cache=True, update=False):
 
                 # add error column if required
                 psrlist[-1][dataline[0]+'_ERR'] = float(dataline[2])/scalefac  # error entry
-
-                if dataline[0]+'_ERR' not in formats.keys():
-                    formats[dataline[0]+'_ERR'] = np.float64
             else:
                 # add reference column if required
                 psrlist[-1][dataline[0]+'_REF'] = dataline[2]  # reference entry
 
-                if dataline[0]+'_REF' not in formats.keys():
-                    formats[dataline[0]+'_REF'] = np.unicode
-
             if len(dataline) > 3:
                 # last entry must(!) be a reference
                 psrlist[-1][dataline[0]+'_REF'] = dataline[3]  # reference entry
-                if dataline[0]+'_REF' not in formats.keys():
-                    formats[dataline[0]+'_REF'] = np.unicode
+
+    dbfile.close()   # close tar file
+    if not path_to_db:
+        pulsargz.close()
 
     del psrlist[-1]  # Final breakstring comes at the end of the file
 
     # add RA and DEC in degs and JNAME/BNAME
-    radec = False
-    jname = False
-    bname = False
     for i, psr in enumerate(list(psrlist)):
         if 'RAJ' in psr.keys() and 'DECJ' in psr.keys():
-            coord = SkyCoord(psr['RAJ'], psr['DECJ'], unit=(aunits.hourangle, aunits.deg))
+            coord = SkyCoord(psr['RAJ'], psr['DECJ'],
+                             unit=(aunits.hourangle, aunits.deg))
             psrlist[i]['RAJD'] = coord.ra.deg    # right ascension in degrees
             psrlist[i]['DECJD'] = coord.dec.deg  # declination in degrees
-            radec = True
 
         # add 'JNAME', 'BNAME' and 'NAME'
         if 'PSRJ' in psr.keys():
             psrlist[i]['JNAME'] = psr['PSRJ']
             psrlist[i]['NAME'] = psr['PSRJ']
-            jname = True
 
         if 'PSRB' in psr.keys():
             psrlist[i]['BNAME'] = psr['PSRB']
-            bname = True
 
             if 'NAME' not in psrlist[i].keys():
                 psrlist[i]['NAME'] = psr['PSRB']
-
-    if radec:
-        formats['RAJD'] = np.float64
-        formats['DECJD'] = np.float64
-
-    if jname:
-        formats['JNAME'] = np.unicode
-    if bname:
-        formats['BNAME'] = np.unicode
-    if jname or bname:
-        formats['NAME'] = np.unicode
-
-    dbfile.close()   # close tar file
-    if not path_to_db:
-        pulsargz.close()
 
     # convert to a pandas DataFrame - this will fill in empty spaces
     dftable = DataFrame(psrlist)
 
     # convert into an astropy table
     psrtable = Table.from_pandas(dftable)
-
-    # add data format
-    for key in formats.keys():
-        psrtable[key] = psrtable[key].astype(formats[key])
 
     # add units if known
     for key in PSR_ALL_PARS:
