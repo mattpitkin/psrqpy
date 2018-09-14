@@ -56,19 +56,14 @@ def get_catalogue(path_to_db=None, cache=True, update=False):
 
     """
 
-    try:
-        from astropy.table import Table
-        from astropy.coordinates import SkyCoord
-        import astropy.units as aunits
-        from astropy.utils.data import download_file, clear_download_cache
-    except ImportError:
-        raise ImportError('Problem importing astropy')
+    from astropy.table import Table
+    from astropy.coordinates import SkyCoord
+    import astropy.units as aunits
+    from astropy.utils.data import download_file, clear_download_cache
+    from pandas import DataFrame
 
     if not path_to_db:
-        try:
-            import tarfile
-        except ImportError:
-            raise ImportError('Problem importing tarfile')
+        import tarfile
 
         # remove any cached file if requested
         if update:
@@ -218,18 +213,15 @@ def get_catalogue(path_to_db=None, cache=True, update=False):
     if jname or bname:
         formats['NAME'] = np.unicode
 
-    # fill in all entries with all parameters
-    for i, psr in enumerate(list(psrlist)):
-        for key in formats.keys():
-            if key not in psr.keys():
-                psrlist[i][key] = None  # blank value
-
     dbfile.close()   # close tar file
     if not path_to_db:
         pulsargz.close()
 
-    # convert into astropy table
-    psrtable = Table(data=psrlist)
+    # convert to a pandas DataFrame - this will fill in empty spaces
+    dftable = DataFrame(psrlist)
+
+    # convert into an astropy table
+    psrtable = Table.from_pandas(dftable)
 
     # add data format
     for key in formats.keys():
