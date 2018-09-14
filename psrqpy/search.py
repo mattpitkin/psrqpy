@@ -37,76 +37,100 @@ warnings.formatwarning = warning_format
 class QueryATNF(object):
     """
     A class to generate a query of the
-    `ATNF pulsar catalogue <http://www.atnf.csiro.au/people/pulsar/psrcat/>`_. This class will
-    generate and return a query and for a set of pulsar parameters. Specific pulsars can also be
-    queried. Conditions can be set on the queried parameters. The results can be converted into a
-    dictionary or an :class:`astropy.table.Table`.
+    `ATNF pulsar catalogue <http://www.atnf.csiro.au/people/pulsar/psrcat/>`_.
+    By default this class will download and cache the latest version of the
+    catalogue database file, although a query can be generated from the
+    catalogue webform interface if requested. The catalogue can be queried for
+    specific pulsar parameters and for specific named pulsars. Conditions on
+    the parameter can be specified. The results will be stored as an
+    :class:`astropy.table.Table`.
 
     Args:
-        params (str, :obj:`list`, required): a list of strings with the pulsar `parameters
+        params (str, :obj:`list`): a list of strings with the
+            pulsar `parameters
             <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=expert#par_list>`_
-            to query. The parameter names are case insensitive. The ``JName`` parameter will be
-            queried by default, unless ``nojname`` is set to True.
-        condition (str): a string with logical conditions for the returned parameters. The allowed
-            format of the condition string is given `here
+            to query. The parameter names are case insensitive. If this is not
+            given then all parameters will be returned by default, unless
+            querying via the webform in which case only `JNAME` will be
+            returned by default.
+        condition (str): a string with logical conditions for the returned
+            parameters. The allowed format of the condition string is given
+            `here
             <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#condition>`_.
             Defaults to None.
-        psrtype (:obj:`list`): a list of strings, or single string, of conditions on the `type
-            <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#psr_types>`_ of
-            pulsars to return (logical AND will be used for any listed types). Defaults to None.
-        assoc (:obj:`list`, str): a condition on the associations of pulsars to return (logical AND
-            will be used for any listed associations). Currently this can contain either ``GC`` for
-            pulsars in globular clusters or ``SNR`` for pulsars with associated supernova remnants.
+        psrtype (:obj:`list`): a list of strings, or single string, of
+            conditions on the `type
+            <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#psr_types>`_
+            of pulsars to return (logical AND will be used for any listed
+            types). Defaults to None.
+        assoc (:obj:`list`, str): a condition on the associations of pulsars to
+            return (logical AND will be used for any listed associations).
+            Currently this can contain either ``GC`` for pulsars in globular
+            clusters or ``SNR`` for pulsars with associated supernova remnants.
             Defaults to None.
-        bincomp (str, :obj:`list`): a list of strings, or single string, of conditions on the
+        bincomp (str, :obj:`list`): a list of strings, or single string, of
+            conditions on the
             `binary
             <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#bincomp_type>`_
-            companion types of pulsars to return (logical AND will be used for any listed
-            associations). Defaults to None.
-        extractmatch (bool): a boolean stating whether assciations and types given as the condition
-            should be an exact match. Defaults to False.
-        sort_attr (str): the (case insensitive) parameter name on which with sort the returned
-            pulsars. Defaults to ``JName``.
-        sort_ord (str): the order of the sorting, can be either ``asc`` or ``desc``. Defaults to
-            ascending.
-        psrs (:obj:`list`): a list of pulsar names for which to get the requested parameters.
-            Defaults to None.
-        circular_boundary (:obj:`list`, tuple): a list containing three entries defining the centre
-            (in right ascension and declination), and radius of a circle in which to search for and
-            return pulsars. The first entry is the centre point right ascension as a string in
-            format 'hh:mm:ss' or a float in radians, the second entry is the centre point
-            declination as a string in format 'dd:mm:ss' or a float in radians, the final entry is
-            the circle's radius in degrees. Alternatively `coord1`, `coord2`, and `radius` can be
+            companion types of pulsars to return (logical AND will be used for
+            any listed associations). Defaults to None.
+        exactmatch (bool): a boolean stating whether associations and types
+            given as the condition should be an exact match. Defaults to False.
+        sort_attr (str): the (case insensitive) parameter name on which with
+            sort the returned pulsars. Defaults to ``JName``.
+        sort_ord (str): the order of the sorting, can be either ``asc`` or
+            ``desc``. Defaults to ascending.
+        psrs (:obj:`list`): a list of pulsar names for which to get the
+            requested parameters. Defaults to None.
+        circular_boundary (:obj:`list`, tuple): a list containing three entries
+            defining the centre (in right ascension and declination), and
+            radius of a circle in which to search for and return pulsars. The
+            first entry is the centre point right ascension as a string in
+            format 'hh:mm:ss' or a float in radians, the second entry is the
+            centre point declination as a string in format 'dd:mm:ss' or a
+            float in radians, the final entry is the circle's radius in
+            degrees. Alternatively `coord1`, `coord2`, and `radius` can be
             used.
-        coord1 (str): a string containing a right ascension in the format ('hh:mm:ss') that
-            centres a circular boundary in which to search for pulsars (requires coord2 and
-            radius to be set).
-        coord2 (str): a string containing a declination in the format ('dd:mm:ss') that
-            centres a circular boundary in which to search for pulsars (requires coord1 and
-            radius to be set).
-        radius (float): the radius (in degrees) of a circular boundary in which to search for
-            pulsars (requires coord1 and coord2 to be set).
-        include_errs (bool): Set if wanting parameter errors to be returned. Defaults to True.
+        coord1 (str): a string containing a right ascension in the format
+            ('hh:mm:ss') that centres a circular boundary in which to search
+            for pulsars (requires coord2 and radius to be set).
+        coord2 (str): a string containing a declination in the format
+            ('dd:mm:ss') that centres a circular boundary in which to search
+            for pulsars (requires coord1 and radius to be set).
+        radius (float): the radius (in degrees) of a circular boundary in which
+            to search for pulsars (requires coord1 and coord2 to be set).
+        include_errs (bool): Set if wanting parameter errors to be returned.
+            Defaults to True.
         include_refs (bool): Set if wanting parameter
-            `references <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_ref.html>`_ to be
-            returned. Defaults to False.
-        get_ephemeris (bool): Set if wanting to get pulsar ephemerides (only works if `psrs` have
-            been specified). Defaults to False.
-        version (str): a string with the ATNF version to use (this will default to the current
-            version if set as None)
-        adsref (bool): Set if wanting to use an :class:`ads.search.SearchQuery` to get reference
-            information. Defaults to False.
-        loadfromfile (str): load an instance of :class:`~psrqpy.search.QueryATNF` from the given
-            file, rather than performing a new query. Defaults to None.
-        nojname (bool): Set to True if wanting to explicitly exclude the ``JName`` parameter from
-            a query. Defaults to False.
+            `references <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_ref.html>`_
+            to be returned. Defaults to False.
+        get_ephemeris (bool): Set if wanting to get pulsar ephemerides (only
+            works if `psrs` have been specified). Defaults to False.
+        adsref (bool): Set if wanting to use an :class:`ads.search.SearchQuery`
+            to get reference information. Defaults to False.
+        loadfromdb (str): load a pulsar database file from a given path rather
+            than using the ATNF Pulsar Catalogue database. Defaults to None.
+        loadquery (str): load an instance of :class:`~psrqpy.search.QueryATNF`
+            from the given file, rather than performing a new query. This was
+            `loadfromfile` in earlier versions, which still works but has been
+            deprecated. Defaults to None.
+        cache (bool): cache the catalogue database file for future use.
+            Defaults to True.
+        webform (bool): query the catalogue webform rather than downloading the
+           database file. Defaults to False.
+        version (str): a string with the ATNF version to use. This will only be
+            used if querying via the webform and will default to the current
+            version if set as None.
     """
 
-    def __init__(self, params=None, condition=None, psrtype=None, assoc=None, bincomp=None,
-                 exactmatch=False, sort_attr='jname', sort_order='asc', psrs=None,
-                 include_errs=True, include_refs=False, get_ephemeris=False, version=None,
-                 adsref=False, loadfromfile=None, circular_boundary=None, coord1=None, coord2=None,
-                 radius=0., nojname=False):
+    def __init__(self, params=None, condition=None, psrtype=None, assoc=None,
+                 bincomp=None, exactmatch=False, sort_attr='jname',
+                 sort_order='asc', psrs=None, include_errs=True,
+                 include_refs=False, get_ephemeris=False, version=None,
+                 adsref=False, loadfromfile=None, loadquery=None,
+                 loadfromdb=None, cache=True,
+                 circular_boundary=None, coord1=None, coord2=None, radius=0.,
+                 webform=False):
         self._psrs = psrs
         self._include_errs = include_errs
         self._include_refs = include_refs
@@ -116,21 +140,21 @@ class QueryATNF(object):
 
         self._savefile = None  # file to save class to
         self._loadfile = None  # file class loaded from
+        self._table = None
 
-        if loadfromfile:
-            self.load(loadfromfile)
+        if loadfromfile is not None and loadquery is None:
+            loadquery = loadfromfile
+        if loadquery:
+            self.load(loadquery)
             return
 
-        # check sort order is either 'asc' or 'desc' (or some synonyms)
-        if sort_order.lower() in ['asc', 'up', '^']:
-            self._sort_order = 'asc'
-        elif sort_order.lower() in ['desc', 'descending', 'v']:
-            self._sort_order = 'desc'
-        else:
-            warnings.warn('Unrecognised sort order "{}", defaulting to "ascending"'.format(sort_order), UserWarning)
-            self._sort_order = 'asc'
-
-        self._sort_attr = sort_attr
+        self._dbfile = loadfromdb
+        if not webform and self._dbfile is None:
+            # download and cache (if requested) the database file
+            try:
+                self._table = get_catalogue(path_to_db=loadfromdb, cache=cache)
+            except IOError:
+                raise IOError("Could not get catalogue database file")
 
         self._refs = None  # set of pulsar references
         self._query_output = None
@@ -179,9 +203,6 @@ class QueryATNF(object):
                 else:
                     raise Exception("'params' must be a list or string")
 
-        if nojname and 'JNAME' in self._query_params:
-            self._query_params.remove('JNAME')
-
         for p in list(self._query_params):
             if p not in PSR_ALL_PARS:
                 warnings.warn("Parameter {} not recognised".format(p), UserWarning)
@@ -189,18 +210,38 @@ class QueryATNF(object):
         if len(self._query_params) == 0 and (not self._psrs or not self._get_ephemeris):
             raise Exception("No parameters left in list")
 
-        # set conditions
+        # set conditions (ONLY USE THIS FOR WEBFORM SUBMISSION)
         self._conditions_query = self.parse_conditions(condition, psrtype=psrtype, assoc=assoc, bincomp=bincomp, exactmatch=exactmatch)
 
         # get references if required
         if self._include_refs:
-            self._refs = get_references()
+            self._refs = get_references()  # CHANGE GET_REFERENCES TO USE FILE IN TARBALL
 
         # perform query
         self.generate_query()
 
         # parse the query with BeautifulSoup into a dictionary
         self.parse_query()
+
+        # check sort order is either 'asc' or 'desc' (or some synonyms)
+        if sort_order.lower() in ['asc', 'up', '^']:
+            self._sort_order = 'asc'
+        elif sort_order.lower() in ['desc', 'descending', 'v']:
+            self._sort_order = 'desc'
+        else:
+            warnings.warn(('Unrecognised sort order "{}", defaulting to'
+                           '"ascending"').format(sort_order), UserWarning)
+            self._sort_order = 'asc'
+
+        self._sort_attr = sort_attr.upper()
+
+        # perform sorting
+        if self._sort_attr in self._table.colnames:
+            self._table.sort(self._sort_attr)
+
+            # reverse table if in descending order
+            if self._sort_order == 'desc':
+                self._table.reverse()
 
     def save(self, fname):
         """

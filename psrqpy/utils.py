@@ -32,11 +32,13 @@ warnings.formatwarning = warning_format
 PROB_REFS = ['bwck08', 'crf+18']
 
 
-def get_catalogue(path_to_db=None):
+def get_catalogue(path_to_db=None, cache=True):
     """
-    This function will attempt to download the entire ATNF catalogue `tarball
-    <http://www.atnf.csiro.au/people/pulsar/psrcat/downloads/psrcat_pkg.tar.gz>`_
-    and convert it to an :class:`astropy.table.Table`. This is based on the
+    This function will attempt to download and cache the entire ATNF Pulsar
+    Catalogue database `tarball
+    <http://www.atnf.csiro.au/people/pulsar/psrcat/downloads/psrcat_pkg.tar.gz>`_,
+    or read in database file from a provided path. The database will be
+    converted into an :class:`astropy.table.Table`. This is based on the
     method in the `ATNF.ipynb
     <https://github.com/astrophysically/ATNF-Pulsar-Cat/blob/master/ATNF.ipynb>`_
     notebook by Joshua Tan (`@astrophysically <https://github.com/astrophysically/>`_).
@@ -45,6 +47,7 @@ def get_catalogue(path_to_db=None):
         path_to_db (str): if the path to a local version of the database file
             is given then that will be read in rather than attempting to
             download the file (defaults to None).
+        cache (bool): cache the downloaded ATNF Pulsar Catalogue file.
 
     Returns:
         :class:`~astropy.table.Table`: a table containing the entire catalogue.
@@ -55,6 +58,7 @@ def get_catalogue(path_to_db=None):
         from astropy.table import Table
         from astropy.coordinates import SkyCoord
         import astropy.units as aunits
+        from astropy.utils.data import download_file
     except ImportError:
         raise ImportError('Problem importing astropy')
 
@@ -66,20 +70,18 @@ def get_catalogue(path_to_db=None):
 
         # get the tarball
         try:
-            pulsargzfile = requests.get(ATNF_TARBALL)
-            fp = BytesIO(pulsargzfile.content)  # download and store in memory
+            tarfile = download_file(ATNF_TARBALL, cache=cache)
         except IOError:
             raise IOError('Problem accessing ATNF catalogue tarball')
 
         try:
             # open tarball
-            pulsargz = tarfile.open(fileobj=fp, mode='r:gz')
+            pulsargz = tarfile.open(tarfile, mode='r:gz')
 
             # extract the database file
             dbfile = pulsargz.extractfile('psrcat_tar/psrcat.db')
         except IOError:
             raise IOError('Problem extracting the database file')
-
     else:
         try:
             dbfile = open(path_to_db)
