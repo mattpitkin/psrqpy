@@ -12,7 +12,6 @@ import requests
 from bs4 import BeautifulSoup
 
 from six import string_types
-from six import BytesIO
 
 from collections import OrderedDict
 
@@ -32,7 +31,7 @@ warnings.formatwarning = warning_format
 PROB_REFS = ['bwck08', 'crf+18']
 
 
-def get_catalogue(path_to_db=None, cache=True):
+def get_catalogue(path_to_db=None, cache=True, update=False):
     """
     This function will attempt to download and cache the entire ATNF Pulsar
     Catalogue database `tarball
@@ -47,7 +46,10 @@ def get_catalogue(path_to_db=None, cache=True):
         path_to_db (str): if the path to a local version of the database file
             is given then that will be read in rather than attempting to
             download the file (defaults to None).
-        cache (bool): cache the downloaded ATNF Pulsar Catalogue file.
+        cache (bool): cache the downloaded ATNF Pulsar Catalogue file. Defaults
+            to True.
+        update (bool): if True this will force a cached file to be removed and
+            it will be re-downloaded.
 
     Returns:
         :class:`~astropy.table.Table`: a table containing the entire catalogue.
@@ -58,7 +60,7 @@ def get_catalogue(path_to_db=None, cache=True):
         from astropy.table import Table
         from astropy.coordinates import SkyCoord
         import astropy.units as aunits
-        from astropy.utils.data import download_file
+        from astropy.utils.data import download_file, clear_download_cache
     except ImportError:
         raise ImportError('Problem importing astropy')
 
@@ -68,15 +70,19 @@ def get_catalogue(path_to_db=None, cache=True):
         except ImportError:
             raise ImportError('Problem importing tarfile')
 
+        # remove any cached file if requested
+        if update:
+            clear_download_cache(ATNF_TARBALL)
+
         # get the tarball
         try:
-            tarfile = download_file(ATNF_TARBALL, cache=cache)
+            dbtarfile = download_file(ATNF_TARBALL, cache=cache)
         except IOError:
             raise IOError('Problem accessing ATNF catalogue tarball')
 
         try:
             # open tarball
-            pulsargz = tarfile.open(tarfile, mode='r:gz')
+            pulsargz = tarfile.open(dbtarfile, mode='r:gz')
 
             # extract the database file
             dbfile = pulsargz.extractfile('psrcat_tar/psrcat.db')
@@ -216,7 +222,6 @@ def get_catalogue(path_to_db=None, cache=True):
     dbfile.close()   # close tar file
     if not path_to_db:
         pulsargz.close()
-        fp.close()   # close StringIO
 
     # convert into astropy table
     psrtable = Table(data=psrlist)

@@ -108,17 +108,21 @@ class QueryATNF(object):
             works if `psrs` have been specified). Defaults to False.
         adsref (bool): Set if wanting to use an :class:`ads.search.SearchQuery`
             to get reference information. Defaults to False.
-        loadfromdb (str): load a pulsar database file from a given path rather
+        loadfromdb (str): Load a pulsar database file from a given path rather
             than using the ATNF Pulsar Catalogue database. Defaults to None.
         loadquery (str): load an instance of :class:`~psrqpy.search.QueryATNF`
             from the given file, rather than performing a new query. This was
             `loadfromfile` in earlier versions, which still works but has been
             deprecated. Defaults to None.
-        cache (bool): cache the catalogue database file for future use. This is
-            ignored it `loadfromdb` is given. Defaults to True.
-        webform (bool): query the catalogue webform rather than downloading the
+        cache (bool): Cache the catalogue database file for future use. This is
+            ignored if `loadfromdb` is given or the request is via the webform.
+            Defaults to True.
+        forceupdate (bool): Remove a cached file, so that the catalogue will be
+            re-downloaded. This is ignored if `loadfromdb` is given or the
+            request is via the webform. Defaults to False.
+        webform (bool): Query the catalogue webform rather than downloading the
            database file. Defaults to False.
-        version (str): a string with the ATNF version to use. This will only be
+        version (str): A string with the ATNF version to use. This will only be
             used if querying via the webform and will default to the current
             version if set as None.
     """
@@ -128,8 +132,9 @@ class QueryATNF(object):
                  sort_order='asc', psrs=None, include_errs=True,
                  include_refs=False, get_ephemeris=False, version=None,
                  adsref=False, loadfromfile=None, loadquery=None,
-                 loadfromdb=None, cache=True, circular_boundary=None,
-                 coord1=None, coord2=None, radius=0., webform=False):
+                 loadfromdb=None, cache=True, forceupdate=False,
+                 circular_boundary=None, coord1=None, coord2=None, radius=0.,
+                 webform=False):
         self._psrs = psrs
         self._include_errs = include_errs
         self._include_refs = include_refs
@@ -151,7 +156,9 @@ class QueryATNF(object):
         if not webform:
             # download and cache (if requested) the database file
             try:
-                self._table = get_catalogue(path_to_db=self._dbfile, cache=cache)
+                self._table = get_catalogue(path_to_db=self._dbfile,
+                                            cache=cache,
+                                            update=forceupdate)
             except IOError:
                 raise IOError("Could not get catalogue database file")
 
@@ -165,7 +172,8 @@ class QueryATNF(object):
         self._coord1 = coord1
         self._coord2 = coord2
         self._radius = radius
-        if isinstance(circular_boundary, list) or isinstance(circular_boundary, tuple):
+        if (isinstance(circular_boundary, list) or
+                isinstance(circular_boundary, tuple)):
             if len(circular_boundary) != 3:
                 raise Exception("Circular boundary must contain three values")
             self._coord1 = circular_boundary[0]
@@ -176,20 +184,25 @@ class QueryATNF(object):
             self._coord1 = self._coord2 = ''
             self._radius = 0.
         else:
-            if not isinstance(self._coord1, string_types) or not isinstance(self._coord2, string_types):
-                raise Exception("Circular boundary centre coordinates must be strings")
+            if (not isinstance(self._coord1, string_types)
+                    or not isinstance(self._coord2, string_types)):
+                raise Exception("Circular boundary centre coordinates must "
+                                "be strings")
             if not isinstance(self._radius, float) and not isinstance(self._radius, int):
-                raise Exception("Circular boundary radius must be a float or int")
+                raise Exception("Circular boundary radius must be a float or "
+                                "int")
 
         # check parameters are allowed values
         self._query_params = ['JNAME']  # query JNAME by default for all queries
         if isinstance(params, list):
             if len(params) == 0:
-                print('No query parameters have been specified, so only "JNAME" will be queried')
+                print('No query parameters have been specified, so only '
+                      '"JNAME" will be queried')
 
             for p in params:
                 if not isinstance(p, string_types):
-                    raise Exception("Non-string value '{}' found in params list".format(p))
+                    raise Exception("Non-string value '{}' found in params "
+                                    "list".format(p))
 
             self._query_params += [p.upper() for p in params if p.upper() != 'JNAME']  # make sure parameter names are all upper case and JNAME is not re-added
         else:
