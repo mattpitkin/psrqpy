@@ -18,6 +18,16 @@ from collections import OrderedDict
 
 from .config import ATNF_BASE_URL, ATNF_VERSION, ADS_URL, ATNF_TARBALL, PSR_ALL, PSR_ALL_PARS, GLITCH_URL
 
+
+# set formatting of warnings to not include line number and code (see
+# e.g. https://pymotw.com/3/warnings/#formatting)
+def warning_format(message, category, filename, lineno, file=None, line=None):
+    return '{}: {}'.format(category.__name__, message)
+
+
+warnings.formatwarning = warning_format
+
+
 # problematic references that are hard to parse
 PROB_REFS = ['bwck08', 'crf+18']
 
@@ -42,7 +52,9 @@ def get_catalogue(path_to_db=None):
     """
 
     try:
-        from astropy.table import Table, MaskedColumn
+        from astropy.table import Table
+        from astropy.coordinates import SkyCoord
+        import astropy.units as aunits
     except ImportError:
         raise ImportError('Problem importing astropy')
 
@@ -77,9 +89,9 @@ def get_catalogue(path_to_db=None):
     breakstring = '@'    # break between each pulsar
     commentstring = '#'  # specifies line is a comment
 
-    psrtable = Table(masked=True)
-    ind = 0  # Keeps track of how many objects
-    psrtable.add_row(None)  # db file jumps right in! Better add the first row.
+    # create list of dictionaries - one for each pulsar
+    psrlist = [{}]
+    formats = {}  # dictionary of formats for each parameter
 
     # loop through lines in dbfile
     for line in dbfile.readlines():
@@ -93,25 +105,17 @@ def get_catalogue(path_to_db=None):
 
         if dataline[0][0] == breakstring:
             # First break comes at the end of the first object and so forth
-            psrtable.add_row(None)
-            ind += 1                 # New object!
-            psrtable.mask[ind] = [True]*len(psrtable.columns)  # Default mask to True
+            psrlist.append({})  # New object!
             continue
 
-        if dataline[0] not in psrtable.colnames:  # Make a new column
-            if dataline[0] in PSR_ALL_PARS:
-                thisdtstr = PSR_ALL[dataline[0]]['format']
-                unitstr = PSR_ALL[dataline[0]]['units']
-            else:
-                thisdtstr = 'U128'  # default to string type
-                unitstr = None
-
-            newcolumn = MaskedColumn(name=dataline[0], dtype=thisdtstr,
-                                     mask=True, unit=unitstr, length=ind+1)
-            psrtable.add_column(newcolumn)
-
-        psrtable[dataline[0]][ind] = dataline[1]  # Data entry
-        psrtable[dataline[0]].mask[ind] = False   # Turn off masking for this entry
+        try:
+            psrlist[-1][dataline[0]] = float(dataline[1])
+            if dataline[0] not in formats.keys():
+                formats[dataline[0]] = np.float64
+        except ValueError:
+            psrlist[-1][dataline[0]] = dataline[1]
+            if dataline[0] not in formats.keys():
+                formats[dataline[0]] = np.unicode
 
         if len(dataline) > 2:
             # check whether 3rd value is a float (so its an error value) or not
@@ -147,42 +151,86 @@ def get_catalogue(path_to_db=None):
                         scalefac *= 10**(len(valsplit[0])-dpidx-1)
 
                 # add error column if required
-                if dataline[0]+'_ERR' not in psrtable.colnames:
-                    unitstr = None if dataline[0] not in PSR_ALL_PARS else PSR_ALL[dataline[0]]['units']
-                    errcolumn = MaskedColumn(name=dataline[0]+'_ERR',
-                                             dtype='f8', mask=True,
-                                             unit=unitstr, length=ind+1)
-                    psrtable.add_column(errcolumn)
+                psrlist[-1][dataline[0]+'_ERR'] = float(dataline[2])/scalefac  # error entry
 
-                psrtable[dataline[0]+'_ERR'][ind] = float(dataline[2])/scalefac  # error entry
-                psrtable[dataline[0]+'_ERR'].mask[ind] = False
+                if dataline[0]+'_ERR' not in formats.keys():
+                    formats[dataline[0]+'_ERR'] = np.float64
             else:
                 # add reference column if required
-                if dataline[0]+'_REF' not in psrtable.colnames:
-                    refcolumn = MaskedColumn(name=dataline[0]+'_REF',
-                                             dtype='U32', mask=True, length=ind+1)
-                    psrtable.add_column(refcolumn)
+                psrlist[-1][dataline[0]+'_REF'] = dataline[2]  # reference entry
 
-                psrtable[dataline[0]+'_REF'][ind] = dataline[2]  # reference entry
-                psrtable[dataline[0]+'_REF'].mask[ind] = False
+                if dataline[0]+'_REF' not in formats.keys():
+                    formats[dataline[0]+'_REF'] = np.unicode
 
             if len(dataline) > 3:
                 # last entry must(!) be a reference
-                # add reference column if required
-                if dataline[0]+'_REF' not in psrtable.colnames:
-                    refcolumn = MaskedColumn(name=dataline[0]+'_REF',
-                                             dtype='U32', mask=True, length=ind+1)
-                    psrtable.add_column(refcolumn)
+                psrlist[-1][dataline[0]+'_REF'] = dataline[3]  # reference entry
+                if dataline[0]+'_REF' not in formats.keys():
+                    formats[dataline[0]+'_REF'] = np.unicode
 
-                psrtable[dataline[0]+'_REF'][ind] = dataline[3]  # reference entry
-                psrtable[dataline[0]+'_REF'].mask[ind] = False
+    del psrlist[-1]  # Final breakstring comes at the end of the file
 
-    psrtable.remove_row(ind)  # Final breakstring comes at the end of the file
+    # add RA and DEC in degs and JNAME/BNAME
+    radec = False
+    jname = False
+    bname = False
+    for i, psr in enumerate(list(psrlist)):
+        if 'RAJ' in psr.keys() and 'DECJ' in psr.keys():
+            coord = SkyCoord(psr['RAJ'], psr['DECJ'], unit=(aunits.hourangle, aunits.deg))
+            psrlist[i]['RAJD'] = coord.ra.deg    # right ascension in degrees
+            psrlist[i]['DECJD'] = coord.dec.deg  # declination in degrees
+            radec = True
+
+        # add 'JNAME', 'BNAME' and 'NAME'
+        if 'PSRJ' in psr.keys():
+            psrlist[i]['JNAME'] = psr['PSRJ']
+            psrlist[i]['NAME'] = psr['PSRJ']
+            jname = True
+
+        if 'PSRB' in psr.keys():
+            psrlist[i]['BNAME'] = psr['PSRB']
+            bname = True
+
+            if 'NAME' not in psrlist[i].keys():
+                psrlist[i]['NAME'] = psr['PSRB']
+
+    if radec:
+        formats['RAJD'] = np.float64
+        formats['DECJD'] = np.float64
+
+    if jname:
+        formats['JNAME'] = np.unicode
+    if bname:
+        formats['BNAME'] = np.unicode
+    if jname or bname:
+        formats['NAME'] = np.unicode
+
+    # fill in all entries with all parameters
+    for i, psr in enumerate(list(psrlist)):
+        for key in formats.keys():
+            if key not in psr.keys():
+                psrlist[i][key] = None  # blank value
 
     dbfile.close()   # close tar file
     if not path_to_db:
         pulsargz.close()
-        fp.close()       # close StringIO
+        fp.close()   # close StringIO
+
+    # convert into astropy table
+    psrtable = Table(data=psrlist)
+
+    # add data format
+    for key in formats.keys():
+        psrtable[key] = psrtable[key].astype(formats[key])
+
+    # add units if known
+    for key in PSR_ALL_PARS:
+        if key in psrtable.colnames:
+            if PSR_ALL[key]['units']:
+                psrtable.columns[key].unit = PSR_ALL[key]['units']
+
+                if PSR_ALL[key]['err'] and key+'_ERR' in psrtable.colnames:
+                    psrtable.columns[key+'_ERR'].unit = PSR_ALL[key]['units']
 
     return psrtable
 
@@ -554,6 +602,201 @@ def get_references(useads=False):
                     refs[reftag]['ADS URL'] = ADS_URL.format(list(article)[0].bibcode)
 
     return refs
+
+
+# string of logical expressions for use in regex parser
+LOGEXPRS = (r'(\bAND\b'        # logical AND
+            r'|\band\b'        # logical AND
+            r'|\&\&'           # logical AND
+            r'|\bOR\b'         # logical OR
+            r'|\bor\b'         # logical OR
+            r'|\|\|'           # logical OR
+            r'|!='             # not equal to
+            r'|=='             # equal to
+            r'|<='             # less than or equal to
+            r'|>='             # greater than or equal to
+            r'|<'              # less than
+            r'|>'              # greater than
+            r'|\('             # left opening bracket
+            r'|\)'             # right closing bracket
+            r'|\bNOT\b'        # logical NOT
+            r'|\bnot\b'        # logical NOT
+            r'|!'              # logical NOT
+            r'|~'              # logical NOT
+            r'|\bASSOC\b'      # pulsar association
+            r'|\bassoc\b'      # pulsar association
+            r'|\bTYPE\b'       # pulsar type
+            r'|\btype\b'       # pulsar type
+            r'|\bBINCOMP\b'    # pulsar binary companion type
+            r'|\bbincomp\b'    # pulsar binary companion type
+            r'|\bEXIST\b'      # pulsar parameter exists in the catalogue
+            r'|\bexist\b'      # pulsar parameter exists in the catalogue
+            r'|\bERROR\b'      # condition on parameter error
+            r'|\berror\b)')    # condition on parameter error
+
+
+def condition(table, expression, exactMatch=False):
+    """
+    Apply a logical expression to a table of values.
+
+    Args:
+        table (:class:`astropy.table.Table` or :class:`pandas.DataFrame`): a
+            table of pulsar data
+        expression (str, :class:`~numpy.ndarray`): a string containing a set of
+            logical conditions with respect to pulsar parameter names (also
+            containing `conditions
+            <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=normal#condition>`_
+            allowed when accessing the ATNF Pulsar Catalogue), or a boolean
+            array of the same length as the table.
+        exactMatch (bool): set to true to exactly match some string comparison
+            expressions, e.g., if asking for `'ASSOC(SNR)'` and `exactMatch` is
+            True then only pulsar with an association that is just `'SNR'` will
+            be returned, whereas if it is False then there could be multiple
+            associations including `'SNR'`.
+
+    Returns:
+        :class:`astropy.table.Table` or :class:`pandas.DataFrame`: the table of
+            values conforming to the input condition. Depending on the type of
+            input table the returned table will either be a
+            :class:`astropy.table.Table` or :class:`pandas.DataFrame`.
+
+    Example:
+        Some examples of this might are:
+
+        1. finding all pulsars with frequencies greater than 100 Hz
+
+        >>> newtable = condition(psrtable, 'F0 > 100')
+
+        2. finding all pulsars with frequencies greater than 50 Hz and
+        period derivatives less than 1e-15 s/s.
+
+        >>> newtable = condition(psrtable, '(F0 > 50) & (P1 < 1e-15)')
+
+        3. finding all pulsars in binary systems
+
+        >>> newtable = condition(psrtable, 'TYPE(BINARY)')
+
+        4. parsing a boolean array equivalent to the first example
+
+        >>> newtable = condition(psrtable, psrtable['F0'] > 100)
+
+    """
+
+    from astropy.table import Table
+    from pandas import DataFrame
+
+    # check if expression is just a boolean array
+    if isinstance(expression, np.ndarray):
+        if expression.dtype != np.bool:
+            raise TypeError("Numpy array must be a boolean array")
+        elif len(expression) != len(table):
+            raise Exception("Boolean array and table must be the same length")
+        else:
+            return table[expression]
+    else:
+        if not isinstance(expression, string_types):
+            raise TypeError("Expression must be a boolean array or a string")
+
+    # parse the expression string and split into tokens
+    reg = re.compile(LOGEXPRS)
+    tokens = reg.split(expression)
+    tokens = [t.strip() for t in tokens if t.strip() != '']
+
+    if isinstance(table, Table):
+        # convert astropy table to pandas DataFrame
+        tab = table.to_pandas()
+    elif not isinstance(table, DataFrame):
+        raise TypeError("Table must be a pandas DataFrame or astropy Table")
+    else:
+        tab = table
+
+    matchTypes = ['ASSOC', 'TYPE', 'BINCOMP', 'EXIST', 'ERROR']
+
+    # parse through tokens and replace as required
+    ntokens = len(tokens)
+    newtokens = []
+    i = 0
+    while i < ntokens:
+        if tokens[i] in [r'&&', r'AND']:
+            # replace synonyms for '&' or 'and'
+            newtokens.append(r'&')
+        elif tokens[i] in [r'||', r'OR']:
+            # replace synonyms for '|' or 'or'
+            newtokens.append(r'|')
+        elif tokens[i] in [r'!', r'NOT', r'not']:
+            # replace synonyms for '~'
+            newtokens.append(r'~')
+        elif tokens[i].upper() in matchTypes:
+            if ntokens < i+3:
+                warnings.warn("A '{}' must be followed by a '(NAME)': ignoring in query".format(tokens[i].upper()), UserWarning)
+            elif tokens[i+1] != '(' or tokens[i+3] != ')':
+                warnings.warn("A '{}' must be followed by a '(NAME)': ignoring in query".format(tokens[i].upper()), UserWarning)
+            else:
+                if tokens[i].upper() == 'ASSOC':
+                    if 'ASSOC' not in tab.keys():
+                        warnings.warn("'ASSOC' parameter not in table: ignoring in query", UserWarning)
+                    elif exactMatch:
+                        newtokens.append(r'(ASSOC == "{}")'.format(tokens[i+2]))
+                    else:
+                        assoc = np.array([tokens[i+2] in a for a in table['ASSOC']])
+                        newtokens.append(r'(@assoc)')
+                elif tokens[i].upper() == 'TYPE':
+                    if tokens[i+2].upper() == 'BINARY':
+                        if 'BINARY' not in tab.keys():
+                            warnings.warn("'BINARY' parameter not in table: ignoring in query", UserWarning)
+                        else:
+                            newtokens.append(r'(BINARY != "None")')
+                    else:
+                        if 'TYPE' not in tab.keys():
+                            warnings.warn("'TYPE' parameter not in table: ignoring in query", UserWarning)
+                        elif exactMatch:
+                            newtokens.append(r'(TYPE == "{}")'.format(tokens[i+2]))
+                        else:
+                            ttype = np.array([tokens[i+2] in a for a in table['TYPE']])
+                            newtokens.append(r'(@ttype)')
+                elif tokens[i].upper() == 'BINCOMP':
+                    if 'BINCOMP' not in tab.keys():
+                        warnings.warn("'BINCOMP' parameter not in table: ignoring in query", UserWarning)
+                    elif exactMatch:
+                        newtokens.append(r'(BINCOMP == "{}")'.format(tokens[i+2]))
+                    else:
+                        bincomp = np.array([tokens[i+2] in a for a in table['BINCOMP']])
+                        newtokens.append(r'(@bincomp)')
+                elif tokens[i].upper() == 'EXIST':
+                    if tokens[i+2] not in tab.keys():
+                        warnings.warn("'{}' does not exist for any pulsar".format(tokens[i+2]), UserWarning)
+                        # create an empty DataFrame
+                        tab = DataFrame(columns=table.keys())
+                        break
+                    else:
+                        newtokens.append('({} != None)'.format(tokens[i+2]))
+                elif tokens[i].upper() == 'ERROR':
+                    if tokens[i+2]+'_ERR' not in tab.keys():
+                        warnings.warn("Error value for '{}' not present: ignoring in query".format(tokens[i+2]), UserWarning)
+                    else:
+                        newtokens.append(r'{}_ERR'.format(tokens[i+2]))
+            i += 2
+        else:
+            newtokens.append(tokens[i])
+
+        i += 1
+
+    # evaluate the expression
+    try:
+        newtab = tab.query(''.join(newtokens))
+    except RuntimeError:
+        raise RuntimeError("Could not parse the query")
+
+    if isinstance(table, Table):
+        # convert back to an astropy table
+        newtab = Table.from_pandas(newtab)
+
+        # re-add any units/types
+        for key in table.colnames:
+            newtab.columns[key].unit = table.columns[key].unit
+            newtab[key] = newtab[key].astype(table[key].dtype)
+
+    return newtab
 
 
 def characteristic_age(period, pdot, braking_idx=3.):
