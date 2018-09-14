@@ -5,7 +5,7 @@ URLs used for queries.
 
 import itertools
 
-ATNF_VERSION = '1.58'  #: the default ATNF catalogue version
+ATNF_VERSION = '1.59'  #: the default ATNF catalogue version
 ATNF_BASE_URL = r'http://www.atnf.csiro.au/people/pulsar/psrcat/'  #: the ATNF pulsar catalogue base URL
 ATNF_URL = ATNF_BASE_URL + r'proc_form.php?version={version}'  #: the ATNF pulsar catalogue base URL for queries
 ATNF_TARBALL = ATNF_BASE_URL + r'downloads/psrcat_pkg.tar.gz'  #: name of the tarball containing the entire catalogue database
