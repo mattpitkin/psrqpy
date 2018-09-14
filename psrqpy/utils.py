@@ -101,6 +101,8 @@ def get_catalogue(path_to_db=None, cache=True, update=False):
     psrlist = [{}]
     formats = {}  # dictionary of formats for each parameter
 
+    version = None  # catalogue version
+
     # loop through lines in dbfile
     for line in dbfile.readlines():
         if isinstance(line, string_types):
@@ -109,6 +111,9 @@ def get_catalogue(path_to_db=None, cache=True, update=False):
             dataline = line.decode().split()   # Splits on whitespace
 
         if dataline[0][0] == commentstring:
+            # get catalogue version (should be in first comment string)
+            if dataline[0] == '#CATALOGUE' and len(dataline) == 2:
+                version = dataline[1]
             continue
 
         if dataline[0][0] == breakstring:
@@ -238,6 +243,19 @@ def get_catalogue(path_to_db=None, cache=True, update=False):
 
                 if PSR_ALL[key]['err'] and key+'_ERR' in psrtable.colnames:
                     psrtable.columns[key+'_ERR'].unit = PSR_ALL[key]['units']
+
+    # add metadata
+    if not path_to_db:
+        if not version:
+            psrtable.meta['version'] = version
+        else:
+            psrtable.meta['version'] = None
+            warnings.warn('No version number found in the database file',
+                          UserWarning)
+        psrtable.meta['ATNF Pulsar Catalogue'] = ATNF_BASE_URL
+
+    if path_to_db:
+        psrtable.meta['Database file'] = path_to_db
 
     return psrtable
 

@@ -139,7 +139,6 @@ class QueryATNF(object):
         self._include_errs = include_errs
         self._include_refs = include_refs
         self._atnf_version = version
-        self._atnf_version = self.get_version  # if no version is set this will return the current or default value
         self._adsref = adsref
 
         self._savefile = None  # file to save class to
@@ -152,6 +151,9 @@ class QueryATNF(object):
             self.load(loadquery)
             return
 
+        self._sort_order = sort_order
+        self._sort_attr = sort_attr.upper()
+
         self._dbfile = loadfromdb
         if not webform:
             # download and cache (if requested) the database file
@@ -161,6 +163,10 @@ class QueryATNF(object):
                                             update=forceupdate)
             except IOError:
                 raise IOError("Could not get catalogue database file")
+            self._atnf_version = self._table.meta['version']
+        else:
+            # if no version is set this will return the current or default value
+            self._atnf_version = self.get_version
 
         self._refs = None  # set of pulsar references
         self._query_output = None
@@ -235,29 +241,52 @@ class QueryATNF(object):
         # parse the query with BeautifulSoup into a dictionary
         self.parse_query()
 
+        # perform sorting
+        self.sort()
+
+    def sort(self, sort_attr=None, sort_order=None):
+        """
+        Sort the generated catalogue :class:`~astropy.table.Table` on a given
+        attribute and in either ascending or descending order.
+        """
+
+        if sort_attr is None:
+            if self._sort_attr is None:
+                self._sort_attr = 'JNAME'  # sort by name by default
+        elif:
+            self._sort_attr = sort_attr.upper()
+
+        if self._sort_attr not in self._table.colnames:
+            raise KeyError("Sorting by attribute '{}' is not possible as it "
+                           "is not in the table".format(self._sort_attr))
+
+        if sort_order is None:
+            if self._sort_order is None:
+                self._sort_order = 'asc'  # sort ascending by default
+        else:
+            self._sort_order = sort_order
+
         # check sort order is either 'asc' or 'desc' (or some synonyms)
-        if sort_order.lower() in ['asc', 'ascending', 'up', '^']:
+        if self._sort_order.lower() in ['asc', 'ascending', 'up', '^']:
             self._sort_order = 'asc'
-        elif sort_order.lower() in ['desc', 'descending', 'down', 'v']:
+        elif self._sort_order.lower() in ['desc', 'descending', 'down', 'v']:
             self._sort_order = 'desc'
         else:
             warnings.warn(('Unrecognised sort order "{}", defaulting to'
                            '"ascending"').format(sort_order), UserWarning)
             self._sort_order = 'asc'
 
-        self._sort_attr = sort_attr.upper()
+        # sort the table
+        self._table.sort(self._sort_attr)
 
-        # perform sorting
-        if self._sort_attr in self._table.colnames:
-            self._table.sort(self._sort_attr)
-
-            # reverse table if in descending order
-            if self._sort_order == 'desc':
-                self._table.reverse()
+        # reverse table if in descending order
+        if self._sort_order == 'desc':
+            self._table.reverse()
 
     def save(self, fname):
         """
-        Output the :class:`~psrqpy.search.QueryATNF` instance to a pickle file for future loading.
+        Output the :class:`~psrqpy.search.QueryATNF` instance to a pickle file
+        for future loading.
 
         Args:
             fname (str): the filename to output the pickle to
@@ -290,9 +319,9 @@ class QueryATNF(object):
         except IOError:
             raise Exception("Error reading in pickle")
 
-    def generate_query(self, version='', params=None, condition='', sortorder='asc',
-                       sortattr='JName', psrnames=None, coord1='', coord2='',
-                       radius=0., **kwargs):
+    def generate_query(self, version='', params=None, condition='',
+                       psrnames=None, coord1='', coord2='', radius=0.,
+                       **kwargs):
         """
         Generate a query URL and return the content of the :class:`~requests.Response` from that
         URL. If the required class attributes are set then they are used for generating the query,
@@ -304,8 +333,6 @@ class QueryATNF(object):
             condition (str): the logical `condition
                 <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#condition>`_
                 string for the query.
-            sortorder (str): the order for sorting the results.
-            sortattr (str): the parameter on which to perform the sorting.
             psrnames (list, str): a list of pulsar names to get parameters for
             coord1 (str): a string containing a right ascension in the format ('hh:mm:ss') that
                 centres a circular boundary in which to search for pulsars (requires `coord2` and
@@ -350,10 +377,6 @@ class QueryATNF(object):
         query_dict['params'] = pquery
         self._conditions_query = self._conditions_query if not condition else condition
         query_dict['condition'] = self._conditions_query
-        self._sort_order = self._sort_order if sortorder == self._sort_order else sortorder
-        query_dict['sortorder'] = self._sort_order
-        self._sort_attr = self._sort_attr if sortattr == self._sort_attr else sortattr
-        query_dict['sortattr'] = self._sort_attr
         self._coord1 = self._coord1 if not coord1 else coord1
         self._coord2 = self._coord2 if not coord2 else coord2
         self._radius = self._radius if not radius else radius
