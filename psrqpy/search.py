@@ -136,30 +136,27 @@ class QueryATNF(object):
                  loadfromdb=None, cache=True, forceupdate=False,
                  circular_boundary=None, coord1=None, coord2=None, radius=0.,
                  webform=False):
-        self._psrs = psrs
-        self._include_errs = include_errs
-        self._include_refs = include_refs
-        self._atnf_version = version
-        self._adsref = adsref
-
-        self._savefile = None  # file to save class to
-        self._loadfile = None  # file class loaded from
-        self.__table = Table()
-
         if loadfromfile is not None and loadquery is None:
             loadquery = loadfromfile
         if loadquery:
             self.load(loadquery)
             return
-
+        
+        self._psrs = psrs
+        self._include_errs = include_errs
+        self._include_refs = include_refs
+        self._atnf_version = version
+        self._adsref = adsref
+        self._savefile = None  # file to save class to
+        self._loadfile = None  # file class loaded from
+        self.__table = Table()
         self._condition = condition
         self._exactmatch = exactmatch
-
         self._sort_order = sort_order
         self._sort_attr = sort_attr.upper()
-
         self._dbfile = loadfromdb
         self._webform = webform
+
         if not self._webform:
             # download and cache (if requested) the database file
             try:
@@ -174,7 +171,6 @@ class QueryATNF(object):
             self._atnf_version = self.get_version
 
         self._refs = None  # set of pulsar references
-        self._query_output = None
         self._get_ephemeris = get_ephemeris
 
         self._pulsars = None  # gets set to a Pulsars object by get_pulsars()
@@ -204,7 +200,10 @@ class QueryATNF(object):
                                 "int")
 
         # check parameters are allowed values
-        self._query_params = ['JNAME']  # query JNAME by default for all queries
+        if webform:
+            self._query_params = ['JNAME']  # query JNAME by default for all queries
+        else:
+            self._query_params = None
         if isinstance(params, list):
             if len(params) == 0:
                 print('No query parameters have been specified, so only '
@@ -215,36 +214,45 @@ class QueryATNF(object):
                     raise Exception("Non-string value '{}' found in params "
                                     "list".format(p))
 
-            self._query_params += [p.upper() for p in params if p.upper() != 'JNAME']  # make sure parameter names are all upper case and JNAME is not re-added
+            self._query_params += [p.upper() for p in params]
         else:
             if isinstance(params, string_types):
-                if params.upper() != 'JNAME':  # do not re-add JNAME as it is already the default
-                    self._query_params += [params.upper()]  # make sure parameter is all upper case
+                self._query_params += [params.upper()]  # make sure parameter is all upper case
             elif params is not None:
                 if self._psrs and self._get_ephemeris:  # if getting ephemerides then param can be None
-                    self._query_params = []
+                    self._query_params = None
                 else:
                     raise Exception("'params' must be a list or string")
 
-        for p in list(self._query_params):
-            if p not in PSR_ALL_PARS:
-                warnings.warn("Parameter {} not recognised".format(p), UserWarning)
-                self._query_params.remove(p)
-        if len(self._query_params) == 0 and (not self._psrs or not self._get_ephemeris):
-            raise Exception("No parameters left in list")
+        # remove any duplicate
+        if self._query_params is not None:
+            self._query_params = list(set(self._query_params))
 
-        # set conditions (ONLY USE THIS FOR WEBFORM SUBMISSION)
-        self._conditions_query = self.parse_conditions(condition, psrtype=psrtype, assoc=assoc, bincomp=bincomp, exactmatch=exactmatch)
+            for p in list(self._query_params):
+                if p not in PSR_ALL_PARS:
+                    warnings.warn("Parameter {} not recognised".format(p), UserWarning)
+                    self._query_params.remove(p)
+            if len(self._query_params) == 0 and (not self._psrs or not self._get_ephemeris):
+                raise Exception("No parameters left in list")
+
+        # set conditions
+        condparse = self.parse_conditions(condition, psrtype=psrtype, assoc=assoc, bincomp=bincomp, exactmatch=exactmatch)
+        if len(condparse) > 0:
+            if self._condition is None:
+                self._condition = condparse
+            else:
+                self._condition += condparse
 
         # get references if required
         if self._include_refs:
             self._refs = get_references()  # CHANGE GET_REFERENCES TO USE FILE IN TARBALL
 
-        # perform query
-        self.generate_query()
+        if self._webform:
+            # perform query
+            self.generate_query()
 
-        # parse the query with BeautifulSoup into a dictionary
-        self.parse_query()
+            # parse the query with BeautifulSoup into a dictionary
+            self.parse_query()
 
         # perform sorting
         self.sort()
@@ -258,7 +266,7 @@ class QueryATNF(object):
         if sort_attr is None:
             if self._sort_attr is None:
                 self._sort_attr = 'JNAME'  # sort by name by default
-        elif:
+        else:
             self._sort_attr = sort_attr.upper()
 
         if self._sort_attr not in self._table.colnames:
@@ -385,8 +393,6 @@ class QueryATNF(object):
             pquery += '&{}={}'.format(p, p)
 
         query_dict['params'] = pquery
-        self._conditions_query = self._conditions_query if not condition else condition
-        query_dict['condition'] = self._conditions_query
         self._coord1 = self._coord1 if not coord1 else coord1
         self._coord2 = self._coord2 if not coord2 else coord2
         self._radius = self._radius if not radius else radius
@@ -790,7 +796,7 @@ class QueryATNF(object):
 
         return self._atnf_version
 
-    def parse_conditions(self, condition, psrtype=None, assoc=None, bincomp=None, exactmatch=False):
+    def parse_conditions(self, psrtype=None, assoc=None, bincomp=None):
         """
         Parse a string of `conditions
         <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#condition>`_,
@@ -799,8 +805,6 @@ class QueryATNF(object):
         format required for the query URL.
 
         Args:
-            condition (str): a string of `conditional <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#condition>`_
-                statements
             psrtype (list, str): a list of strings, or single string, of
                 conditions on the
                 `type <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#psr_types>`_
@@ -823,50 +827,7 @@ class QueryATNF(object):
 
         """
 
-        if not condition:
-            conditionparse = ''
-        else:
-            if not isinstance(condition, string_types):
-                warnings.warn('Condition "{}" must be a string. No '
-                              'condition being set'.format(condition),
-                              UserWarning)
-                return ''
-
-            # split condition on >, <, &&, ||, ==, <=, >=, !=, (, ), and whitespace
-            splitvals = r'(&&)|(\|\|)|(>=)|>|(<=)|<|\(|\)|(==)|(!=)|!'  # perform splitting by substitution and then splitting on whitespace
-            condvals = re.sub(splitvals, ' ', condition).split()
-
-            # check values are numbers, parameter, names, assocition names, etc
-            for cv in condvals:
-                if cv.upper() not in PSR_ALL_PARS + PSR_TYPES + PSR_BINARY_TYPE + PSR_ASSOC_TYPE:
-                    # check if it's a number
-                    try:
-                        float(cv)
-                    except ValueError:
-                        warnings.warn('Unknown value "{}" in condition string "{}". No condition being set'.format(cv, condition), UserWarning)
-                        return ''
-
-            # remove spaces (turn into '+'), and convert values in condition
-            conditionparse = condition.strip()  # string preceeding and trailing whitespace
-            conditionparse = re.sub(r'\s+', '+', conditionparse)  # change whitespace to '+'
-
-            # substitute && for %26%26
-            conditionparse = re.sub(r'(&&)', '%26%26', conditionparse)
-
-            # substitute || for %7C%7C
-            conditionparse = re.sub(r'(\|\|)', '%7C%7C', conditionparse)
-
-            # substitute '==' for %3D%3D
-            conditionparse = re.sub(r'(==)', '%3D%3D', conditionparse)
-
-            # substitute '!=' for %21%3D
-            conditionparse = re.sub(r'(!=)', '%21%3D', conditionparse)
-
-            # substitute '>=' for >%3D
-            conditionparse = re.sub(r'(>=)', '>%3D', conditionparse)
-
-            # substitute '<=' for <%3D
-            conditionparse = re.sub(r'(<=)', '>%3D', conditionparse)
+        conditionparse = ''
 
         # add on any extra given pulsar types
         if psrtype is not None:
@@ -889,10 +850,10 @@ class QueryATNF(object):
                     warnings.warn("Pulsar type '{}' is not recognised, no type will be required".format(p))
                     self._query_psr_types.remove(p)
                 else:
-                    if not conditionparse:
+                    if len(conditionparse) == 0:
                         conditionparse = 'type({})'.format(p.upper())
                     else:
-                        conditionparse += '+%26%26+type({})'.format(p.upper())
+                        conditionparse += ' && type({})'.format(p.upper())
 
         # add on any extra given associations
         if assoc is not None:
@@ -915,10 +876,10 @@ class QueryATNF(object):
                     warnings.warn("Pulsar association '{}' is not recognised, no type will be required".format(p))
                     self._query_assocs.remove(p)
                 else:
-                    if not conditionparse:
+                    if len(conditionparse) == 0:
                         conditionparse = 'assoc({})'.format(p.upper())
                     else:
-                        conditionparse += '+%26%26+assoc({})'.format(p.upper())
+                        conditionparse += ' && assoc({})'.format(p.upper())
 
         # add on any extra given binary companion types
         if bincomp is not None:
@@ -941,13 +902,10 @@ class QueryATNF(object):
                     warnings.warn("Pulsar binary companion '{}' is not recognised, no type will be required".format(p))
                     self._query_bincomps.remove(p)
                 else:
-                    if not conditionparse:
+                    if len(conditionparse) == 0:
                         conditionparse = 'bincomp({})'.format(p.upper())
                     else:
-                        conditionparse += '+%26%26+bincomp({})'.format(p.upper())
-
-        if exactmatch and conditionparse:
-            conditionparse += '&exact_match=match'
+                        conditionparse += ' && bincomp({})'.format(p.upper())
 
         return conditionparse
 
