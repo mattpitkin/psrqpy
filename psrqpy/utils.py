@@ -31,7 +31,8 @@ warnings.formatwarning = warning_format
 PROB_REFS = ['bwck08', 'crf+18']
 
 
-def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
+def get_catalogue(path_to_db=None, cache=True, update=False, 
+                  checkupdate=False, pandas=False):
     """
     This function will attempt to download and cache the entire ATNF Pulsar
     Catalogue database `tarball
@@ -73,8 +74,9 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
         import tarfile
 
         # remove any cached file if requested
-        if update or check_update():
-            clear_download_cache(ATNF_TARBALL)
+        if update or checkupdate:
+            if update or check_update():
+                clear_download_cache(ATNF_TARBALL)
 
         # get the tarball
         try:
@@ -100,7 +102,7 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
     commentstring = '#'  # specifies line is a comment
 
     # create list of dictionaries - one for each pulsar
-    psrlist = []
+    psrlist = [{}]
 
     version = None  # catalogue version
 

@@ -174,7 +174,7 @@ class QueryATNF(object):
                                                  pandas=True)
             except IOError:
                 raise IOError("Could not get catalogue database file")
-            self._atnf_version = self._table.meta['version']
+            self._atnf_version = self.__dataframe.version
         else:
             # if no version is set this will return the current or default value
             self._atnf_version = self.get_version
@@ -209,7 +209,7 @@ class QueryATNF(object):
                                 "int")
 
         # check parameters are allowed values
-        if webform:
+        if self._webform:
             self._query_params = ['JNAME']  # query JNAME by default for all queries
         else:
             self._query_params = None
@@ -289,7 +289,7 @@ class QueryATNF(object):
         else:
             self._sort_attr = sort_attr.upper()
 
-        if self._sort_attr not in self._table.colnames:
+        if self._sort_attr not in self.__dataframe.keys():
             raise KeyError("Sorting by attribute '{}' is not possible as it "
                            "is not in the table".format(self._sort_attr))
 
@@ -636,23 +636,26 @@ class QueryATNF(object):
         return self._npulsars
 
     @property
-    def table(self):
+    def astable(self):
         # get only required parameters and sort
         sort_order = True if self._sort_order == 'asc' else False
-        dftable = self.__dataframe[self._query_params].sort_values(self._sort_attr,
-                                                                   ascending=sort_order)
+        dftable = self.__dataframe.sort_values(self._sort_attr,
+                                               ascending=sort_order)
 
-        if self._condtion is not None:
+        if self._condition is not None:
             # apply condition
             dftable = condition(dftable, self._condition, self._exactmatch) 
 
         # convert to astropy table
-        table = Table.from_pandas(dftable)
+        if isinstance(self._query_params, list):
+            thistable = Table.from_pandas(dftable[self._query_params])
+        else:
+            thistable = Table.from_pandas(dftable)
 
-        if (self._coord is not None and 'RAJ' in table.colnames
-                and 'DECJ' in table.colnames):
+        if (self._coord is not None and 'RAJ' in thistable.colnames
+                and 'DECJ' in thistable.colnames):
             # apply sky coordinate constraint
-            catalog = SkyCoord(table['RAJ'], table['DECJ'],
+            catalog = SkyCoord(thistable['RAJ'], thistable['DECJ'],
                                unit=(aunits.hourangle, aunits.deg))
 
             # get seperations
@@ -661,11 +664,11 @@ class QueryATNF(object):
             # find seperations within required radius
             catalogmsk = d2d < self._radius*aunits.deg
 
-            table = table[catalogmsk]
+            thistable = thistable[catalogmsk]
 
-        return table
+        return thistable
 
-    def table(self, query_list=None, query_params=None, usecondtion=True,
+    def table(self, query_list=None, query_params=None, usecondition=True,
               useseparation=True):
         """
         Return an :class:`astropy.table.Table` from the query.
@@ -697,8 +700,6 @@ class QueryATNF(object):
         if query_list is not None:
             if not isinstance(query_list, list):
                 raise TypeError("Query list is not a list!")
-
-            from pandas import DataFrame
 
             # add RA and DEC in degs and JNAME/BNAME if necessary
             for i, psr in enumerate(list(query_list)):
@@ -734,7 +735,9 @@ class QueryATNF(object):
             self.__dataframe = df
 
         if isinstance(self.__dataframe, DataFrame):
-            if isinstance(query_params, string_types):
+            if query_params is None:
+                query_params = self.__dataframe.keys()
+            elif isinstance(query_params, string_types):
                 query_params = [query_params]
             elif not isinstance(query_params, list):
                 raise TypeError("query_params must be a string or list.")
@@ -752,10 +755,8 @@ class QueryATNF(object):
             if not np.any(intab):
                 warnings.warn("No requested parameters were in the table")
 
-            # convert to table, return only requested parameters and sort
+            # convert to table,  and sort
             sort_order = True if self._sort_order == 'asc' else False
-            dftable = self.__dataframe[query_params[intab].tolist()].sort_values(self._sort_attr,
-                                                                   ascending=sort_order)
 
             # return given the condition
             expression = None
@@ -764,10 +765,15 @@ class QueryATNF(object):
             elif isinstance(usecondition, string_types):
                 expression = usecondition
 
+            # sort table
+            dftable = self.__dataframe.sort_values(self._sort_attr,
+                                                   ascending=sort_order)
             if expression is not None:
+                # apply conditions
                 dftable = condition(dftable, expression, self._exactmatch)
-
-            table = Table.from_pandas(dftable)
+            
+            # return only requested parameters and convert to table
+            table = Table.from_pandas(dftable[query_params[intab].tolist()])
 
             # add units if known
             for key in PSR_ALL_PARS:
@@ -965,7 +971,7 @@ class QueryATNF(object):
             str: :func:`str` method returns the str method of an :class:`astropy.table.Table`.
         """
 
-        return str(self.table)
+        return str(self.astable)
 
     def __repr__(self):
         """
@@ -973,7 +979,7 @@ class QueryATNF(object):
             str: :func:`repr` method returns the repr method of an :class:`astropy.table.Table`.
         """
 
-        return repr(self.table)
+        return repr(self.astable)
 
     def ppdot(self, intrinsicpdot=False, excludeGCs=False, showtypes=[],
               showGCs=False, showSNRs=False, markertypes={}, deathline=True,
