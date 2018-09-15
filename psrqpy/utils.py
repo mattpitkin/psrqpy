@@ -31,14 +31,14 @@ warnings.formatwarning = warning_format
 PROB_REFS = ['bwck08', 'crf+18']
 
 
-def get_catalogue(path_to_db=None, cache=True, update=False):
+def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
     """
     This function will attempt to download and cache the entire ATNF Pulsar
     Catalogue database `tarball
     <http://www.atnf.csiro.au/people/pulsar/psrcat/downloads/psrcat_pkg.tar.gz>`_,
     or read in database file from a provided path. The database will be
-    converted into an :class:`astropy.table.Table`. This is based on the
-    method in the `ATNF.ipynb
+    converted into an :class:`astropy.table.Table` or
+    :class:`pandas.DataFrame`. This is based on the method in the `ATNF.ipynb
     <https://github.com/astrophysically/ATNF-Pulsar-Cat/blob/master/ATNF.ipynb>`_
     notebook by Joshua Tan (`@astrophysically <https://github.com/astrophysically/>`_).
 
@@ -47,12 +47,19 @@ def get_catalogue(path_to_db=None, cache=True, update=False):
             is given then that will be read in rather than attempting to
             download the file (defaults to None).
         cache (bool): cache the downloaded ATNF Pulsar Catalogue file. Defaults
-            to True.
+            to True. This is ignored if `path_to_db` is given.
         update (bool): if True this will force a cached file to be removed and
-            it will be re-downloaded.
+            it will be re-downloaded. This is ignored if `path_to_db` is given.
+        checkupdate (bool): if True the ATNF Pulsar Catalogue will be
+            re-downloaded and cached if there has been a change compared to the
+            currently cached version. This is ignored if `path_to_db` is given.
+        pandas (bool): if True the catalogue will be returned as a
+            :class:`pandas.DataFrame` rather than the default of an
+            :class:`~astropy.table.Table`.
 
     Returns:
-        :class:`~astropy.table.Table`: a table containing the entire catalogue.
+        :class:`~astropy.table.Table` or :class:`p~andas.DataFrame`: a table
+            containing the entire catalogue.
 
     """
 
@@ -66,7 +73,7 @@ def get_catalogue(path_to_db=None, cache=True, update=False):
         import tarfile
 
         # remove any cached file if requested
-        if update:
+        if update or check_update():
             clear_download_cache(ATNF_TARBALL)
 
         # get the tarball
@@ -191,6 +198,13 @@ def get_catalogue(path_to_db=None, cache=True, update=False):
     # convert to a pandas DataFrame - this will fill in empty spaces
     dftable = DataFrame(psrlist)
 
+    if pandas:
+        # return pandas DataFrame
+        if version is not None:
+            dftable.version = version
+
+        return dftable
+
     # convert into an astropy table
     psrtable = Table.from_pandas(dftable)
 
@@ -205,7 +219,7 @@ def get_catalogue(path_to_db=None, cache=True, update=False):
 
     # add metadata
     if not path_to_db:
-        if not version:
+        if version is not None:
             psrtable.meta['version'] = version
         else:
             psrtable.meta['version'] = None
@@ -218,6 +232,38 @@ def get_catalogue(path_to_db=None, cache=True, update=False):
 
     return psrtable
 
+
+def check_update():
+    """
+    Check if the ATNF Pulsar Catalogue has been updated compared to the version
+    in the cache.
+
+    Returns:
+       bool: True if the cache can be updated.
+
+    """
+
+    from astropy.utils.data import download_file, get_cached_urls, compute_hash
+
+    if ATNF_TARBALL not in get_cached_urls():
+        # can update cache as file is not cached yet
+        return True
+
+    # get the cached file name
+    cachefile = download_file(ATNF_TARBALL, cache=True)
+
+    # download a new version of the file and check the hash
+    tmpcache = download_file(ATNF_TARBALL, cache=False)
+
+    curhash = compute_hash(cachefile)
+    tmphash = compute_hash(tmpcache)
+
+    if curhash == tmphash:
+        # no update needed
+        return False
+    else:
+        # an update can be obtained
+        return True
 
 def get_version():
     """

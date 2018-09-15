@@ -22,6 +22,8 @@ from astropy.coordinates import SkyCoord
 import astropy.units as aunits
 from astropy.table import Table
 
+from pandas import DataFrame
+
 from .config import *
 from .utils import *
 
@@ -121,6 +123,9 @@ class QueryATNF(object):
         forceupdate (bool): Remove a cached file, so that the catalogue will be
             re-downloaded. This is ignored if `loadfromdb` is given or the
             request is via the webform. Defaults to False.
+        checkupdate (bool): If True then check whether a cached catalogue file
+            has an update available, and re-download if there is an update.
+            Defaults to False.
         webform (bool): Query the catalogue webform rather than downloading the
            database file. Defaults to False.
         version (str): A string with the ATNF version to use. This will only be
@@ -134,8 +139,8 @@ class QueryATNF(object):
                  include_refs=False, get_ephemeris=False, version=None,
                  adsref=False, loadfromfile=None, loadquery=None,
                  loadfromdb=None, cache=True, forceupdate=False,
-                 circular_boundary=None, coord1=None, coord2=None, radius=0.,
-                 webform=False):
+                 checkupdate=False, circular_boundary=None, coord1=None,
+                 coord2=None, radius=0., webform=False):
         if loadfromfile is not None and loadquery is None:
             loadquery = loadfromfile
         if loadquery:
@@ -149,20 +154,24 @@ class QueryATNF(object):
         self._adsref = adsref
         self._savefile = None  # file to save class to
         self._loadfile = None  # file class loaded from
-        self.__table = Table()
+        self.__dataframe = DataFrame()
         self._condition = condition
         self._exactmatch = exactmatch
         self._sort_order = sort_order
         self._sort_attr = sort_attr.upper()
         self._dbfile = loadfromdb
         self._webform = webform
+        self._forceupdate = forceupdate
+        self._checkupdate = checkupdate
 
         if not self._webform:
             # download and cache (if requested) the database file
             try:
-                self.__table = get_catalogue(path_to_db=self._dbfile,
-                                             cache=cache,
-                                             update=forceupdate)
+                self.__dataframe = get_catalogue(path_to_db=self._dbfile,
+                                                 cache=cache,
+                                                 update=self._forceupdate,
+                                                 checkupdate=self._checkupdate,
+                                                 pandas=True)
             except IOError:
                 raise IOError("Could not get catalogue database file")
             self._atnf_version = self._table.meta['version']
@@ -265,7 +274,7 @@ class QueryATNF(object):
             # parse the query with BeautifulSoup into a dictionary
             self.parse_query()
 
-        # perform sorting
+        # set sorting parameters
         self.sort()
 
     def sort(self, sort_attr=None, sort_order=None):
@@ -299,13 +308,6 @@ class QueryATNF(object):
             warnings.warn(('Unrecognised sort order "{}", defaulting to'
                            '"ascending"').format(sort_order), UserWarning)
             self._sort_order = 'asc'
-
-        # sort the table
-        self.__table.sort(self._sort_attr)
-
-        # reverse table if in descending order
-        if self._sort_order == 'desc':
-            self.__table.reverse()
 
     def save(self, fname):
         """
@@ -498,7 +500,7 @@ class QueryATNF(object):
                                 query_output = None
                                 self._npulsars = 0
                                 self._pulsars = None
-                                self.__table = Table()  # empty table
+                                self.__dataframe = DataFrame()  # empty table
                                 return
 
         # actual table or ephemeris values should be in the final <pre> tag
@@ -635,11 +637,17 @@ class QueryATNF(object):
 
     @property
     def table(self):
-        table = self.__table[self._query_params]
+        # get only required parameters and sort
+        sort_order = True if self._sort_order == 'asc' else False
+        dftable = self.__dataframe[self._query_params].sort_values(self._sort_attr,
+                                                                   ascending=sort_order)
 
         if self._condtion is not None:
             # apply condition
-            table = condition(table, self._condition, self._exactmatch) 
+            dftable = condition(dftable, self._condition, self._exactmatch) 
+
+        # convert to astropy table
+        table = Table.from_pandas(dftable)
 
         if (self._coord is not None and 'RAJ' in table.colnames
                 and 'DECJ' in table.colnames):
@@ -660,7 +668,7 @@ class QueryATNF(object):
     def table(self, query_list=None, query_params=None, usecondtion=True,
               useseparation=True):
         """
-        Set and return an :class:`astropy.table.Table` of the query.
+        Return an :class:`astropy.table.Table` from the query.
 
         Args:
             query_list (list): a list of dictionarys of pulsar parameters
@@ -723,74 +731,74 @@ class QueryATNF(object):
                 raise RuntimeError("Could not convert list to DataFrame")
 
             # convert the DataFrame to an astropy table
-            self.__table = Table.from_pandas(df)
-            
+            self.__dataframe = df
+
+        if isinstance(self.__dataframe, DataFrame):
+            if isinstance(query_params, string_types):
+                query_params = [query_params]
+            elif not isinstance(query_params, list):
+                raise TypeError("query_params must be a string or list.")
+
+            # convert to numpy array
+            query_params = np.array(query_params)
+
+            # check parameters are in table
+            intab = np.array([par in self.__dataframe.keys() for par in query_params])
+
+            if not np.all(intab):
+                warnings.warn("Not all request parameters '{}' were in the "
+                              "table".format(query_params[~intab].tolist()))
+
+            if not np.any(intab):
+                warnings.warn("No requested parameters were in the table")
+
+            # convert to table, return only requested parameters and sort
+            sort_order = True if self._sort_order == 'asc' else False
+            dftable = self.__dataframe[query_params[intab].tolist()].sort_values(self._sort_attr,
+                                                                   ascending=sort_order)
+
+            # return given the condition
+            expression = None
+            if usecondition == True and isinstance(self._condition, string_types):
+                expression = self._condition
+            elif isinstance(usecondition, string_types):
+                expression = usecondition
+
+            if expression is not None:
+                dftable = condition(dftable, expression, self._exactmatch)
+
+            table = Table.from_pandas(dftable)
+
             # add units if known
             for key in PSR_ALL_PARS:
-                if key in self.__table.colnames:
+                if key in table.colnames:
                     if PSR_ALL[key]['units']:
-                        self.__table.columns[key].unit = PSR_ALL[key]['units']
+                        table.columns[key].unit = PSR_ALL[key]['units']
 
-                    if PSR_ALL[key]['err'] and key+'_ERR' in self.__table.colnames:
-                        self.__table.columns[key+'_ERR'].unit = PSR_ALL[key]['units']
+                    if PSR_ALL[key]['err'] and key+'_ERR' in table.colnames:
+                        table.columns[key+'_ERR'].unit = PSR_ALL[key]['units']
 
             # add catalogue version to metadata
-            self.__table.meta['version'] = self.get_version
-            self.__table.meta['ATNF Pulsar Catalogue'] = ATNF_BASE_URL
+            table.meta['version'] = self.get_version
+            table.meta['ATNF Pulsar Catalogue'] = ATNF_BASE_URL
 
-        if isinstance(self.__table, Table):
-            if query_params is None:
-                return self.__table
-            else:
-                if isinstance(query_params, string_types):
-                    query_params = [query_params]
-                elif not isinstance(query_params, list):
-                    raise TypeError("query_params must be a string or list.")
+            if (useseparation and self._coord is not None and 'RAJ' in
+                    table.colnames and 'DECJ' in table.colnames):
+                # apply sky coordinate constraint
+                catalog = SkyCoord(table['RAJ'], table['DECJ'],
+                                   unit=(aunits.hourangle, aunits.deg))
 
-                # convert to numpy array
-                query_params = np.array(query_params)
+                # get seperations
+                d2d = self._coord.separation(catalog)  
 
-                # check parameters are in table
-                intab = np.array([par in self.__table.colnames for par in query_params])
+                # find seperations within required radius
+                catalogmsk = d2d < self._radius*aunits.deg
 
-                if not np.all(intab):
-                    warnings.warn("Not all request parameters '{}' were in"
-                                  " the table".format(query_params[~intab].tolist()))
+                table = table[catalogmsk]
 
-                if not np.any(intab):
-                    warnings.warn("No requested parameters were in the "
-                                  "table")
-
-                # return only requested parameters
-                table = self.__table[query_params[intab].tolist()]
-
-                # return given the condition
-                expression = None
-                if usecondition == True and isinstance(self._condition, string_types):
-                    expression = self._condition
-                elif isinstance(usecondition, string_types):
-                    expression = usecondition
-
-                if expression is not None:
-                    table = condition(table, expression, self._exactmatch)
-
-                if (useseparation and self._coord is not None and 'RAJ' in
-                        table.colnames and 'DECJ' in table.colnames):
-                    # apply sky coordinate constraint
-                    catalog = SkyCoord(table['RAJ'], table['DECJ'],
-                                       unit=(aunits.hourangle, aunits.deg))
-
-                    # get seperations
-                    d2d = self._coord.separation(catalog)  
-
-                    # find seperations within required radius
-                    catalogmsk = d2d < self._radius*aunits.deg
-
-                    table = table[catalogmsk]
-
-                return table
+            return table
         else:
-            raise TypeError("Table is not an astropy Table!")
+            raise TypeError("Dataframe is not a pandas.DataFrame!")
 
     def get_pulsars(self):
         """
