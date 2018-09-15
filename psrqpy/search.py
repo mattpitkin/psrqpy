@@ -224,6 +224,16 @@ class QueryATNF(object):
                 else:
                     raise Exception("'params' must be a list or string")
 
+        self._coord = None
+        if self._coord1 and self._coord2 and self._radius != 0.:
+            # set centre coordinate as an astropy SkyCoord
+            coord = SkyCoord(self._coord1, self._coord2,
+                             unit=(aunits.hourangle, aunits.deg))
+
+            # make sure 'RAJ' and 'DECJ' are queried
+            self._query_params.append('RAJ')
+            self._query_params.append('DECJ')
+
         # remove any duplicate
         if self._query_params is not None:
             self._query_params = list(set(self._query_params))
@@ -236,7 +246,8 @@ class QueryATNF(object):
                 raise Exception("No parameters left in list")
 
         # set conditions
-        condparse = self.parse_conditions(condition, psrtype=psrtype, assoc=assoc, bincomp=bincomp, exactmatch=exactmatch)
+        condparse = self.parse_conditions(psrtype=psrtype, assoc=assoc,
+                                          bincomp=bincomp)
         if len(condparse) > 0:
             if self._condition is None:
                 self._condition = condparse
@@ -396,21 +407,6 @@ class QueryATNF(object):
         self._coord1 = self._coord1 if not coord1 else coord1
         self._coord2 = self._coord2 if not coord2 else coord2
         self._radius = self._radius if not radius else radius
-
-        if self._coord1 and self._coord2 and self._radius:
-            raunit = aunits.hourangle if isinstance(self._coord1, string_types) else aunits.rad
-            decunit = aunits.deg if isinstance(self._coord2, string_types) else aunits.rad
-            try:
-                c = SkyCoord(self._coord1, self._coord2, unit=(raunit, decunit))
-            except ValueError:
-                raise Exception("Could not parse circular boundary centre")
-            # use %3A as ':' for the seperator
-            self._coord1 = r'{}\%3A{}\%3A{}'.format(int(c.ra.hms[0]), int(c.ra.hms[1]), c.ra.hms[2])
-            self._coord2 = r'{}\%3A{}\%3A{}'.format(int(c.dec.dms[0]), int(c.dec.dms[1]), c.dec.dms[2])
-
-        query_dict['coord1'] = self._coord1
-        query_dict['coord2'] = self._coord2
-        query_dict['radius'] = self._radius
 
         if psrnames:
             if isinstance(psrnames, string_types):
@@ -641,9 +637,28 @@ class QueryATNF(object):
     def table(self):
         table = self.__table[self._query_params]
 
-        return condition(table, self._condition, self._exactmatch)
+        if self._condtion is not None:
+            # apply condition
+            table = condition(table, self._condition, self._exactmatch) 
 
-    def table(self, query_list=None, query_params=None, usecondtion=True):
+        if (self._coord is not None and 'RAJ' in table.colnames
+                and 'DECJ' in table.colnames):
+            # apply sky coordinate constraint
+            catalog = SkyCoord(table['RAJ'], table['DECJ'],
+                               unit=(aunits.hourangle, aunits.deg))
+
+            # get seperations
+            d2d = self._coord.separation(catalog)  
+
+            # find seperations within required radius
+            catalogmsk = d2d < self._radius*aunits.deg
+
+            table = table[catalogmsk]
+
+        return table
+
+    def table(self, query_list=None, query_params=None, usecondtion=True,
+              useseparation=True):
         """
         Set and return an :class:`astropy.table.Table` of the query.
 
@@ -660,6 +675,11 @@ class QueryATNF(object):
                 the table. If False no condition will be applied to the
                 returned table. If a string is given then that will be the
                 assumed condition string.
+            useseparation (bool): If True and a set of sky coordinates and
+                radius around which to return pulsars was set in the
+                :class:`psrqpy.QueryATNF`: class then only pulsars within the
+                given radius of the sky position will be returned. Otherwise
+                all pulsars will be returned.
 
         Returns:
              :class:`astropy.table.Table`: a table of the pulsar data returned
@@ -753,6 +773,20 @@ class QueryATNF(object):
 
                 if expression is not None:
                     table = condition(table, expression, self._exactmatch)
+
+                if (useseparation and self._coord is not None and 'RAJ' in
+                        table.colnames and 'DECJ' in table.colnames):
+                    # apply sky coordinate constraint
+                    catalog = SkyCoord(table['RAJ'], table['DECJ'],
+                                       unit=(aunits.hourangle, aunits.deg))
+
+                    # get seperations
+                    d2d = self._coord.separation(catalog)  
+
+                    # find seperations within required radius
+                    catalogmsk = d2d < self._radius*aunits.deg
+
+                    table = table[catalogmsk]
 
                 return table
         else:
