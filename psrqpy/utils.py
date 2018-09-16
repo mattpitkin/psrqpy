@@ -31,8 +31,7 @@ warnings.formatwarning = warning_format
 PROB_REFS = ['bwck08', 'crf+18']
 
 
-def get_catalogue(path_to_db=None, cache=True, update=False, 
-                  checkupdate=False, pandas=False):
+def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
     """
     This function will attempt to download and cache the entire ATNF Pulsar
     Catalogue database `tarball
@@ -49,9 +48,7 @@ def get_catalogue(path_to_db=None, cache=True, update=False,
             download the file (defaults to None).
         cache (bool): cache the downloaded ATNF Pulsar Catalogue file. Defaults
             to True. This is ignored if `path_to_db` is given.
-        update (bool): if True this will force a cached file to be removed and
-            it will be re-downloaded. This is ignored if `path_to_db` is given.
-        checkupdate (bool): if True the ATNF Pulsar Catalogue will be
+        update (bool): if True the ATNF Pulsar Catalogue will be
             re-downloaded and cached if there has been a change compared to the
             currently cached version. This is ignored if `path_to_db` is given.
         pandas (bool): if True the catalogue will be returned as a
@@ -74,8 +71,8 @@ def get_catalogue(path_to_db=None, cache=True, update=False,
         import tarfile
 
         # remove any cached file if requested
-        if update or checkupdate:
-            if update or check_update():
+        if update:
+            if check_update():
                 clear_download_cache(ATNF_TARBALL)
 
         # get the tarball

@@ -120,9 +120,6 @@ class QueryATNF(object):
         cache (bool): Cache the catalogue database file for future use. This is
             ignored if `loadfromdb` is given or the request is via the webform.
             Defaults to True.
-        forceupdate (bool): Remove a cached file, so that the catalogue will be
-            re-downloaded. This is ignored if `loadfromdb` is given or the
-            request is via the webform. Defaults to False.
         checkupdate (bool): If True then check whether a cached catalogue file
             has an update available, and re-download if there is an update.
             Defaults to False.
@@ -138,9 +135,9 @@ class QueryATNF(object):
                  sort_order='asc', psrs=None, include_errs=True,
                  include_refs=False, get_ephemeris=False, version=None,
                  adsref=False, loadfromfile=None, loadquery=None,
-                 loadfromdb=None, cache=True, forceupdate=False,
-                 checkupdate=False, circular_boundary=None, coord1=None,
-                 coord2=None, radius=0., webform=False):
+                 loadfromdb=None, cache=True, checkupdate=False,
+                 circular_boundary=None, coord1=None, coord2=None, radius=0.,
+                 webform=False):
         if loadfromfile is not None and loadquery is None:
             loadquery = loadfromfile
         if loadquery:
@@ -161,7 +158,6 @@ class QueryATNF(object):
         self._sort_attr = sort_attr.upper()
         self._dbfile = loadfromdb
         self._webform = webform
-        self._forceupdate = forceupdate
         self._checkupdate = checkupdate
 
         if not self._webform:
@@ -169,8 +165,7 @@ class QueryATNF(object):
             try:
                 self.__dataframe = get_catalogue(path_to_db=self._dbfile,
                                                  cache=cache,
-                                                 update=self._forceupdate,
-                                                 checkupdate=self._checkupdate,
+                                                 update=self._checkupdate,
                                                  pandas=True)
             except IOError:
                 raise IOError("Could not get catalogue database file")
