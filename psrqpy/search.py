@@ -152,8 +152,8 @@ class QueryATNF(object):
         self._savefile = None  # file to save class to
         self._loadfile = None  # file class loaded from
         self.__dataframe = DataFrame()
-        self._condition = condition
-        self._exactmatch = exactmatch
+        self.condition = condition
+        self.exactmatch = exactmatch
         self._sort_order = sort_order
         self._sort_attr = sort_attr.upper()
         self._dbfile = loadfromdb
@@ -303,6 +303,13 @@ class QueryATNF(object):
             warnings.warn(('Unrecognised sort order "{}", defaulting to'
                            '"ascending"').format(sort_order), UserWarning)
             self._sort_order = 'asc'
+
+    def __getitem__(self, key):
+        if key not in self.as_pandas.keys():
+            raise KeyError("Key '{}' not in queried results".format(key))
+
+        # return astropy table column
+        return self.as_table[key]
 
     def save(self, fname):
         """
@@ -493,7 +500,6 @@ class QueryATNF(object):
                             if len(self._psrs) == 0:
                                 print('No requested pulsars were found in the catalogue')
                                 query_output = None
-                                self._npulsars = 0
                                 self._pulsars = None
                                 self.__dataframe = DataFrame()  # empty table
                                 return
@@ -501,7 +507,6 @@ class QueryATNF(object):
         # actual table or ephemeris values should be in the final <pre> tag
         qoutput = pretags[-1].text
         query_output = []  # list to contain dictionary of pulsars
-        self._npulsars = 0
         self._pulsars = None  # reset to None in case a previous query had already been performed
 
         if not self._get_ephemeris:  # not getting ephemeris values
@@ -512,8 +517,6 @@ class QueryATNF(object):
                 if self._psrs:
                     if len(self._psrs) != len(plist):
                         raise Exception('Number of pulsars returned is not the same as the number requested')
-
-                self._npulsars = len(plist)
 
                 for p in self._query_params:
                     if p in PSR_ALL_PARS:
@@ -604,8 +607,6 @@ class QueryATNF(object):
                 if len(psrephs) != len(self._psrs):
                     raise Exception('Number of pulsar ephemerides returned is not the same as the number requested')
 
-                self._npulsars = len(self._psrs)
-
                 # query output in this case is a dictionary of ephemerides
                 for psr, psreph in zip(self._psrs, psrephs):
                     query_output.append({})
@@ -628,24 +629,12 @@ class QueryATNF(object):
         Return the number of pulsars found in with query
         """
 
-        return self._npulsars
+        return len(self.as_table)
 
     @property
-    def astable(self):
-        # get only required parameters and sort
-        sort_order = True if self._sort_order == 'asc' else False
-        dftable = self.__dataframe.sort_values(self._sort_attr,
-                                               ascending=sort_order)
-
-        if self._condition is not None:
-            # apply condition
-            dftable = condition(dftable, self._condition, self._exactmatch) 
-
+    def as_table(self):
         # convert to astropy table
-        if isinstance(self._query_params, list):
-            thistable = Table.from_pandas(dftable[self._query_params])
-        else:
-            thistable = Table.from_pandas(dftable)
+        thistable = Table.from_pandas(self.as_pandas)
 
         if (self._coord is not None and 'RAJ' in thistable.colnames
                 and 'DECJ' in thistable.colnames):
@@ -800,6 +789,87 @@ class QueryATNF(object):
             return table
         else:
             raise TypeError("Dataframe is not a pandas.DataFrame!")
+
+    @property
+    def condition(self):
+        """
+        Return the string of logical conditions applied to the pulsars.
+        """
+
+        return self._condition
+
+    @condition.setter
+    def condition(self, expression):
+        """
+        Set the logical condition string to apply to queried pulsars.
+
+        Args:
+            expression (str): A string containing logical expressions to apply
+                to queried pulsars.
+        """
+
+        if not isinstance(expression, string_types) and expression is not None:
+            raise TypeError("Condition must be a string")
+
+        self._condition = expression
+
+    @property
+    def exactmatch(self):
+        """
+        Return the boolean stating whether certain conditions should apply an
+        exact match.
+        """
+
+        return self._exactmatch
+
+    @exactmatch.setter
+    def exactmatch(self, match):
+        """
+        Set whether to apply an exact match criterion for certain conditions.
+
+        Args:
+            match (bool): A boolean stating whether or not to apply an exact
+                match.
+        """
+
+        if not isinstance(match, bool):
+            if isinstance(match, int):
+                if match != 0 and match != 1:
+                    raise TypeError("Exact match requires boolean")
+            else:
+                raise TypeError("Exact match requires boolean")
+
+        self._exactmatch = bool(match)
+
+    @property
+    def catalogue(self):
+        """
+        Return the entire stored :class:`~pandas.DataFrame` catalogue without
+        any sorting or conditions applied.  
+        """
+
+        return self.__dataframe
+
+    @property
+    def as_pandas(self):
+        """
+        Return the query table as a :class:`pandas.DataFrame`.
+        """
+
+        # get only required parameters and sort
+        sort_order = True if self._sort_order == 'asc' else False
+        dftable = self.__dataframe.sort_values(self._sort_attr,
+                                               ascending=sort_order)
+
+        if self._condition is not None:
+            # apply condition
+            dftable = condition(dftable, self._condition, self._exactmatch) 
+
+        # return only the required query parameters
+        if isinstance(self._query_params, list):
+            return dftable[self._query_params]
+        else:
+            return dftable
 
     def get_pulsars(self):
         """
@@ -958,7 +1028,7 @@ class QueryATNF(object):
             int: :func:`len` method returns the number of pulsars
         """
 
-        return self._npulsars
+        return len(self.as_table)
 
     def __str__(self):
         """
@@ -966,7 +1036,7 @@ class QueryATNF(object):
             str: :func:`str` method returns the str method of an :class:`astropy.table.Table`.
         """
 
-        return str(self.astable)
+        return str(self.as_table)
 
     def __repr__(self):
         """
@@ -974,7 +1044,7 @@ class QueryATNF(object):
             str: :func:`repr` method returns the repr method of an :class:`astropy.table.Table`.
         """
 
-        return repr(self.astable)
+        return repr(self.as_table)
 
     def ppdot(self, intrinsicpdot=False, excludeGCs=False, showtypes=[],
               showGCs=False, showSNRs=False, markertypes={}, deathline=True,
