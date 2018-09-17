@@ -518,22 +518,23 @@ class QueryATNF(object):
                     if len(self._psrs) != len(plist):
                         raise Exception('Number of pulsars returned is not the same as the number requested')
 
-                for p in self._query_params:
-                    if p in PSR_ALL_PARS:
-                        query_output[p] = []
-
-                        if PSR_ALL[p]['err'] and self._include_errs:
-                            query_output[p+'_ERR'] = []
-
-                        if PSR_ALL[p]['ref'] and self._include_refs:
-                            query_output[p+'_REF'] = []
-
-                            if self._adsref:  # also add reference URL for NASA ADS
-                                query_output[p+'_REFURL'] = []
-
-                query_output.append({})
-
                 for idx, line in enumerate(plist):
+                    query_output.append({})
+
+                    for p in self._query_params:
+                        if p in PSR_ALL_PARS:
+                            query_output[-1][p] = []
+
+                            if PSR_ALL[p]['err'] and self._include_errs:
+                                query_output[-1][p+'_ERR'] = []
+
+                            if PSR_ALL[p]['ref'] and self._include_refs:
+                                query_output[-1][p+'_REF'] = []
+
+                                # also add reference URL for NASA ADS
+                                if self._adsref:
+                                    query_output[-1][p+'_REFURL'] = []
+
                     # split the line on whitespace or \xa0 using re (if just
                     # using split it ignores \xa0, which may be present for,
                     # e.g., empty reference fields, and results in the wrong
