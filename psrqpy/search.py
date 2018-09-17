@@ -25,7 +25,7 @@ from astropy.table import Table
 from pandas import DataFrame
 
 from .config import *
-from .utils import *
+from .utils import get_references, get_version, condition
 
 
 # set formatting of warnings to not include line number and code (see
@@ -45,7 +45,8 @@ class QueryATNF(object):
     catalogue database file, although a query can be generated from the
     catalogue webform interface if requested. The catalogue can be queried for
     specific pulsar parameters and for specific named pulsars. Conditions on
-    the parameter can be specified. The results will be stored as an
+    the parameter can be specified. The results will be stored as a
+    :class:`pandas.DataFrame`, but can also be accessed as an
     :class:`astropy.table.Table`.
 
     Args:
@@ -143,7 +144,8 @@ class QueryATNF(object):
         if loadquery:
             self.load(loadquery)
             return
-        
+
+        self.__dataframe = DataFrame()
         self._psrs = psrs
         self._include_errs = include_errs
         self._include_refs = include_refs
@@ -151,25 +153,19 @@ class QueryATNF(object):
         self._adsref = adsref
         self._savefile = None  # file to save class to
         self._loadfile = None  # file class loaded from
-        self.__dataframe = DataFrame()
         self.condition = condition
         self.exactmatch = exactmatch
         self._sort_order = sort_order
         self._sort_attr = sort_attr.upper()
-        self._dbfile = loadfromdb
         self._webform = webform
-        self._checkupdate = checkupdate
 
         if not self._webform:
             # download and cache (if requested) the database file
             try:
-                self.__dataframe = get_catalogue(path_to_db=self._dbfile,
-                                                 cache=cache,
-                                                 update=self._checkupdate,
-                                                 pandas=True)
+                _ = self.get_catalogue(path_to_db=loadfromdb, cache=cache,
+                                       update=checkupdate)
             except IOError:
                 raise IOError("Could not get catalogue database file")
-            self._atnf_version = self.__dataframe.version
         else:
             # if no version is set this will return the current or default value
             self._atnf_version = self.get_version
@@ -269,10 +265,61 @@ class QueryATNF(object):
             # parse the query with BeautifulSoup into a dictionary
             self.parse_query()
 
-        # set sorting parameters
-        self.sort()
+        # perform requested sorting
+        _ = self.sort(inplace=True)
 
-    def sort(self, sort_attr=None, sort_order=None):
+    def get_catalogue(self, path_to_db=None, cache=True, update=False,
+                      overwrite=True):
+        """
+        Call the :func:`psrqpy.utils.get_catalogue` function to download the
+        ATNF Pulsar Catalogue, or load a given catalogue path.
+
+        Args:
+            path_to_db (str): if the path to a local version of the database
+            file is given then that will be read in rather than attempting to
+            download the file (defaults to None).
+        cache (bool): cache the downloaded ATNF Pulsar Catalogue file. Defaults
+            to True. This is ignored if `path_to_db` is given.
+        update (bool): if True the ATNF Pulsar Catalogue will be
+            re-downloaded and cached if there has been a change compared to the
+            currently cached version. This is ignored if `path_to_db` is given.
+        overwrite (bool): if True the returned catalogue will overwrite the
+            catalogue currently contained within the :class:`~psrqpy.QueryATNF`
+            class. If False then a :class:`pandas.DataFrame` copy of the
+            catalogue will be returned.
+
+        Returns:
+            :class:`~pandas.DataFrame`: a table containing the catalogue.
+        """
+        from .utils import get_catalogue
+
+        try:
+            dbtable = get_catalogue(path_to_db=path_to_db, cache=cache,
+                                    update=update, pandas=True)
+        except RuntimeError:
+            raise RuntimeError("Problem getting catalogue")
+
+        if not overwrite:
+            return dbtable
+
+        # update current catalogue
+        self.__dataframe = DataFrame(dbtable)
+        self._dbfile = path_to_db
+        self._checkupdate = update
+        self._cache = cache
+        self._atnf_version = dbtable.version
+
+        return self
+
+    @property
+    def columns(self):
+        """
+        Return the table column names.
+        """
+
+        return self.__dataframe.columns
+
+    def sort(self, sort_attr=None, sort_order=None, inplace=False):
         """
         Sort the generated catalogue :class:`~astropy.table.Table` on a given
         attribute and in either ascending or descending order.
@@ -284,7 +331,7 @@ class QueryATNF(object):
         else:
             self._sort_attr = sort_attr.upper()
 
-        if self._sort_attr not in self.__dataframe.keys():
+        if self._sort_attr not in self.columns:
             raise KeyError("Sorting by attribute '{}' is not possible as it "
                            "is not in the table".format(self._sort_attr))
 
@@ -303,6 +350,18 @@ class QueryATNF(object):
             warnings.warn(('Unrecognised sort order "{}", defaulting to'
                            '"ascending"').format(sort_order), UserWarning)
             self._sort_order = 'asc'
+
+        sortorder = True if self._sort_order == 'asc' else False
+
+        if inplace:
+            # sort the stored dataframe
+            _ = self.__dataframe.sort_values(self._sort_attr,
+                                             ascending=sortorder,
+                                             inplace=inplace)
+            return self.__dataframe
+        else:
+            return self.__dataframe.sort_values(self._sort_attr,
+                                                ascending=sortorder)
 
     def __getitem__(self, key):
         if key not in self.as_pandas.keys():
@@ -501,7 +560,6 @@ class QueryATNF(object):
                                 print('No requested pulsars were found in the catalogue')
                                 query_output = None
                                 self._pulsars = None
-                                self.__dataframe = DataFrame()  # empty table
                                 return
 
         # actual table or ephemeris values should be in the final <pre> tag
@@ -622,7 +680,10 @@ class QueryATNF(object):
             :class:`~numpy.ndarray`: the output table as an array.
         """
 
-        return self.table.as_array()
+        return self.as_table.as_array()
+
+    def __len__(self):
+        return len(self.as_pandas)
 
     @property
     def num_pulsars(self):
@@ -630,7 +691,7 @@ class QueryATNF(object):
         Return the number of pulsars found in with query
         """
 
-        return len(self.as_table)
+        return len(self)
 
     @property
     def as_table(self):
@@ -651,7 +712,30 @@ class QueryATNF(object):
 
             thistable = thistable[catalogmsk]
 
+        # add units if known
+        for key in PSR_ALL_PARS:
+            if key in thistable.colnames:
+                if PSR_ALL[key]['units']:
+                    thistable.columns[key].unit = PSR_ALL[key]['units']
+
+                    if (PSR_ALL[key]['err'] and 
+                            key+'_ERR' in thistable.colnames):
+                        thistable.columns[key+'_ERR'].unit = PSR_ALL[key]['units']
+
+        # add catalogue version to metadata
+        thistable.meta['version'] = self.get_version
+        thistable.meta['ATNF Pulsar Catalogue'] = ATNF_BASE_URL
+
         return thistable
+
+    @property
+    def empty(self):
+        """
+        Return True if the :class:`pandas.DataFrame` containing the catalogue
+        is empty.
+        """
+
+        return self.__dataframe.empty
 
     def table(self, query_list=None, query_params=None, usecondition=True,
               useseparation=True):
@@ -659,7 +743,7 @@ class QueryATNF(object):
         Return an :class:`astropy.table.Table` from the query.
 
         Args:
-            query_list (list): a list of dictionarys of pulsar parameters
+            query_list (list): a list of dictionaries of pulsar parameters
                 for each pulsar as returned by a query. These are converted
                 and set as the query table. If this is None and a table already
                 exists then that table will be returned.
@@ -716,12 +800,9 @@ class QueryATNF(object):
             except RuntimeError:
                 raise RuntimeError("Could not convert list to DataFrame")
 
-            # convert the DataFrame to an astropy table
-            self.__dataframe = df
-
-        if isinstance(self.__dataframe, DataFrame):
+        if not self.empty:  # convert to Table if DataFrame is not empty
             if query_params is None:
-                query_params = self.__dataframe.keys()
+                query_params = self.columns
             elif isinstance(query_params, string_types):
                 query_params = [query_params]
             elif not isinstance(query_params, list):
@@ -731,7 +812,7 @@ class QueryATNF(object):
             query_params = np.array(query_params)
 
             # check parameters are in table
-            intab = np.array([par in self.__dataframe.keys() for par in query_params])
+            intab = np.array([par in self.columns for par in query_params])
 
             if not np.all(intab):
                 warnings.warn("Not all request parameters '{}' were in the "
@@ -739,9 +820,6 @@ class QueryATNF(object):
 
             if not np.any(intab):
                 warnings.warn("No requested parameters were in the table")
-
-            # convert to table,  and sort
-            sort_order = True if self._sort_order == 'asc' else False
 
             # return given the condition
             expression = None
@@ -751,8 +829,7 @@ class QueryATNF(object):
                 expression = usecondition
 
             # sort table
-            dftable = self.__dataframe.sort_values(self._sort_attr,
-                                                   ascending=sort_order)
+            dftable = self.sort(self._sort_attr, self._sort_order)
             if expression is not None:
                 # apply conditions
                 dftable = condition(dftable, expression, self._exactmatch)
@@ -789,7 +866,8 @@ class QueryATNF(object):
 
             return table
         else:
-            raise TypeError("Dataframe is not a pandas.DataFrame!")
+            # return an empty table
+            return Table()
 
     @property
     def condition(self):
@@ -845,11 +923,11 @@ class QueryATNF(object):
     @property
     def catalogue(self):
         """
-        Return the entire stored :class:`~pandas.DataFrame` catalogue without
-        any sorting or conditions applied.  
+        Return a copy of the entire stored :class:`~pandas.DataFrame` catalogue
+        without any sorting or conditions applied.  
         """
 
-        return self.__dataframe
+        return self.copy()
 
     @property
     def as_pandas(self):
@@ -858,9 +936,7 @@ class QueryATNF(object):
         """
 
         # get only required parameters and sort
-        sort_order = True if self._sort_order == 'asc' else False
-        dftable = self.__dataframe.sort_values(self._sort_attr,
-                                               ascending=sort_order)
+        dftable = self.sort(self._sort_attr, self._sort_order)
 
         if self._condition is not None:
             # apply condition
@@ -1110,6 +1186,8 @@ class QueryATNF(object):
         except ImportError:
             raise Exception('Cannot produce P-Pdot plot as Matplotlib is not '
                             'available')
+
+        from .utils import death_line, label_line
 
         if self._webform:
             raise Exception("Please repeat query with 'webform=False'")
