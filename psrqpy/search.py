@@ -199,51 +199,20 @@ class QueryATNF(object):
                 raise Exception("Circular boundary radius must be a float or "
                                 "int")
 
-        # check parameters are allowed values
-        if self._webform:
-            self._query_params = ['JNAME']  # query JNAME by default for all queries
-        else:
-            self._query_params = None
-        if isinstance(params, list):
-            if len(params) == 0:
-                print('No query parameters have been specified, so only '
-                      '"JNAME" will be queried')
-
-            for p in params:
-                if not isinstance(p, string_types):
-                    raise Exception("Non-string value '{}' found in params "
-                                    "list".format(p))
-
-            self._query_params += [p.upper() for p in params]
-        else:
-            if isinstance(params, string_types):
-                self._query_params += [params.upper()]  # make sure parameter is all upper case
-            elif params is not None:
-                if self._psrs and self._get_ephemeris:  # if getting ephemerides then param can be None
-                    self._query_params = None
-                else:
-                    raise Exception("'params' must be a list or string")
-
         self._coord = None
         if self._coord1 and self._coord2 and self._radius != 0.:
+            if params is None:
+                params = []
+            
             # set centre coordinate as an astropy SkyCoord
             coord = SkyCoord(self._coord1, self._coord2,
                              unit=(aunits.hourangle, aunits.deg))
 
             # make sure 'RAJ' and 'DECJ' are queried
-            self._query_params.append('RAJ')
-            self._query_params.append('DECJ')
+            params.append('RAJ')
+            params.append('DECJ')
 
-        # remove any duplicate
-        if self._query_params is not None:
-            self._query_params = list(set(self._query_params))
-
-            for p in list(self._query_params):
-                if p not in PSR_ALL_PARS:
-                    warnings.warn("Parameter {} not recognised".format(p), UserWarning)
-                    self._query_params.remove(p)
-            if len(self._query_params) == 0 and (not self._psrs or not self._get_ephemeris):
-                raise Exception("No parameters left in list")
+        self.query_params = params
 
         # set conditions
         condparse = self.parse_conditions(psrtype=psrtype, assoc=assoc,
@@ -449,21 +418,12 @@ class QueryATNF(object):
         self._atnf_version = self._atnf_version if not version else version
         query_dict['version'] = self._atnf_version
 
-        if params:
-            if isinstance(params, string_types):
-                params = [params]  # convert to list
-            else:
-                if not isinstance(params, list):
-                    raise Exception('Error... input "params" for generate_query() must be a list')
-            qparams = list(params)
-            for p in params:
-                if p.upper() not in PSR_ALL_PARS:
-                    warnings.warn("Parameter {} not recognised".format(p), UserWarning)
-                    qparams.remove(p)
-            self._query_params = [qp.upper() for qp in qparams]  # convert parameter names to all be upper case
+        if params is not None:
+            # update query parameters
+            self.query_params = params
 
         pquery = ''
-        for p in self._query_params:
+        for p in self.query_params:
             pquery += '&{}={}'.format(p, p)
 
         query_dict['params'] = pquery
@@ -579,7 +539,7 @@ class QueryATNF(object):
                 for idx, line in enumerate(plist):
                     query_output.append({})
 
-                    for p in self._query_params:
+                    for p in self.query_params:
                         if p in PSR_ALL_PARS:
                             query_output[-1][p] = []
 
@@ -601,7 +561,7 @@ class QueryATNF(object):
                     pvals = [lv.strip() for lv in re.split(r'\s+| \xa0 | \D\xa0', line)][1:]  # strip removes '\xa0' now
 
                     vidx = 0  # index of current value
-                    for p in self._query_params:
+                    for p in self.query_params:
                         if pvals[vidx] != '*':
                             try:
                                 query_output[-1][p] = float(pvals[vidx])
@@ -672,7 +632,7 @@ class QueryATNF(object):
                     query_output[-1][psr] = psreph
 
         # set the table
-        _ = self.table(query_output, self._query_params)
+        _ = self.table(query_output, self.query_params)
 
     def as_array(self):
         """
@@ -921,6 +881,63 @@ class QueryATNF(object):
         self._exactmatch = bool(match)
 
     @property
+    def query_params(self):
+        """
+        Return the parameters required for the query.
+        """
+
+        return self._query_params
+
+    @query_params.setter
+    def query_params(self, params):
+        """
+        Set the parameters with which to query from the catalogue. If
+        submitting the query via the webform then `JNAME` will always be
+        included in the query.
+
+        Args:
+            params (list, str): A list of parameter names to query from the
+               catalogue.
+        """
+
+        self._query_params = None
+
+        if isinstance(params, list):
+            if len(params) == 0 and self._webform:
+                print('No query parameters have been specified, so only '
+                      '"JNAME" will be queried')
+
+            for p in params:
+                if not isinstance(p, string_types):
+                    raise Exception("Non-string value '{}' found in params "
+                                    "list".format(p))
+
+            self._query_params = [p.upper() for p in params]
+        else:
+            if isinstance(params, string_types):
+                # make sure parameter is all upper case
+                self._query_params = [params.upper()]
+            elif params is not None:
+                # if getting ephemerides then param can be None
+                if self._psrs and self._get_ephemeris:
+                    self._query_params = None
+                else:
+                    raise Exception("'params' must be a list or string")
+
+        if self._webform:
+            # if querying via the webform make sure JNAME is included
+            self._query_params.append('JNAME')
+
+        # remove any duplicate
+        if self._query_params is not None:
+            self._query_params = list(set(self._query_params))
+ 
+            for p in list(self._query_params):
+                if p not in PSR_ALL_PARS:
+                    warnings.warn("Parameter '{}' not recognised.".format(p),
+                                  UserWarning)
+
+    @property
     def catalogue(self):
         """
         Return a copy of the entire stored :class:`~pandas.DataFrame` catalogue
@@ -943,8 +960,8 @@ class QueryATNF(object):
             dftable = condition(dftable, self._condition, self._exactmatch) 
 
         # return only the required query parameters
-        if isinstance(self._query_params, list):
-            return dftable[self._query_params]
+        if isinstance(self.query_params, list):
+            return dftable[self.query_params]
         else:
             return dftable
 
@@ -1247,9 +1264,9 @@ class QueryATNF(object):
         periods = periods[pidx]
         pdots = pdots[pidx]
 
-        if 'ASSOC' in self._query_params:
+        if 'ASSOC' in self.query_params:
             assocs = table['ASSOC'][pidx]     # associations
-        if 'TYPE' in self._query_params:
+        if 'TYPE' in self.query_params:
             types = table['TYPE'][pidx]       # pulsar types
         if 'BINARY' in nshowtypes:
             binaries = table['BINARY'][pidx]  # binary pulsars
@@ -1258,9 +1275,9 @@ class QueryATNF(object):
         pidx = pdots > 0.
         periods = periods[pidx]
         pdots = pdots[pidx]
-        if 'ASSOC' in self._query_params:
+        if 'ASSOC' in self.query_params:
             assocs = assocs[pidx]      # associations
-        if 'TYPE' in self._query_params:
+        if 'TYPE' in self.query_params:
             types = types[pidx]        # pulsar types
         if 'BINARY' in nshowtypes:
             binaries = binaries[pidx]  # binary pulsars
@@ -1272,9 +1289,9 @@ class QueryATNF(object):
             nongcidxs = np.flatnonzero(np.char.find(assocs, 'GC:') == -1)
             periods = periods[nongcidxs]
             pdots = pdots[nongcidxs]
-            if 'ASSOC' in self._query_params:
+            if 'ASSOC' in self.query_params:
                 assocs = assocs[nongcidxs]
-            if 'TYPE' in self._query_params:
+            if 'TYPE' in self.query_params:
                 types = types[nongcidxs]
             if 'BINARY' in nshowtypes:
                 binaries = binaries[nongcidxs]
