@@ -528,7 +528,8 @@ class QueryATNF(object):
 
                 if self._psrs:
                     if len(self._psrs) != len(plist):
-                        raise Exception('Number of pulsars returned is not the same as the number requested')
+                        raise Exception('Number of pulsars returned is not '
+                                        'the same as the number requested')
 
                 for idx, line in enumerate(plist):
                     query_output.append({})
@@ -809,7 +810,7 @@ class QueryATNF(object):
 
             # convert query list to a pandas DataFrame
             try:
-                df = DataFrame(query_list)
+                self.__dataframe = DataFrame(query_list)
             except RuntimeError:
                 raise RuntimeError("Could not convert list to DataFrame")
 
@@ -1014,17 +1015,23 @@ class QueryATNF(object):
 
         # return only requested pulsars
         if self.psrs is not None:
+            jnames = np.zeros(len(dftable), dtype=np.bool)
             if 'JNAME' in dftable.columns:
                 jnames = np.array([psr in self.psrs
                                    for psr in dftable['JNAME']])
-            
+
+            bnames = np.zeros(len(dftable), dtype=np.bool)
             if 'BNAME' in dftable.columns:
                 bnames = np.array([psr in self.psrs
                                    for psr in dftable['BNAME']])
 
-            allnames = jnames | bnames
-
-            if np.all(~allnames):
+            if np.any(jnames) and np.any(bnames):
+                allnames = jnames | bnames
+            elif np.any(jnames):
+                allnames = jnames
+            elif np.any(bnames):
+                allnames = bnames
+            else:
                 warning.warn("No requested pulsars '{}' were "
                              "found.".format(self.psrs), UserWarning)
 
@@ -1032,7 +1039,22 @@ class QueryATNF(object):
 
         # return only the required query parameters
         if isinstance(self.query_params, list):
-            return dftable[self.query_params]
+            retpars = list(self.query_params)  # return parameters
+            
+            for par in self.query_params:
+                if par in PSR_ALL_PARS:
+                    if PSR_ALL[par]['err'] and self._include_errs:
+                        retpars.append(par+'_ERR')
+
+                    if PSR_ALL[par]['ref'] and self._include_refs:
+                        retpars.append(par+'_REF')
+
+                        if self._adsref:
+                            retpars.append(p+'_REFURL')
+
+            retpars = list(set(retpars))  # remove duplicates
+
+            return dftable[retpars]
         else:
             return dftable
 
