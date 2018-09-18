@@ -146,7 +146,6 @@ class QueryATNF(object):
             return
 
         self.__dataframe = DataFrame()
-        self._psrs = psrs
         self._include_errs = include_errs
         self._include_refs = include_refs
         self._atnf_version = version
@@ -155,6 +154,7 @@ class QueryATNF(object):
         self._loadfile = None  # file class loaded from
         self.condition = condition
         self.exactmatch = exactmatch
+        self.psrs = psrs
         self._sort_order = sort_order
         self._sort_attr = sort_attr.upper()
         self._webform = webform
@@ -432,19 +432,11 @@ class QueryATNF(object):
         self._radius = self._radius if not radius else radius
 
         if psrnames:
-            if isinstance(psrnames, string_types):
-                self._psrs = [psrnames]  # convert to list
-            else:
-                if not isinstance(psrnames, list):
-                    raise Exception('Error... input "psrnames" for generate_query() must be a list')
-                self._psrs = list(psrnames)  # reset self._psrs
+            self.psrs = psrnames
 
         qpulsars = ''  # pulsar name query string
-        if self._psrs is not None:
-            if isinstance(self._psrs, string_types):
-                self._psrs = [self._psrs]  # if a string pulsar name then convert to list
-
-            for psr in self._psrs:
+        if self.psrs is not None:
+            for psr in self.psrs:
                 if '+' in psr:  # convert '+'s in pulsar names to '%2B' for the query string
                     qpulsars += psr.replace('+', '%2B')
                 else:
@@ -456,7 +448,7 @@ class QueryATNF(object):
         # get pulsar ephemeris rather than table (parsing of this is not implemented yet)
         query_dict['getephemeris'] = ''
         if self._get_ephemeris:
-            if self._psrs is not None:
+            if self.psrs is not None:
                 query_dict['getephemeris'] = 'Get+Ephemeris'
             else:
                 warnings.warn('Cannot get ephemeris if no pulsar names are provided. No ephemerides will be returned.', UserWarning)
@@ -512,8 +504,10 @@ class QueryATNF(object):
                     if 'psr' in wvalues:
                         self._bad_pulsars.append(wvalues['psr'])
                         # remove any pulsars that weren't found
-                        if wvalues['psr'] in self._psrs:
-                            del self._psrs[self._psrs.index(wvalues['psr'])]
+                        if wvalues['psr'] in list(self.psrs):
+                            bidx = self._psrs.index(wvalues['psr'])
+                            del self._psrs[bidx]
+                            del self._jorb[bidx]
 
                             # if there are no pulsars left in the list then return None
                             if len(self._psrs) == 0:
@@ -644,6 +638,65 @@ class QueryATNF(object):
 
     def __len__(self):
         return len(self.as_pandas)
+
+    @property
+    def psrs(self):
+        """
+        Return the name(s) of particular pulsars asked for in the query.
+        """
+
+        return self._psrs
+
+    @property
+    def jorb(self):
+        """
+        Return a list of whether queried pulsar names where 'J' (based on the
+        J2000 coordinates) or 'B' (based on the Besselian system).
+        """
+
+        return self._jorb
+
+    @psrs.setter
+    def psrs(self, psrnames=None):
+        """
+        Set a list of names of pulsars to be returned by the query. This will
+        also work out if the names are based on J2000 coordinates, or the
+        Besselian system, i.e., whether they start with a 'J' or 'B'
+        respectively.
+
+        Args:
+            psrnames (str, list): a list of names, or a single name, of pulsars
+                to be returned by the query.
+        """
+
+        # set the pulsar name list
+        if psrnames is None:
+            self._psrs = None
+            self._jorb = None
+        else:
+            if isinstance(psrnames, string_types):
+                self._psrs = [psrnames]
+            elif isinstance(psrnames, list):
+                self._psrs = psrnames
+            elif isinstance(psrnames, np.ndarray):
+                if psrnames.dtype == np.str or psrnames.dtype == np.unicode:
+                    self._psrs = psrnames.tolist()
+                else:
+                    raise TypeError("psrnames must be a list of strings")
+            else:
+                raise TypeError("psrnames must be a list of strings")
+
+            self._jorb = []
+
+            # work out whether the names are 'J' or 'B' names
+            for psr in self._psrs:
+                if psr[0] == 'J':
+                    self._jorb.append('J')
+                elif psr[0] == 'B':
+                    self._jorb.append('B')
+                else:
+                    raise ValueError("Pulsar names must start with a 'J' or a "
+                                     "'B'")
 
     @property
     def num_pulsars(self):
@@ -944,7 +997,7 @@ class QueryATNF(object):
         without any sorting or conditions applied.  
         """
 
-        return self.copy()
+        return self.__dataframe.copy()
 
     @property
     def as_pandas(self):
@@ -958,6 +1011,24 @@ class QueryATNF(object):
         if self._condition is not None:
             # apply condition
             dftable = condition(dftable, self._condition, self._exactmatch) 
+
+        # return only requested pulsars
+        if self.psrs is not None:
+            if 'JNAME' in dftable.columns:
+                jnames = np.array([psr in self.psrs
+                                   for psr in dftable['JNAME']])
+            
+            if 'BNAME' in dftable.columns:
+                bnames = np.array([psr in self.psrs
+                                   for psr in dftable['BNAME']])
+
+            allnames = jnames | bnames
+
+            if np.all(~allnames):
+                warning.warn("No requested pulsars '{}' were "
+                             "found.".format(self.psrs), UserWarning)
+
+            dftable = dftable[allnames]
 
         # return only the required query parameters
         if isinstance(self.query_params, list):
@@ -979,7 +1050,7 @@ class QueryATNF(object):
             self._pulsars = Pulsars()
 
             # add pulsars one by one
-            psrtable = self.table
+            psrtable = self.as_table
             for row in psrtable:
                 attrs = {}
                 for key in psrtable.colnames:
