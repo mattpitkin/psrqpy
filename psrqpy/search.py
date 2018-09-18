@@ -25,7 +25,7 @@ from astropy.table import Table
 from pandas import DataFrame
 
 from .config import *
-from .utils import get_references, get_version, condition
+from .utils import get_version, condition
 
 
 # set formatting of warnings to not include line number and code (see
@@ -42,21 +42,17 @@ class QueryATNF(object):
     A class to generate a query of the
     `ATNF pulsar catalogue <http://www.atnf.csiro.au/people/pulsar/psrcat/>`_.
     By default this class will download and cache the latest version of the
-    catalogue database file, although a query can be generated from the
-    catalogue webform interface if requested. The catalogue can be queried for
-    specific pulsar parameters and for specific named pulsars. Conditions on
-    the parameter can be specified. The results will be stored as a
-    :class:`pandas.DataFrame`, but can also be accessed as an
-    :class:`astropy.table.Table`.
+    catalogue database file. The catalogue can be queried for specificpulsar
+    parameters and for specific named pulsars. Conditions on the parameter can
+    be specified. The results will be stored as a :class:`pandas.DataFrame`,
+    but can also be accessed as an :class:`astropy.table.Table`.
 
     Args:
         params (str, :obj:`list`): a list of strings with the
             pulsar `parameters
             <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=expert#par_list>`_
             to query. The parameter names are case insensitive. If this is not
-            given then all parameters will be returned by default, unless
-            querying via the webform in which case only `JNAME` will be
-            returned by default.
+            given then all parameters will be returned by default.
         condition (str): a string with logical conditions for the returned
             parameters. The allowed format of the condition string is given
             `here
@@ -119,16 +115,10 @@ class QueryATNF(object):
             `loadfromfile` in earlier versions, which still works but has been
             deprecated. Defaults to None.
         cache (bool): Cache the catalogue database file for future use. This is
-            ignored if `loadfromdb` is given or the request is via the webform.
-            Defaults to True.
+            ignored if `loadfromdb` is given. Defaults to True.
         checkupdate (bool): If True then check whether a cached catalogue file
             has an update available, and re-download if there is an update.
             Defaults to False.
-        webform (bool): Query the catalogue webform rather than downloading the
-           database file. Defaults to False.
-        version (str): A string with the ATNF version to use. This will only be
-            used if querying via the webform and will default to the current
-            version if set as None.
     """
 
     def __init__(self, params=None, condition=None, psrtype=None, assoc=None,
@@ -137,8 +127,7 @@ class QueryATNF(object):
                  include_refs=False, get_ephemeris=False, version=None,
                  adsref=False, loadfromfile=None, loadquery=None,
                  loadfromdb=None, cache=True, checkupdate=False,
-                 circular_boundary=None, coord1=None, coord2=None, radius=0.,
-                 webform=False):
+                 circular_boundary=None, coord1=None, coord2=None, radius=0.):
         if loadfromfile is not None and loadquery is None:
             loadquery = loadfromfile
         if loadquery:
@@ -157,18 +146,13 @@ class QueryATNF(object):
         self.psrs = psrs
         self._sort_order = sort_order
         self._sort_attr = sort_attr.upper()
-        self._webform = webform
 
-        if not self._webform:
-            # download and cache (if requested) the database file
-            try:
-                _ = self.get_catalogue(path_to_db=loadfromdb, cache=cache,
-                                       update=checkupdate)
-            except IOError:
-                raise IOError("Could not get catalogue database file")
-        else:
-            # if no version is set this will return the current or default value
-            self._atnf_version = self.get_version
+        # download and cache (if requested) the database file
+        try:
+            _ = self.get_catalogue(path_to_db=loadfromdb, cache=cache,
+                                   update=checkupdate)
+        except IOError:
+            raise IOError("Could not get catalogue database file")
 
         self._refs = None  # set of pulsar references
         self._get_ephemeris = get_ephemeris
@@ -208,10 +192,6 @@ class QueryATNF(object):
             coord = SkyCoord(self._coord1, self._coord2,
                              unit=(aunits.hourangle, aunits.deg))
 
-            # make sure 'RAJ' and 'DECJ' are queried
-            params.append('RAJ')
-            params.append('DECJ')
-
         self.query_params = params
 
         # set conditions
@@ -225,17 +205,24 @@ class QueryATNF(object):
 
         # get references if required
         if self._include_refs:
-            self._refs = get_references()  # CHANGE GET_REFERENCES TO USE FILE IN TARBALL
-
-        if self._webform:
-            # perform query
-            self.generate_query()
-
-            # parse the query with BeautifulSoup into a dictionary
-            self.parse_query()
+            self.get_references(adsref, cache=self._cache)
 
         # perform requested sorting
         _ = self.sort(inplace=True)
+
+    def get_references(self, useads=False, cache=True):
+
+        from .utils import get_references
+
+        self._useads = useads
+        self._refs = None
+        self._adsrefs = None
+
+        if self._useads:
+            self._refs, self._adsrefs = get_references(self._useads,
+                                                       cache=cache)
+        else:
+            self._refs = get_references(False, cache=cache)
 
     def get_catalogue(self, path_to_db=None, cache=True, update=False,
                       overwrite=True):
@@ -374,260 +361,6 @@ class QueryATNF(object):
             self._loadfile = fname
         except IOError:
             raise Exception("Error reading in pickle")
-
-    def generate_query(self, version='', params=None, condition='',
-                       psrnames=None, coord1='', coord2='', radius=0.,
-                       **kwargs):
-        """
-        Generate a query URL and return the content of the
-        :class:`~requests.Response` from that URL. If the required class
-        attributes are set then they are used for generating the query,
-        otherwise arguments can be given to override those set when
-        initialising the class.
-
-        Args:
-            version (str): a string containing the ATNF version.
-            params (list, str): a list of `parameters <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#par_list>`_
-                to query.
-            condition (str): the logical `condition
-                <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#condition>`_
-                string for the query.
-            psrnames (list, str): a list of pulsar names to get parameters for
-            coord1 (str): a string containing a right ascension in the format
-                ('hh:mm:ss') that centres a circular boundary in which to
-                search for pulsars (requires `coord2` and `radius` to be set).
-            coord2 (str): a string containing a declination in the format
-                ('dd:mm:ss') that centres a circular boundary in which to
-                search for pulsars (requires `coord1` and `radius` to be set).
-            radius (float): the radius (in degrees) of a circular boundary in
-                which to search for pulsars (requires `coord1` and `coord2` to
-                be set).
-            get_ephemeris (bool): a boolean stating whether to get pulsar
-                ephemerides rather than a table of parameter values (only works
-                if pulsar names are given)
-
-        """
-
-        # get_ephemeris is the only keyword argument at the moment
-        for key, value in six.iteritems(kwargs):
-            if key == 'get_ephemeris':
-                if isinstance(value, bool):
-                    self._get_ephemeris = value  # overwrite the pre-set class _get_ephemeris value
-
-        query_dict = {}
-        self._atnf_version = self._atnf_version if not version else version
-        query_dict['version'] = self._atnf_version
-
-        if params is not None:
-            # update query parameters
-            self.query_params = params
-
-        pquery = ''
-        for p in self.query_params:
-            pquery += '&{}={}'.format(p, p)
-
-        query_dict['params'] = pquery
-        self._coord1 = self._coord1 if not coord1 else coord1
-        self._coord2 = self._coord2 if not coord2 else coord2
-        self._radius = self._radius if not radius else radius
-
-        if psrnames:
-            self.psrs = psrnames
-
-        qpulsars = ''  # pulsar name query string
-        if self.psrs is not None:
-            for psr in self.psrs:
-                if '+' in psr:  # convert '+'s in pulsar names to '%2B' for the query string
-                    qpulsars += psr.replace('+', '%2B')
-                else:
-                    qpulsars += psr
-                qpulsars += '+'  # seperator between pulsars
-            qpulsars = qpulsars.strip('+')  # remove the trailing '+'
-        query_dict['psrnames'] = qpulsars
-
-        # get pulsar ephemeris rather than table (parsing of this is not implemented yet)
-        query_dict['getephemeris'] = ''
-        if self._get_ephemeris:
-            if self.psrs is not None:
-                query_dict['getephemeris'] = 'Get+Ephemeris'
-            else:
-                warnings.warn('Cannot get ephemeris if no pulsar names are provided. No ephemerides will be returned.', UserWarning)
-                self._get_ephemeris = False
-
-        # generate query URL
-        self._query_url = QUERY_URL.format(**query_dict)
-
-        # generate request
-        psrrequest = requests.get(self._query_url)
-
-        if psrrequest.status_code != 200:
-            raise Exception('Error... their was a problem with the request: status code {}'.format(psrrequest.status_code))
-
-        self._query_content = psrrequest.content
-
-    def parse_query(self, requestcontent=''):
-        """
-        Parse the query returned by requests.
-
-        Args:
-            requestcontent (str): The content of a :class:`~requests.Response` returned by
-                :func:`~requests.get`
-
-        """
-
-        # update request if required
-        self._query_content = requestcontent if requestcontent else self._query_content
-
-        # parse through BeautifulSoup
-        try:
-            psrsoup = BeautifulSoup(self._query_content, 'html.parser')
-        except RuntimeError:
-            raise RuntimeError('Error... problem parsing catalogue with BeautifulSoup')
-
-        pretags = psrsoup.find_all('pre')  # get any <pre> html tags
-
-        if pretags is None:
-            # couldn't find anything, or their was a query problem
-            raise Exception('Error... problem parsing catalogue for currently requested parameters')
-
-        # check for any warnings generated by the request
-        self._bad_pulsars = []  # any requested pulsars that were not found
-        for pt in pretags:
-            if 'WARNING' in pt.text:
-                warnings.warn('Request generated warning: "{}"'.format(pt.text), UserWarning)
-
-                # check if warning was for a specific requested pulsar: given by warning string "WARNING: PSR XXXXXXX not in catalogue"
-                if 'PSR' in pt.text:
-                    pat = r'WARNING: PSR (?P<psr>\S+) not in catalogue'
-                    wvalues = re.search(pat, pt.text).groupdict()
-
-                    if 'psr' in wvalues:
-                        self._bad_pulsars.append(wvalues['psr'])
-                        # remove any pulsars that weren't found
-                        if wvalues['psr'] in list(self.psrs):
-                            bidx = self._psrs.index(wvalues['psr'])
-                            del self._psrs[bidx]
-                            del self._jorb[bidx]
-
-                            # if there are no pulsars left in the list then return None
-                            if len(self._psrs) == 0:
-                                print('No requested pulsars were found in the catalogue')
-                                query_output = None
-                                self._pulsars = None
-                                return
-
-        # actual table or ephemeris values should be in the final <pre> tag
-        qoutput = pretags[-1].text
-        query_output = []  # list to contain dictionary of pulsars
-        self._pulsars = None  # reset to None in case a previous query had already been performed
-
-        if not self._get_ephemeris:  # not getting ephemeris values
-            # put the data in an ordered dictionary dictionary
-            if qoutput:
-                plist = qoutput.strip().split('\n')  # split output string
-
-                if self._psrs:
-                    if len(self._psrs) != len(plist):
-                        raise Exception('Number of pulsars returned is not '
-                                        'the same as the number requested')
-
-                for idx, line in enumerate(plist):
-                    query_output.append({})
-
-                    for p in self.query_params:
-                        if p in PSR_ALL_PARS:
-                            query_output[-1][p] = []
-
-                            if PSR_ALL[p]['err'] and self._include_errs:
-                                query_output[-1][p+'_ERR'] = []
-
-                            if PSR_ALL[p]['ref'] and self._include_refs:
-                                query_output[-1][p+'_REF'] = []
-
-                                # also add reference URL for NASA ADS
-                                if self._adsref:
-                                    query_output[-1][p+'_REFURL'] = []
-
-                    # split the line on whitespace or \xa0 using re (if just
-                    # using split it ignores \xa0, which may be present for,
-                    # e.g., empty reference fields, and results in the wrong
-                    # number of line entries, also ignore the first entry as it
-                    # is always in index
-                    pvals = [lv.strip() for lv in re.split(r'\s+| \xa0 | \D\xa0', line)][1:]  # strip removes '\xa0' now
-
-                    vidx = 0  # index of current value
-                    for p in self.query_params:
-                        if pvals[vidx] != '*':
-                            try:
-                                query_output[-1][p] = float(pvals[vidx])
-                            except ValueError:
-                                query_output[-1][p] = pvals[vidx]
-                        vidx += 1
-
-                        # get errors
-                        if PSR_ALL[p]['err']:
-                            if self._include_errs:
-                                if pvals[vidx] != '*':
-                                    try:
-                                        query_output[-1][p+'_ERR'] = float(pvals[vidx])
-                                    except ValueError:
-                                        raise ValueError("Problem converting error value to float")
-
-                            vidx += 1
-
-                        # get references
-                        if PSR_ALL[p]['ref']:
-                            if self._include_refs:
-                                reftag = pvals[vidx]
-
-                                if reftag in self._refs:
-                                    thisref = self._refs[reftag]
-                                    refstring = ('{authorlist}, {year}, '
-                                                 '{title}, {journal}, '
-                                                 '{volume}')
-                                    # remove any superfluous whitespace
-                                    refstring2 = re.sub(r'\s+', ' ',
-                                                   refstring.format(**thisref))
-                                    query_output[-1][p+'_REF'] = ','.join([a for a in refstring2.split(',') if a.strip()])  # remove any superfluous empty ',' seperated values
-
-                                    if self._adsref:
-                                        if 'ADS URL' not in thisref:  # get ADS reference
-                                            try:
-                                                import ads
-                                            except ImportError:
-                                                warnings.warn('Could not import ADS module, so no ADS information will be included', UserWarning)
-                                                article = []
-
-                                            try:
-                                                article = ads.SearchQuery(year=thisref['year'], first_author=thisref['authors'][0], title=thisref['title'])
-                                            except IOError:
-                                                warnings.warn('Could not get reference information, so no ADS information will be included', UserWarning)
-                                                article = []
-
-                                            article = list(article)
-                                            if len(article) > 0:
-                                                self._refs[reftag]['ADS URL'] = ADS_URL.format(list(article)[0].bibcode)
-
-                                        query_output[-1][p+'_REFURL'] = thisref['ADS URL']
-                                else:
-                                    if reftag != '*':
-                                        warnings.warn('Reference tag "{}" not found so omitting reference'.format(reftag), UserWarning)
-                            vidx += 1
-        else:  # getting ephemeris
-            # split ephemerides for each requested pulsar (they are seperated by '@-----'...)
-            if qoutput:
-                psrephs = re.split(r'@-+', qoutput)
-
-                if len(psrephs) != len(self._psrs):
-                    raise Exception('Number of pulsar ephemerides returned is not the same as the number requested')
-
-                # query output in this case is a dictionary of ephemerides
-                for psr, psreph in zip(self._psrs, psrephs):
-                    query_output.append({})
-                    query_output[-1][psr] = psreph
-
-        # set the table
-        _ = self.table(query_output, self.query_params)
 
     def as_array(self):
         """
@@ -795,18 +528,23 @@ class QueryATNF(object):
                         query_list[i]['DECJD'] = coord.dec.deg  # declination in degrees
 
                 # add 'JNAME', 'BNAME' and 'NAME'
-                if 'PSRJ' in psr.keys():
-                    if 'JNAME' not in psr.keys():
-                        query_list[i]['JNAME'] = psr['PSRJ']
+                if 'PSRJ' in psr.keys() and 'JNAME' not in psr.keys():
+                    query_list[i]['JNAME'] = psr['PSRJ']
                     
-                        if 'NAME' not in psr.keys():
-                            query_list[i]['NAME'] = psr['PSRJ']
+                    if 'NAME' not in psr.keys():
+                        query_list[i]['NAME'] = psr['PSRJ']
+                elif 'PSRJ' not in psr.keys() and 'JNAME' in psr.keys():
+                    query_list[i]['PSRJ'] = psr['JNAME']
 
-                if 'PSRB' in psr.keys():
-                    query_list[i]['BNAME'] = psr['PSRB']
+                    if 'NAME' not in psr.keys():
+                        query_list[i]['NAME'] = psr['JNAME']
 
-                    if 'NAME' not in query_list.keys():
-                        query_list[i]['NAME'] = psr['PSRB']
+                if 'PSRB' in psr.keys() and 'NAME' not in psr.keys():
+                    query_list[i]['NAME'] = psr['PSRB']
+                elif 'PSRB' not in psr.keys() and 'NAME' in psr.keys():
+                    # set Besselian pulsar name
+                    if psr['NAME'][0] == 'B':
+                        query_list[i]['PSRB'] = psr['NAME']
 
             # convert query list to a pandas DataFrame
             try:
@@ -945,9 +683,7 @@ class QueryATNF(object):
     @query_params.setter
     def query_params(self, params):
         """
-        Set the parameters with which to query from the catalogue. If
-        submitting the query via the webform then `JNAME` will always be
-        included in the query.
+        Set the parameters with which to query from the catalogue.
 
         Args:
             params (list, str): A list of parameter names to query from the
@@ -957,9 +693,8 @@ class QueryATNF(object):
         self._query_params = None
 
         if isinstance(params, list):
-            if len(params) == 0 and self._webform:
-                print('No query parameters have been specified, so only '
-                      '"JNAME" will be queried')
+            if len(params) == 0:
+                print('No query parameters have been specified')
 
             for p in params:
                 if not isinstance(p, string_types):
@@ -977,10 +712,6 @@ class QueryATNF(object):
                     self._query_params = None
                 else:
                     raise Exception("'params' must be a list or string")
-
-        if self._webform:
-            # if querying via the webform make sure JNAME is included
-            self._query_params.append('JNAME')
 
         # remove any duplicate
         if self._query_params is not None:
@@ -1032,8 +763,8 @@ class QueryATNF(object):
             elif np.any(bnames):
                 allnames = bnames
             else:
-                warning.warn("No requested pulsars '{}' were "
-                             "found.".format(self.psrs), UserWarning)
+                warnings.warn("No requested pulsars '{}' were "
+                              "found.".format(self.psrs), UserWarning)
 
             dftable = dftable[allnames]
 
@@ -1049,14 +780,27 @@ class QueryATNF(object):
                     if PSR_ALL[par]['ref'] and self._include_refs:
                         retpars.append(par+'_REF')
 
-                        if self._adsref:
+                        if self._useads and self._adsref is not None:
                             retpars.append(p+'_REFURL')
 
             retpars = list(set(retpars))  # remove duplicates
 
-            return dftable[retpars]
-        else:
-            return dftable
+            dftable = dftable[retpars]
+
+        # convert reference tags to reference strings
+        if self._include_refs and isinstance(self._refs, dict):
+            for par in dftable.columns:
+                if par[-4:] == '_REF':
+                    for i in dftable[par].index.values:
+                        reftag = dftable[par][i]
+                        if reftag in self._refs:
+                            dftable.loc[i, par] = self._refs[reftag]
+
+                            if self._useads and reftag in self._adsref:
+                                dftable[par+'_REFURL'] = self._adsref[reftag]
+
+        # reset the indices to zero in the dataframe
+        return dftable.reset_index(drop=True)
 
     def get_pulsars(self):
         """
@@ -1215,7 +959,7 @@ class QueryATNF(object):
             int: :func:`len` method returns the number of pulsars
         """
 
-        return len(self.as_table)
+        return len(self.as_pandas)
 
     def __str__(self):
         """
@@ -1298,9 +1042,6 @@ class QueryATNF(object):
                             'available')
 
         from .utils import death_line, label_line
-
-        if self._webform:
-            raise Exception("Please repeat query with 'webform=False'")
 
         # get table containing all required parameters
         table = self.table(condition=usecondition,

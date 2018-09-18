@@ -9,11 +9,18 @@ import re
 import datetime
 import numpy as np
 import requests
+import tarfile
 from bs4 import BeautifulSoup
 
 from six import string_types
 
 from collections import OrderedDict
+
+from astropy.table import Table
+from astropy.coordinates import SkyCoord
+import astropy.units as aunits
+from astropy.utils.data import download_file, clear_download_cache
+from pandas import DataFrame
 
 from .config import ATNF_BASE_URL, ATNF_VERSION, ADS_URL, ATNF_TARBALL, PSR_ALL, PSR_ALL_PARS, GLITCH_URL
 
@@ -61,15 +68,7 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
 
     """
 
-    from astropy.table import Table
-    from astropy.coordinates import SkyCoord
-    import astropy.units as aunits
-    from astropy.utils.data import download_file, clear_download_cache
-    from pandas import DataFrame
-
     if not path_to_db:
-        import tarfile
-
         # remove any cached file if requested
         if update:
             if check_update():
@@ -187,12 +186,20 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
         if 'PSRJ' in psr.keys():
             psrlist[i]['JNAME'] = psr['PSRJ']
             psrlist[i]['NAME'] = psr['PSRJ']
+            if 'PSRJ_REF' in psr.keys():
+                psrlist[i]['JNAME_REF'] = psr['PSRJ_REF']
+                psrlist[i]['NAME_REF'] = psr['PSRJ_REF']
 
         if 'PSRB' in psr.keys():
             psrlist[i]['BNAME'] = psr['PSRB']
+            if 'PSRB_REF' in psr.keys():
+                psrlist[i]['BNAME_REF'] = psr['PSRB_REF']
 
             if 'NAME' not in psrlist[i].keys():
                 psrlist[i]['NAME'] = psr['PSRB']
+                if 'PSRB_REF' in psr.keys():
+                    psrlist[i]['NAME_REF'] = psr['PSRB_REF']
+
 
     # convert to a pandas DataFrame - this will fill in empty spaces
     dftable = DataFrame(psrlist)
@@ -263,6 +270,7 @@ def check_update():
     else:
         # an update can be obtained
         return True
+
 
 def get_version():
     """
@@ -424,7 +432,7 @@ def get_glitch_catalogue(psr=None):
                 return table[table['JNAME'] == psr]
 
 
-def get_references(useads=False):
+def get_references(useads=False, cache=True):
     """
     Return a dictionary of paper
     `reference <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_ref.html>`_
@@ -433,204 +441,129 @@ def get_references(useads=False):
 
     Args:
         useads (bool): boolean to set whether to use the python mod:`ads`
-            module to get the NASA ADS URL for the references
+            module to get the NASA ADS URL for the references.
+        cache (bool): use cached, or cache, the reference bundled with the
+            catalogue tarball.
 
     Returns:
         dict: a dictionary of references.
     """
 
-    refs = {}
+    # get the tarball
+    try:
+        dbtarfile = download_file(ATNF_TARBALL, cache=cache)
+    except IOError:
+        raise IOError('Problem accessing ATNF catalogue tarball')
 
-    queryrefs = requests.get(ATNF_BASE_URL + 'psrcat_ref.html')
+    try:
+        # open tarball
+        pulsargz = tarfile.open(dbtarfile, mode='r:gz')
 
-    if queryrefs.status_code != 200:
-        warnings.warn("Could query the ATNF references. No references returned", UserWarning)
+        # extract the references
+        reffile = pulsargz.extractfile('psrcat_tar/psrcat_ref')
+    except IOError:
+        raise IOError('Problem extracting the database file')
+
+    refdic = {}
+    refidx = 0
+    thisref = ''
+
+    for line in reffile.readlines():
+        thisline = line.decode()
+        if thisline[0:3] == '***':
+            if refidx > 0:
+                # return reference making sure to only have single spaces
+                refdic[thisname] = re.sub(r'\s+', ' ', thisref)
+            thisref = ''
+            refidx += 1
+            thisname = thisline.split()[0].strip('***')
+            thisref += thisline[thisline.find(':')+1:]
+        else:
+            thisref += thisline.strip()
+
+    reffile.close()
+    pulsargz.close()  # close tar file
+
+    # if not requiring ADS references just return the current dictionary
+    if not useads:
+        return refdic
     else:
         try:
-            refsoup = BeautifulSoup(queryrefs.content, 'html.parser')
+            import ads
+        except ImportError:
+            warnings.warn('Could not import ADS module, so no ADS information '
+                          'will be included', UserWarning)
+        return refdic, None
 
-            # get table containing the references
-            pattern = re.compile('References')  # References are in a h2 tag containing 'References'
-            # get the table in the same parent element as the 'References' header
-            table = refsoup.find('h2', text=pattern).parent.find('table')
+    adsrefs = {}
 
-            trows = table.find_all('tr')
+    # loop over references
+    j = 0
+    for reftag in refdic:
+        j = j + 1
+
+        if reftag in PROB_REFS:
+            continue
+
+        refstring = refdic[reftag]
+
+        # try getting the year from the string and split on this (allows years
+        # between 1000-2999 and followed by a lowercase letter, e.g. 2009 or
+        # 2009a)
+        match = re.match(r'.*([1-2][0-9]{3}[az]{1}|[1-2][0-9]{3})', refstring)
+        if match is None:
+            continue
+
+        # do splitting
+        spl = re.split(r'([1-2][0-9]{3}[az]{1}|[1-2][0-9]{3})', refstring)
+
+        if len(spl) != 3:
+            # more than 1 "year", so ignore!
+            continue
+
+        year = spl[1] if len(spl[1]) == 4 else spl[1][:4]
+
+        try:
+            int(year)
+        except ValueError:
+            # "year" is not an integer
+            continue
+
+        # get the authors (remove line breaks/extra spaces and final full-stop)
+        authors = spl[0].strip().strip('.')
+
+        # separate out authors
+        sepauthors = authors.split('.,')[:-1]
+
+        # split any authors that are seperated by an ampersand
+        if '&' in sepauthors[-1] or 'and' in sepauthors[-1]:
+            lastauthors = [a.strip() for a in re.split(r'& | and ', sepauthors.pop(-1))]
+            sepauthors = sepauthors + lastauthors
+            for i in range(len(sepauthors)-2):
+                sepauthors[i] += '.'  # re-add final full stops where needed
+            sepauthors[-1] += '.'
+        else:
+            sepauthors = [a+'.' for a in sepauthors]  # re-add final full stops
+
+        # get the title
+        try:
+            # remove preceding or trailing full stops
+            title = spl[2].strip('.').split('.')[0].strip()
+        except RuntimeError:
+            # could not get title so ignore this entry
+            continue
+
+        # try getting ADS references
+        try:
+            article = ads.SearchQuery(year=year, first_author=sepauthors[0],
+                                      title=title)
         except IOError:
-            warnings.warn("Could not get ATNF reference list", UserWarning)
-            return refs
+            warnings.warn('Could not get reference information, so no ADS information will be included', UserWarning)
+            continue
 
-        # loop over rows
-        j = 0
-        for tr in trows:
-            j = j + 1
-            reftag = tr.b.text  # the reference string is contained in a <b> tag
+        adsrefs[reftag] = ADS_URL.format(list(article)[0].bibcode)
 
-            if reftag in PROB_REFS:
-                continue
-
-            refs[reftag] = {}
-            tds = tr.find_all('td')  # get the two <td> tags - reference info is in the second
-
-            # check if publication is 'awkward', i.e. if has a year surrounded by '.'s, e.g, '.1969.' or '.1969a.'
-            utext = re.sub(r'\s+', ' ', tds[1].text)
-            dotyeardot = re.compile(r'\.(\d+\D?)\.')
-            dotyeardotlist = dotyeardot.split(utext)
-            if len(dotyeardotlist) != 3:
-                utext = None
-
-            refdata = list(tds[1].contents)  # copy list so contents of table aren't changed in the journal name substitution step below
-
-            # check that the tag contains a string (the paper/book title) within <i> (paper) or <b> (book) - there are a few exceptions to this rule
-            titlestr = None
-            booktitlestr = None
-            if tds[1].find('i') is not None:
-                titlestr = tds[1].i.text
-            if tds[1].find('b') is not None:
-                booktitlestr = tds[1].b.text
-
-            # change some journal refs that contain '.' (this causes issues when splitting authors based on '.,')
-            for ridx, rdf in enumerate(list(refdata)):
-                # subtitute some journal names to abbreviated versions
-                journalsubs = {'Chin. J. Astron. Astrophys.': 'ChJAA',
-                               'Astrophys. Lett.': 'ApJL',
-                               'Res. Astron. Astrophys.': 'RAA',
-                               'J. Astrophys. Astr.': 'JApA',
-                               'Curr. Sci.': 'Current Science',
-                               'Astrophys. Space Sci.': 'Ap&SS',
-                               'Nature Phys. Sci.': 'NPhS',
-                               'Sov. Astron. Lett.': 'SvAL',
-                               'ATel.': 'ATel'}
-
-                if isinstance(rdf, string_types):  # only run on string values
-                    rdfs = re.sub(r'\s+', ' ', rdf)  # make sure only single spaces are present
-                    for js in journalsubs:
-                        if js in rdfs:
-                            refdata[ridx] = re.sub(js, journalsubs[js], rdfs)
-
-            if (titlestr is not None or booktitlestr is not None) and utext is None:
-                authors = re.sub(r'\s+', ' ', refdata[0]).strip().strip('.')  # remove line breaks and extra spaces (and final full-stop)
-                sepauthors = authors.split('.,')
-            elif utext is not None:
-                year = int(re.sub(r'\D', '', dotyeardotlist[1]))  # remove any non-number values
-                authors = dotyeardotlist[0]
-                sepauthors = authors.split('.,')
-            else:
-                sepauthors = re.sub(r'\s+', ' ', refdata[0]).split('.,')[:-1]
-
-            if (titlestr is not None or booktitlestr is not None) and utext is None:
-                try:
-                    year = int(''.join(filter(lambda x: x.isdigit(), sepauthors.pop(-1).strip('.'))))  # strip any non-digit characters (e.g. from '1976a')
-                except ValueError:
-                    # get year from reftag
-                    year = int(''.join(filter(lambda x: x.isdigit(), reftag)))
-                    thisyear = int(str(datetime.datetime.now().year)[-2:])
-                    if year > thisyear:
-                        year += 1900
-                    else:
-                        year += 2000
-            elif utext is None:
-                rd = re.sub(r'\s+', ' ', refdata[0]).split('.,')[-1].split()
-                try:
-                    year = int(''.join(filter(lambda x: x.isdigit(), rd[0].strip('.'))))
-                except ValueError:
-                    # get year from reftag
-                    year = int(''.join(filter(lambda x: x.isdigit(), reftag)))
-                    thisyear = int(str(datetime.datetime.now().year)[-2:])
-                    if year > thisyear:
-                        year += 1900
-                    else:
-                        year += 2000
-
-            if '&' in sepauthors[-1] or 'and' in sepauthors[-1]:  # split any authors that are seperated by an ampersand
-                lastauthors = [a.strip() for a in re.split(r'& | and ', sepauthors.pop(-1))]
-                sepauthors = sepauthors + lastauthors
-                for i in range(len(sepauthors)-2):
-                    sepauthors[i] += '.'  # re-add final full stops where needed
-                sepauthors[-1] += '.'
-            else:
-                sepauthors = [a+'.' for a in sepauthors]  # re-add final full stops
-
-            refs[reftag]['authorlist'] = ', '.join(sepauthors)
-            refs[reftag]['authors'] = sepauthors
-            refs[reftag]['year'] = year
-            refs[reftag]['journal'] = ''
-            refs[reftag]['volume'] = ''
-            refs[reftag]['pages'] = ''
-
-            if titlestr is not None:
-                title = (re.sub(r'\s+', ' ', titlestr)).lstrip()  # remove any leading spaces
-            else:
-                title = ''
-            refs[reftag]['title'] = title
-
-            if booktitlestr is not None:
-                booktitle = (re.sub(r'\s+', ' ', booktitlestr)).lstrip()
-                refs[reftag]['booktitle'] = booktitle
-
-            if titlestr is not None:
-                # separate journal name, volume and pages
-                journalref = [a.strip() for a in refdata[-1].strip('.').split(',')]
-                if len(journalref) == 3:
-                    refs[reftag]['journal'] = journalref[0]
-                    refs[reftag]['volume'] = journalref[1]
-                    refs[reftag]['pages'] = journalref[2]
-                else:
-                    if 'arxiv' in refdata[-1].strip('.').lower():
-                        axvparts = refdata[-1].strip('.').split(':')
-                        if len(axvparts) == 2:  # if an arXiv number of found
-                            axv = 'arXiv:{}'.format(re.split(', |. ', axvparts[1])[0])
-                        else:
-                            axv = 'arXiv'  # no arXiv number can be set
-                        refs[reftag]['journal'] = axv
-            elif booktitlestr is not None:
-                # separate book volume and other editorial/publisher info
-                bookref = [a.strip() for a in refdata[-1].strip('.').split('eds')]
-                refs[reftag]['volume'] = re.sub(r', |. |\s+', '', bookref[0])
-                refs[reftag]['eds'] = bookref[1]
-            else:
-                refs[reftag]['year'] = year
-
-                # split on year
-                if utext is None:
-                    rd = re.sub(r'\s+', ' ', refdata[0]).split('{}'.format(year))[1].split(',')
-                else:
-                    rd = re.sub(r'\s+', ' ', dotyeardotlist[-1]).split(',')
-
-                if 'PhD thesis' in rd[0]:
-                    refs[reftag]['journal'] = 'PhD thesis'
-                    refs[reftag]['thesis pub. info.'] = ' '.join(rd[1:]).lstrip()
-                else:
-                    if len(rd) >= 1:
-                        refs[reftag]['journal'] = rd[0].strip()
-                    if len(rd) >= 2:
-                        refs[reftag]['volume'] = rd[1].strip()
-                    if len(rd) >= 3:
-                        refs[reftag]['pages'] = rd[2].strip().strip('.')
-
-            # get ADS entry
-            if useads:
-                try:
-                    import ads
-                except ImportError:
-                    warnings.warn('Could not import ADS module, so no ADS information will be included', UserWarning)
-                    continue
-
-                refs[reftag]['ADS'] = None
-                refs[reftag]['ADS URL'] = ''
-
-                try:
-                    article = ads.SearchQuery(year=refs[reftag]['year'], first_author=refs[reftag]['authors'][0], title=refs[reftag]['title'])
-                except IOError:
-                    warnings.warn('Could not get reference information, so no ADS information will be included', UserWarning)
-                    continue
-
-                article = list(article)
-
-                if len(article) > 0:
-                    refs[reftag]['ADS'] = list(article)[0]
-                    refs[reftag]['ADS URL'] = ADS_URL.format(list(article)[0].bibcode)
-
-    return refs
+    return refdic, adsrefs
 
 
 # string of logical expressions for use in regex parser

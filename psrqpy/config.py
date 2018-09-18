@@ -50,8 +50,8 @@ PSR_GENERAL = {'NAME':     {'ref': True,  'err': False, 'units': None},  # Pulsa
                'RAJD':     {'ref': False, 'err': False, 'units': 'deg'},   # Right ascension (J2000) (degrees)
                'DECJD':    {'ref': False, 'err': False, 'units': 'deg'},   # Declination (J2000) (degrees)
                'TYPE':     {'ref': False, 'err': False, 'units': None},  # Type codes for the pulsar (http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#psr_types)
-               'PML':      {'ref': False, 'err': True,  'units': 'mas/yr'},   # Proper motion in Galactic longitude (mas/yr)
-               'PMB':      {'ref': False, 'err': True,  'units': 'mas/yr'},   # Proper motion in Galactic latitude (mas/yr)
+               'PML':      {'ref': False, 'err': False,  'units': 'mas/yr'},  # Proper motion in Galactic longitude (mas/yr)
+               'PMB':      {'ref': False, 'err': False,  'units': 'mas/yr'},  # Proper motion in Galactic latitude (mas/yr)
                'DIST':     {'ref': False, 'err': False, 'units': 'kpc'},   # Best estimate of the pulsar distance using the YMW16 DM-based distance as default (kpc)
                'DIST_DM':  {'ref': True,  'err': False, 'units': 'kpc'},   # Distance based on the YMW16 electron density model. In 'LONG' or 'PUBLICATION QUALITY' modes, lower limits from the distance model are preceded by a '+' sign.
                'DIST_DM1': {'ref': True,  'err': False, 'units': 'kpc'},   # Distance based on NE2001 model (kpc)
@@ -214,7 +214,7 @@ PSR_DERIVED = {'R_LUM':    {'ref': False, 'err': False, 'units': 'mJy kpc^2'},  
                'BSURF':    {'ref': False, 'err': False, 'units': 'G'},               # Surface magnetic flux density (Gauss) [B = 3.2e19 sqrt(P * Pdot)]
                'EDOT':     {'ref': False, 'err': False, 'units': 'erg/s'},           # Spin down energy loss rate (ergs/s)
                'EDOTD2':   {'ref': False, 'err': False, 'units': 'erg s^-1/kpc^2'},  # Energy flux at the Sun (ergs/kpc2/s)
-               'PMTOT':    {'ref': False, 'err': True,  'units': 'mas/yr'},          # Total proper motion (mas/yr)
+               'PMTOT':    {'ref': False, 'err': False,  'units': 'mas/yr'},         # Total proper motion (mas/yr)
                'VTRANS':   {'ref': False, 'err': False, 'units': 'km/s'},            # Transverse velocity - based on DIST (km/s)
                'P1_I':     {'ref': False, 'err': False, 'units': None},              # Period derivative corrected for Shklovskii (proper motion) effect
                'AGE_I':    {'ref': False, 'err': False, 'units': 'yr'},              # Spin down age from P1_i (yr)
@@ -223,6 +223,12 @@ PSR_DERIVED = {'R_LUM':    {'ref': False, 'err': False, 'units': 'mJy kpc^2'},  
 
 PSR_DERIVED_PARS = list(PSR_DERIVED.keys())
 
+# synomimcs for use if submitting a query via the webform
+PSR_SYNONYMS = {'PSRJ': 'JNAME',
+                'PSRB': 'NAME',
+                'BNAME': 'NAME',
+                'RAJD': 'RAJ',
+                'DECJD': 'DECJ'}
 
 # a list of all allowed parameters for querying
 PSR_ALL = dict(itertools.chain(PSR_GENERAL.items(), PSR_TIMING.items(), PSR_BINARY.items(), PSR_DERIVED.items()))
@@ -270,3 +276,4 @@ PSR_ASSOC_TYPE = ['GC',   # globular cluster
 
 #: URL for the NASA ADS
 ADS_URL = 'https://ui.adsabs.harvard.edu/#abs/{}/'
+
