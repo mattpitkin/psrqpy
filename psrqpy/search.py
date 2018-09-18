@@ -275,27 +275,39 @@ class QueryATNF(object):
 
         return self.__dataframe.columns
 
-    def sort(self, sort_attr=None, sort_order=None, inplace=False):
+    def sort(self, sort_attr='JNAME', sort_order='asc', table=None,
+             inplace=False):
         """
         Sort the generated catalogue :class:`~astropy.table.Table` on a given
         attribute and in either ascending or descending order.
+
+        Args:
+            sort_attr (str): The parameter on which to perform the sorting of
+                the query output. Defaults to 'JNAME'.
+            sort_order (str): Set to 'asc' to sort the parameter values in
+                ascending order, or 'desc' to sort in descending order.
+                Defaults to ascending.
+            table (:class:`pandas.DataFrame`): sort and return an input
+                :class:`~pandas.DataFrame`. If not set then the internal
+                :class:`~pandas.DataFrame` stored in the
+                :class:`psrqpy.QueryATNF` class instance will be sorted.
+            inplace (bool): If True, and sorting the class' internal
+                :class:`~pandas.DataFrame`, then the sorting will be done
+                in place without returning a copy of the table, otherwise
+                a sorted copy of the table will be returned.
+
+        Returns:
+            :class:`~pandas.DataFrame`: a table containing the sorted
+                catalogue.
         """
 
-        if sort_attr is None:
-            if self._sort_attr is None:
-                self._sort_attr = 'JNAME'  # sort by name by default
-        else:
-            self._sort_attr = sort_attr.upper()
+        self._sort_attr = sort_attr.upper()
 
         if self._sort_attr not in self.columns:
             raise KeyError("Sorting by attribute '{}' is not possible as it "
                            "is not in the table".format(self._sort_attr))
 
-        if sort_order is None:
-            if self._sort_order is None:
-                self._sort_order = 'asc'  # sort ascending by default
-        else:
-            self._sort_order = sort_order
+        self._sort_order = sort_order
 
         # check sort order is either 'asc' or 'desc' (or some synonyms)
         if self._sort_order.lower() in ['asc', 'ascending', 'up', '^']:
@@ -309,15 +321,19 @@ class QueryATNF(object):
 
         sortorder = True if self._sort_order == 'asc' else False
 
-        if inplace:
+        if inplace and table is None:
             # sort the stored dataframe
             _ = self.__dataframe.sort_values(self._sort_attr,
                                              ascending=sortorder,
                                              inplace=inplace)
             return self.__dataframe
-        else:
+        elif table is None:
             return self.__dataframe.sort_values(self._sort_attr,
                                                 ascending=sortorder)
+        elif isinstance(table, DataFrame):
+            return table.sort_values(self._sort_attr, ascending=sortorder)
+        else:
+            raise TypeError("Table must be a pandas DataFrame")
 
     def __getitem__(self, key):
         if key not in self.as_pandas.keys():
@@ -737,8 +753,51 @@ class QueryATNF(object):
         Return the query table as a :class:`pandas.DataFrame`.
         """
 
+        # get a copy of the dataframe
+        dftable = self.__dataframe.copy()
+
+        # define any derived parameters
+        for par in PSR_DERIVED_PARS:
+            # get derived parameters if they are actually required
+            if self._condition is not None:
+                condstr = self._condition
+            else:
+                constr = ''
+
+            if (par in self.query_params or par == self._sort_attr or
+                    par in condstr):
+
+                if par in self.__dataframe:
+                    # value already exists
+                    continue
+
+                if par == 'AGE':  # characteristic age
+                    dftable['AGE'] = self.derived_age
+                elif par == 'BSURF':  # surface magnetic field
+                    dftable['BSURF'] = self.derived_bsurf
+                elif par == 'B_LC':  # magnetic field at light cylinder
+                    dftable['B_LC'] = self.derived_b_lc
+                elif par == 'EDOT':  # spin-down luminosity
+                    dftable['EDOT'] = self.derived_edot
+                elif par == 'EDOTD2':  # spin-down flux at Sun
+                    dftable['EDOTD2'] = self.derived_edotd2
+                elif par == 'PMTOT':  # total proper motion
+                    pmtot, pmtoterr = self.derived_pmtot
+                    dftable['PMTOT'] = pmtot
+                    dftable['PMTOT_ERR'] = pmtoterr
+                elif par == 'VTRANS':  # transverse velocity 
+                    dftable['VTRANS'] = self.derived_vtrans
+                elif dftable['P1_I']:  # instrinsic period derivative
+                    dftable['P1_I'] = self.derived_p1_i
+                elif dftable['AGE_I']:  # intrinsic age
+                    dftable['AGE_I'] = self.derived_age_i
+                elif dftable['BSURF_I']:
+                    dftable['BSURF_I'] = self.derived_bsurf_i
+                elif dftable['EDOT_I']:
+                    dftable['EDOT_I'] = self.derived_edot_i
+
         # get only required parameters and sort
-        dftable = self.sort(self._sort_attr, self._sort_order)
+        dftable = self.sort(self._sort_attr, self._sort_order, table=dftable)
 
         if self._condition is not None:
             # apply condition
@@ -799,31 +858,241 @@ class QueryATNF(object):
                             if self._useads and reftag in self._adsref:
                                 dftable[par+'_REFURL'] = self._adsref[reftag]
 
-        # define any derived parameters
-        for par in self.query_params:
-            if par in PSR_DERIVED_PARS:
-                P0 = dftable['P0']
-                P1 = dftable['P1']
-
-                if par == 'AGE':  # characteristic age
-                    age = 0.5*P0 / P1 / (60.0 * 60.0 * 24.0 * 365.25)
-                    dftable['AGE'] = age
-                    dftable['AGE'][P1 < 0 | ~np.isfinite(P1) | ~np.isfinite(P0)] = np.nan
-                elif par == 'BSURF':  # surface magnetic field
-                    bsurf = 3.2e19*np.sqrt(np.abs(P0*P1))
-                    dftable['BSURF'] = bsurf
-                    dftable['BSURF'][P1 < 0 | ~np.isfinite(P1) | ~np.isfinite(P0)] = np.nan
-                elif par == 'B_LC':  # magnetic field at light cylinder
-                    blc = 3.0e8*np.sqrt(np.abs(P1))*np.abs(P0)**(-5./2.)
-                    dftable['B_LC'] = blc
-                    dftable['B_LC'][P1 < 0 | ~np.isfinite(P1) | ~np.isfinite(P0)] = np.nan
-                elif par == 'EDOT':
-                    edot = 4.0 * np.pi**2 * 1e45 * P1 / P0**3
-                    dftable['EDOT'] = edot
-                    dftable['EDOT'][P1 < 0 | ~np.isfinite(P1) | ~np.isfinite(P0)] = np.nan
-
         # reset the indices to zero in the dataframe
         return dftable.reset_index(drop=True)
+
+    @property
+    def derived_p1_i(self):
+        """
+        Return the intrinsic period derivative.
+        """
+
+        if 'VTRANS' not in self.__dataframe.columns:
+            self.__dataframe['VTRANS'] = self.derived_vtrans
+
+        try:
+            # get period and period derivative
+            VTRANS = self.__dataframe['VTRANS']
+            P0 = self.__dataframe['P0']
+            P1 = self.__dataframe['P1']
+            DIST = self.__dataframe['DIST']
+        except KeyError:
+            raise KeyError("Could not get required parameters.")
+
+        p1i = ((P1/1.0e-15) - VTRANS**2*1.0e10*P0/(DIST*3.086e6)/2.9979e10)*1.0e-15
+        p1i[~np.isfinite(P1) | ~np.isfinite(P0) | ~np.isfinite(VTRANS) | ~np.isfinite(DIST)] = np.nan
+        return p1i
+
+    @property
+    def derived_age(self):
+        """
+        Return the characteristic age, dervied from period and period
+        derivative, as a :class:`numpy.ndarray`.
+        """
+
+        try:
+            # get period and period derivative
+            P0 = self.__dataframe['P0']
+            P1 = self.__dataframe['P1']
+        except KeyError:
+            raise KeyError("Could not get period and/or period derivative")
+
+        age = 0.5 * P0 / P1 / (60.0 * 60.0 * 24.0 * 365.25)
+        age[(P1 < 0) | ~np.isfinite(P1) | ~np.isfinite(P0)] = np.nan
+        return age
+
+    @property
+    def derived_age_i(self):
+        """
+        Return the characteristic age, dervied from period and intrinsic
+        period derivative, as a :class:`numpy.ndarray`.
+        """
+
+        if 'P1_I' not in self.__dataframe.columns:
+            self.__dataframe['P1_I'] = self.derived_p1_i
+
+        try:
+            # get period and period derivative
+            P0 = self.__dataframe['P0']
+            P1_I = self.__dataframe['P1_I']
+        except KeyError:
+            raise KeyError("Could not get period and/or period derivative")
+
+        age_i = 0.5 * (P0 / P1_I) / (60.0 * 60.0 * 24.0 * 365.25)
+        age_i[(P1_I < 0) | ~np.isfinite(P1_I) | ~np.isfinite(P0)] = np.nan
+        return age_i
+
+    @property
+    def derived_bsurf(self):
+        """
+        Return the surface magnetic field strength, dervied from period and
+        period derivative, as a :class:`numpy.ndarray`.
+        """
+
+        try:
+            # get period and period derivative
+            P0 = self.__dataframe['P0']
+            P1 = self.__dataframe['P1']
+        except KeyError:
+            raise KeyError("Could not get period and/or period derivative")
+
+        bsurf = 3.2e19 * np.sqrt(np.abs(P0 * P1))
+        bsurf[(P1 < 0) | ~np.isfinite(P1) | ~np.isfinite(P0)] = np.nan
+        return bsurf
+
+    @property
+    def derived_bsurf_i(self):
+        """
+        Return the surface magnetic field strength, dervied from period and
+        intrinsic period derivative, as a :class:`numpy.ndarray`.
+        """
+
+        if 'P1_I' not in self.__dataframe.columns:
+            self.__dataframe['P1_I'] = self.derived_p1_i
+
+        try:
+            # get period and period derivative
+            P0 = self.__dataframe['P0']
+            P1_I = self.__dataframe['P1']
+        except KeyError:
+            raise KeyError("Could not get period and/or period derivative")
+
+        bsurf_i = 3.2e19 * np.sqrt(np.abs(P0 * P1_I))
+        bsurf_i[(P1_I < 0) | ~np.isfinite(P1_I) | ~np.isfinite(P0)] = np.nan
+        return bsurf_i
+
+    @property
+    def derived_b_lc(self):
+        """
+        Return the magnetic field strength at the light cylinder, dervied from
+        period and period derivative, as a :class:`numpy.ndarray`.
+        """
+
+        try:
+            # get period and period derivative
+            P0 = self.__dataframe['P0']
+            P1 = self.__dataframe['P1']
+        except KeyError:
+            raise KeyError("Could not get period and/or period derivative")
+
+        blc = 3.0e8*np.sqrt(np.abs(P1))*np.abs(P0)**(-5./2.)
+        blc[(P1 < 0) | ~np.isfinite(P1) | ~np.isfinite(P0)] = np.nan
+        return blc
+
+    @property
+    def derived_edot(self):
+        """
+        Return the spin-down luminosity, dervied from period and period
+        derivative, as a :class:`numpy.ndarray`.
+        """
+
+        try:
+            # get period and period derivative
+            P0 = self.__dataframe['P0']
+            P1 = self.__dataframe['P1']
+        except KeyError:
+            raise KeyError("Could not get period and/or period derivative")
+
+        edot = 4.0 * np.pi**2 * 1e45 * P1 / P0**3
+        edot[(P1 < 0) | ~np.isfinite(P1) | ~np.isfinite(P0)] = np.nan
+        return edot
+
+    @property
+    def derived_edot_i(self):
+        """
+        Return the spin-down luminosity, dervied from period and intrinsic
+        period derivative, as a :class:`numpy.ndarray`.
+        """
+
+        if 'P1_I' not in self.__dataframe.columns:
+            self.__dataframe['P1_I'] = self.derived_p1_i
+
+        try:
+            # get period and period derivative
+            P0 = self.__dataframe['P0']
+            P1_I = self.__dataframe['P1']
+        except KeyError:
+            raise KeyError("Could not get period and/or period derivative")
+
+        edot_i = 4.0 * np.pi**2 * 1e45 * P1_I / P0**3
+        edot_i[(P1_I < 0) | ~np.isfinite(P1_I) | ~np.isfinite(P0)] = np.nan
+        return edot_i
+
+    @property
+    def derived_edotd2(self):
+        """
+        Return the spin-down luminosity flux at the Sun, dervied from period,
+        period derivative, and distance, as a :class:`numpy.ndarray`.
+        """
+
+        try:
+            # get period and period derivative
+            P0 = self.__dataframe['P0']
+            P1 = self.__dataframe['P1']
+            DIST = self.__dataframe['DIST']
+        except KeyError:
+            raise KeyError("Could not get period and/or period derivative")
+
+        edotd2 = 4.0 * np.pi**2 * 1e45 * (P1 / P0**3) / DIST**2
+        edotd2[(P1 < 0) | ~np.isfinite(P1) | ~np.isfinite(P0) | ~np.isfinite(DIST)] = np.nan
+        return edotd2
+
+    @property
+    def derived_pmtot(self):
+        """
+        Return the total proper motion and error.
+        """
+
+        try:
+            # get PMRA and PMDEC
+            PMRA = self.__dataframe['PMRA']
+            PMDEC = self.__dataframe['PMDEC']
+            PMRA_ERR = self.__dataframe['PMRA_ERR']
+            PMDEC_ERR = self.__dataframe['PMDEC_ERR']
+            PMELONG = self.__dataframe['PMELONG']
+            PMELAT = self.__dataframe['PMELAT']
+            PMELONG_ERR = self.__dataframe['PMELONG_ERR']
+            PMELAT_ERR = self.__dataframe['PMELAT_ERR']
+
+            # use PM ELONG or ELAT if no RA and DEC
+            useelong = ~np.isfinite(PMRA) & np.isfinite(PMELONG)
+            useelat = ~np.isfinite(PMDEC) & np.isfinite(PMELAT)
+            PMRA[useelong] = PMELONG[useelong]
+            PMDEC[useelat] = PMELAT[useelat]
+
+            PMDEC_ERR[useelong] = PMELONG_ERR[useelong]
+            PMRA_ERR[useelat] = PMELAT_ERR[useelat]
+        except KeyError:
+            raise KeyError("Could not get required parameters")
+        
+	    pmtoterr = np.sqrt(((PMRA*PMRA_ERR)**2+(PMDEC*PMDEC_ERR)**2)/(PMRA**2 + PMDEC**2))
+	    pmtot = np.sqrt(PMRA**2+PMDEC**2)
+
+        # return tuple with PMTOT and error
+        return (pmtot, pmtoterr)
+
+    @property
+    def derived_vtrans(self):
+        """
+        Return the total proper motion and error.
+        """
+
+        if 'PMTOT' not in self.__dataframe.columns:
+            # get PMTOT if not defined
+            pmtot, pmtoterr = self.derived_pmtot
+            self.__dataframe['PMTOT'] = pmtot
+            self.__dataframe['PMTOT_ERR'] = pmtoterr
+
+        try:
+            # get PMRA and PMDEC
+            PMTOT = self.__dataframe['PMTOT']
+            DIST = self.__dataframe['DIST']
+        except KeyError:
+            raise KeyError("Could not get required parameters")
+        
+        vtrans = (PMTOT/(1000.0*3600.0*180.0*np.pi*365.25*86400.0))*3.086e16*DIST
+        vtrans[~np.isfinite(PMTOT) | ~np.isfinite(DIST)] = np.nan
+        return vtrans
 
     def get_pulsars(self):
         """
