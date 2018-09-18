@@ -799,6 +799,29 @@ class QueryATNF(object):
                             if self._useads and reftag in self._adsref:
                                 dftable[par+'_REFURL'] = self._adsref[reftag]
 
+        # define any derived parameters
+        for par in self.query_params:
+            if par in PSR_DERIVED_PARS:
+                P0 = dftable['P0']
+                P1 = dftable['P1']
+
+                if par == 'AGE':  # characteristic age
+                    age = 0.5*P0 / P1 / (60.0 * 60.0 * 24.0 * 365.25)
+                    dftable['AGE'] = age
+                    dftable['AGE'][P1 < 0 | ~np.isfinite(P1) | ~np.isfinite(P0)] = np.nan
+                elif par == 'BSURF':  # surface magnetic field
+                    bsurf = 3.2e19*np.sqrt(np.abs(P0*P1))
+                    dftable['BSURF'] = bsurf
+                    dftable['BSURF'][P1 < 0 | ~np.isfinite(P1) | ~np.isfinite(P0)] = np.nan
+                elif par == 'B_LC':  # magnetic field at light cylinder
+                    blc = 3.0e8*np.sqrt(np.abs(P1))*np.abs(P0)**(-5./2.)
+                    dftable['B_LC'] = blc
+                    dftable['B_LC'][P1 < 0 | ~np.isfinite(P1) | ~np.isfinite(P0)] = np.nan
+                elif par == 'EDOT':
+                    edot = 4.0 * np.pi**2 * 1e45 * P1 / P0**3
+                    dftable['EDOT'] = edot
+                    dftable['EDOT'][P1 < 0 | ~np.isfinite(P1) | ~np.isfinite(P0)] = np.nan
+
         # reset the indices to zero in the dataframe
         return dftable.reset_index(drop=True)
 
