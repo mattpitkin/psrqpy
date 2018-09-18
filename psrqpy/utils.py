@@ -12,7 +12,6 @@ import requests
 from bs4 import BeautifulSoup
 
 from six import string_types
-from six import BytesIO
 
 from collections import OrderedDict
 
@@ -32,14 +31,14 @@ warnings.formatwarning = warning_format
 PROB_REFS = ['bwck08', 'crf+18']
 
 
-def get_catalogue(path_to_db=None, cache=True):
+def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
     """
     This function will attempt to download and cache the entire ATNF Pulsar
     Catalogue database `tarball
     <http://www.atnf.csiro.au/people/pulsar/psrcat/downloads/psrcat_pkg.tar.gz>`_,
     or read in database file from a provided path. The database will be
-    converted into an :class:`astropy.table.Table`. This is based on the
-    method in the `ATNF.ipynb
+    converted into an :class:`astropy.table.Table` or
+    :class:`pandas.DataFrame`. This is based on the method in the `ATNF.ipynb
     <https://github.com/astrophysically/ATNF-Pulsar-Cat/blob/master/ATNF.ipynb>`_
     notebook by Joshua Tan (`@astrophysically <https://github.com/astrophysically/>`_).
 
@@ -47,36 +46,44 @@ def get_catalogue(path_to_db=None, cache=True):
         path_to_db (str): if the path to a local version of the database file
             is given then that will be read in rather than attempting to
             download the file (defaults to None).
-        cache (bool): cache the downloaded ATNF Pulsar Catalogue file.
+        cache (bool): cache the downloaded ATNF Pulsar Catalogue file. Defaults
+            to True. This is ignored if `path_to_db` is given.
+        update (bool): if True the ATNF Pulsar Catalogue will be
+            re-downloaded and cached if there has been a change compared to the
+            currently cached version. This is ignored if `path_to_db` is given.
+        pandas (bool): if True the catalogue will be returned as a
+            :class:`pandas.DataFrame` rather than the default of an
+            :class:`~astropy.table.Table`.
 
     Returns:
-        :class:`~astropy.table.Table`: a table containing the entire catalogue.
+        :class:`~astropy.table.Table` or :class:`p~andas.DataFrame`: a table
+            containing the entire catalogue.
 
     """
 
-    try:
-        from astropy.table import Table
-        from astropy.coordinates import SkyCoord
-        import astropy.units as aunits
-        from astropy.utils.data import download_file
-    except ImportError:
-        raise ImportError('Problem importing astropy')
+    from astropy.table import Table
+    from astropy.coordinates import SkyCoord
+    import astropy.units as aunits
+    from astropy.utils.data import download_file, clear_download_cache
+    from pandas import DataFrame
 
     if not path_to_db:
-        try:
-            import tarfile
-        except ImportError:
-            raise ImportError('Problem importing tarfile')
+        import tarfile
+
+        # remove any cached file if requested
+        if update:
+            if check_update():
+                clear_download_cache(ATNF_TARBALL)
 
         # get the tarball
         try:
-            tarfile = download_file(ATNF_TARBALL, cache=cache)
+            dbtarfile = download_file(ATNF_TARBALL, cache=cache)
         except IOError:
             raise IOError('Problem accessing ATNF catalogue tarball')
 
         try:
             # open tarball
-            pulsargz = tarfile.open(tarfile, mode='r:gz')
+            pulsargz = tarfile.open(dbtarfile, mode='r:gz')
 
             # extract the database file
             dbfile = pulsargz.extractfile('psrcat_tar/psrcat.db')
@@ -93,7 +100,8 @@ def get_catalogue(path_to_db=None, cache=True):
 
     # create list of dictionaries - one for each pulsar
     psrlist = [{}]
-    formats = {}  # dictionary of formats for each parameter
+
+    version = None  # catalogue version
 
     # loop through lines in dbfile
     for line in dbfile.readlines():
@@ -103,6 +111,9 @@ def get_catalogue(path_to_db=None, cache=True):
             dataline = line.decode().split()   # Splits on whitespace
 
         if dataline[0][0] == commentstring:
+            # get catalogue version (should be in first comment string)
+            if dataline[0] == '#CATALOGUE' and len(dataline) == 2:
+                version = dataline[1]
             continue
 
         if dataline[0][0] == breakstring:
@@ -112,12 +123,8 @@ def get_catalogue(path_to_db=None, cache=True):
 
         try:
             psrlist[-1][dataline[0]] = float(dataline[1])
-            if dataline[0] not in formats.keys():
-                formats[dataline[0]] = np.float64
         except ValueError:
             psrlist[-1][dataline[0]] = dataline[1]
-            if dataline[0] not in formats.keys():
-                formats[dataline[0]] = np.unicode
 
         if len(dataline) > 2:
             # check whether 3rd value is a float (so its an error value) or not
@@ -154,76 +161,51 @@ def get_catalogue(path_to_db=None, cache=True):
 
                 # add error column if required
                 psrlist[-1][dataline[0]+'_ERR'] = float(dataline[2])/scalefac  # error entry
-
-                if dataline[0]+'_ERR' not in formats.keys():
-                    formats[dataline[0]+'_ERR'] = np.float64
             else:
                 # add reference column if required
                 psrlist[-1][dataline[0]+'_REF'] = dataline[2]  # reference entry
 
-                if dataline[0]+'_REF' not in formats.keys():
-                    formats[dataline[0]+'_REF'] = np.unicode
-
             if len(dataline) > 3:
                 # last entry must(!) be a reference
                 psrlist[-1][dataline[0]+'_REF'] = dataline[3]  # reference entry
-                if dataline[0]+'_REF' not in formats.keys():
-                    formats[dataline[0]+'_REF'] = np.unicode
+
+    dbfile.close()   # close tar file
+    if not path_to_db:
+        pulsargz.close()
 
     del psrlist[-1]  # Final breakstring comes at the end of the file
 
     # add RA and DEC in degs and JNAME/BNAME
-    radec = False
-    jname = False
-    bname = False
     for i, psr in enumerate(list(psrlist)):
         if 'RAJ' in psr.keys() and 'DECJ' in psr.keys():
-            coord = SkyCoord(psr['RAJ'], psr['DECJ'], unit=(aunits.hourangle, aunits.deg))
+            coord = SkyCoord(psr['RAJ'], psr['DECJ'],
+                             unit=(aunits.hourangle, aunits.deg))
             psrlist[i]['RAJD'] = coord.ra.deg    # right ascension in degrees
             psrlist[i]['DECJD'] = coord.dec.deg  # declination in degrees
-            radec = True
 
         # add 'JNAME', 'BNAME' and 'NAME'
         if 'PSRJ' in psr.keys():
             psrlist[i]['JNAME'] = psr['PSRJ']
             psrlist[i]['NAME'] = psr['PSRJ']
-            jname = True
 
         if 'PSRB' in psr.keys():
             psrlist[i]['BNAME'] = psr['PSRB']
-            bname = True
 
             if 'NAME' not in psrlist[i].keys():
                 psrlist[i]['NAME'] = psr['PSRB']
 
-    if radec:
-        formats['RAJD'] = np.float64
-        formats['DECJD'] = np.float64
+    # convert to a pandas DataFrame - this will fill in empty spaces
+    dftable = DataFrame(psrlist)
 
-    if jname:
-        formats['JNAME'] = np.unicode
-    if bname:
-        formats['BNAME'] = np.unicode
-    if jname or bname:
-        formats['NAME'] = np.unicode
+    if pandas:
+        # return pandas DataFrame
+        if version is not None:
+            dftable.version = version
 
-    # fill in all entries with all parameters
-    for i, psr in enumerate(list(psrlist)):
-        for key in formats.keys():
-            if key not in psr.keys():
-                psrlist[i][key] = None  # blank value
+        return dftable
 
-    dbfile.close()   # close tar file
-    if not path_to_db:
-        pulsargz.close()
-        fp.close()   # close StringIO
-
-    # convert into astropy table
-    psrtable = Table(data=psrlist)
-
-    # add data format
-    for key in formats.keys():
-        psrtable[key] = psrtable[key].astype(formats[key])
+    # convert into an astropy table
+    psrtable = Table.from_pandas(dftable)
 
     # add units if known
     for key in PSR_ALL_PARS:
@@ -234,8 +216,53 @@ def get_catalogue(path_to_db=None, cache=True):
                 if PSR_ALL[key]['err'] and key+'_ERR' in psrtable.colnames:
                     psrtable.columns[key+'_ERR'].unit = PSR_ALL[key]['units']
 
+    # add metadata
+    if not path_to_db:
+        if version is not None:
+            psrtable.meta['version'] = version
+        else:
+            psrtable.meta['version'] = None
+            warnings.warn('No version number found in the database file',
+                          UserWarning)
+        psrtable.meta['ATNF Pulsar Catalogue'] = ATNF_BASE_URL
+
+    if path_to_db:
+        psrtable.meta['Database file'] = path_to_db
+
     return psrtable
 
+
+def check_update():
+    """
+    Check if the ATNF Pulsar Catalogue has been updated compared to the version
+    in the cache.
+
+    Returns:
+       bool: True if the cache can be updated.
+
+    """
+
+    from astropy.utils.data import download_file, get_cached_urls, compute_hash
+
+    if ATNF_TARBALL not in get_cached_urls():
+        # can update cache as file is not cached yet
+        return True
+
+    # get the cached file name
+    cachefile = download_file(ATNF_TARBALL, cache=True)
+
+    # download a new version of the file and check the hash
+    tmpcache = download_file(ATNF_TARBALL, cache=False)
+
+    curhash = compute_hash(cachefile)
+    tmphash = compute_hash(tmpcache)
+
+    if curhash == tmphash:
+        # no update needed
+        return False
+    else:
+        # an update can be obtained
+        return True
 
 def get_version():
     """

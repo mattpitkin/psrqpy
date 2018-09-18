@@ -20,9 +20,12 @@ from bs4 import BeautifulSoup
 
 from astropy.coordinates import SkyCoord
 import astropy.units as aunits
+from astropy.table import Table
+
+from pandas import DataFrame
 
 from .config import *
-from .utils import *
+from .utils import get_references, get_version, condition
 
 
 # set formatting of warnings to not include line number and code (see
@@ -42,7 +45,8 @@ class QueryATNF(object):
     catalogue database file, although a query can be generated from the
     catalogue webform interface if requested. The catalogue can be queried for
     specific pulsar parameters and for specific named pulsars. Conditions on
-    the parameter can be specified. The results will be stored as an
+    the parameter can be specified. The results will be stored as a
+    :class:`pandas.DataFrame`, but can also be accessed as an
     :class:`astropy.table.Table`.
 
     Args:
@@ -108,17 +112,21 @@ class QueryATNF(object):
             works if `psrs` have been specified). Defaults to False.
         adsref (bool): Set if wanting to use an :class:`ads.search.SearchQuery`
             to get reference information. Defaults to False.
-        loadfromdb (str): load a pulsar database file from a given path rather
+        loadfromdb (str): Load a pulsar database file from a given path rather
             than using the ATNF Pulsar Catalogue database. Defaults to None.
         loadquery (str): load an instance of :class:`~psrqpy.search.QueryATNF`
             from the given file, rather than performing a new query. This was
             `loadfromfile` in earlier versions, which still works but has been
             deprecated. Defaults to None.
-        cache (bool): cache the catalogue database file for future use.
+        cache (bool): Cache the catalogue database file for future use. This is
+            ignored if `loadfromdb` is given or the request is via the webform.
             Defaults to True.
-        webform (bool): query the catalogue webform rather than downloading the
+        checkupdate (bool): If True then check whether a cached catalogue file
+            has an update available, and re-download if there is an update.
+            Defaults to False.
+        webform (bool): Query the catalogue webform rather than downloading the
            database file. Defaults to False.
-        version (str): a string with the ATNF version to use. This will only be
+        version (str): A string with the ATNF version to use. This will only be
             used if querying via the webform and will default to the current
             version if set as None.
     """
@@ -128,36 +136,41 @@ class QueryATNF(object):
                  sort_order='asc', psrs=None, include_errs=True,
                  include_refs=False, get_ephemeris=False, version=None,
                  adsref=False, loadfromfile=None, loadquery=None,
-                 loadfromdb=None, cache=True,
+                 loadfromdb=None, cache=True, checkupdate=False,
                  circular_boundary=None, coord1=None, coord2=None, radius=0.,
                  webform=False):
-        self._psrs = psrs
-        self._include_errs = include_errs
-        self._include_refs = include_refs
-        self._atnf_version = version
-        self._atnf_version = self.get_version  # if no version is set this will return the current or default value
-        self._adsref = adsref
-
-        self._savefile = None  # file to save class to
-        self._loadfile = None  # file class loaded from
-        self._table = None
-
         if loadfromfile is not None and loadquery is None:
             loadquery = loadfromfile
         if loadquery:
             self.load(loadquery)
             return
 
-        self._dbfile = loadfromdb
-        if not webform and self._dbfile is None:
+        self.__dataframe = DataFrame()
+        self._psrs = psrs
+        self._include_errs = include_errs
+        self._include_refs = include_refs
+        self._atnf_version = version
+        self._adsref = adsref
+        self._savefile = None  # file to save class to
+        self._loadfile = None  # file class loaded from
+        self.condition = condition
+        self.exactmatch = exactmatch
+        self._sort_order = sort_order
+        self._sort_attr = sort_attr.upper()
+        self._webform = webform
+
+        if not self._webform:
             # download and cache (if requested) the database file
             try:
-                self._table = get_catalogue(path_to_db=loadfromdb, cache=cache)
+                _ = self.get_catalogue(path_to_db=loadfromdb, cache=cache,
+                                       update=checkupdate)
             except IOError:
                 raise IOError("Could not get catalogue database file")
+        else:
+            # if no version is set this will return the current or default value
+            self._atnf_version = self.get_version
 
         self._refs = None  # set of pulsar references
-        self._query_output = None
         self._get_ephemeris = get_ephemeris
 
         self._pulsars = None  # gets set to a Pulsars object by get_pulsars()
@@ -166,7 +179,8 @@ class QueryATNF(object):
         self._coord1 = coord1
         self._coord2 = coord2
         self._radius = radius
-        if isinstance(circular_boundary, list) or isinstance(circular_boundary, tuple):
+        if (isinstance(circular_boundary, list) or
+                isinstance(circular_boundary, tuple)):
             if len(circular_boundary) != 3:
                 raise Exception("Circular boundary must contain three values")
             self._coord1 = circular_boundary[0]
@@ -177,75 +191,158 @@ class QueryATNF(object):
             self._coord1 = self._coord2 = ''
             self._radius = 0.
         else:
-            if not isinstance(self._coord1, string_types) or not isinstance(self._coord2, string_types):
-                raise Exception("Circular boundary centre coordinates must be strings")
+            if (not isinstance(self._coord1, string_types)
+                    or not isinstance(self._coord2, string_types)):
+                raise Exception("Circular boundary centre coordinates must "
+                                "be strings")
             if not isinstance(self._radius, float) and not isinstance(self._radius, int):
-                raise Exception("Circular boundary radius must be a float or int")
+                raise Exception("Circular boundary radius must be a float or "
+                                "int")
 
-        # check parameters are allowed values
-        self._query_params = ['JNAME']  # query JNAME by default for all queries
-        if isinstance(params, list):
-            if len(params) == 0:
-                print('No query parameters have been specified, so only "JNAME" will be queried')
+        self._coord = None
+        if self._coord1 and self._coord2 and self._radius != 0.:
+            if params is None:
+                params = []
+            
+            # set centre coordinate as an astropy SkyCoord
+            coord = SkyCoord(self._coord1, self._coord2,
+                             unit=(aunits.hourangle, aunits.deg))
 
-            for p in params:
-                if not isinstance(p, string_types):
-                    raise Exception("Non-string value '{}' found in params list".format(p))
+            # make sure 'RAJ' and 'DECJ' are queried
+            params.append('RAJ')
+            params.append('DECJ')
 
-            self._query_params += [p.upper() for p in params if p.upper() != 'JNAME']  # make sure parameter names are all upper case and JNAME is not re-added
-        else:
-            if isinstance(params, string_types):
-                if params.upper() != 'JNAME':  # do not re-add JNAME as it is already the default
-                    self._query_params += [params.upper()]  # make sure parameter is all upper case
-            elif params is not None:
-                if self._psrs and self._get_ephemeris:  # if getting ephemerides then param can be None
-                    self._query_params = []
-                else:
-                    raise Exception("'params' must be a list or string")
+        self.query_params = params
 
-        for p in list(self._query_params):
-            if p not in PSR_ALL_PARS:
-                warnings.warn("Parameter {} not recognised".format(p), UserWarning)
-                self._query_params.remove(p)
-        if len(self._query_params) == 0 and (not self._psrs or not self._get_ephemeris):
-            raise Exception("No parameters left in list")
-
-        # set conditions (ONLY USE THIS FOR WEBFORM SUBMISSION)
-        self._conditions_query = self.parse_conditions(condition, psrtype=psrtype, assoc=assoc, bincomp=bincomp, exactmatch=exactmatch)
+        # set conditions
+        condparse = self.parse_conditions(psrtype=psrtype, assoc=assoc,
+                                          bincomp=bincomp)
+        if len(condparse) > 0:
+            if self._condition is None:
+                self._condition = condparse
+            else:
+                self._condition += condparse
 
         # get references if required
         if self._include_refs:
             self._refs = get_references()  # CHANGE GET_REFERENCES TO USE FILE IN TARBALL
 
-        # perform query
-        self.generate_query()
+        if self._webform:
+            # perform query
+            self.generate_query()
 
-        # parse the query with BeautifulSoup into a dictionary
-        self.parse_query()
+            # parse the query with BeautifulSoup into a dictionary
+            self.parse_query()
+
+        # perform requested sorting
+        _ = self.sort(inplace=True)
+
+    def get_catalogue(self, path_to_db=None, cache=True, update=False,
+                      overwrite=True):
+        """
+        Call the :func:`psrqpy.utils.get_catalogue` function to download the
+        ATNF Pulsar Catalogue, or load a given catalogue path.
+
+        Args:
+            path_to_db (str): if the path to a local version of the database
+            file is given then that will be read in rather than attempting to
+            download the file (defaults to None).
+        cache (bool): cache the downloaded ATNF Pulsar Catalogue file. Defaults
+            to True. This is ignored if `path_to_db` is given.
+        update (bool): if True the ATNF Pulsar Catalogue will be
+            re-downloaded and cached if there has been a change compared to the
+            currently cached version. This is ignored if `path_to_db` is given.
+        overwrite (bool): if True the returned catalogue will overwrite the
+            catalogue currently contained within the :class:`~psrqpy.QueryATNF`
+            class. If False then a :class:`pandas.DataFrame` copy of the
+            catalogue will be returned.
+
+        Returns:
+            :class:`~pandas.DataFrame`: a table containing the catalogue.
+        """
+        from .utils import get_catalogue
+
+        try:
+            dbtable = get_catalogue(path_to_db=path_to_db, cache=cache,
+                                    update=update, pandas=True)
+        except RuntimeError:
+            raise RuntimeError("Problem getting catalogue")
+
+        if not overwrite:
+            return dbtable
+
+        # update current catalogue
+        self.__dataframe = DataFrame(dbtable)
+        self._dbfile = path_to_db
+        self._checkupdate = update
+        self._cache = cache
+        self._atnf_version = dbtable.version
+
+        return self
+
+    @property
+    def columns(self):
+        """
+        Return the table column names.
+        """
+
+        return self.__dataframe.columns
+
+    def sort(self, sort_attr=None, sort_order=None, inplace=False):
+        """
+        Sort the generated catalogue :class:`~astropy.table.Table` on a given
+        attribute and in either ascending or descending order.
+        """
+
+        if sort_attr is None:
+            if self._sort_attr is None:
+                self._sort_attr = 'JNAME'  # sort by name by default
+        else:
+            self._sort_attr = sort_attr.upper()
+
+        if self._sort_attr not in self.columns:
+            raise KeyError("Sorting by attribute '{}' is not possible as it "
+                           "is not in the table".format(self._sort_attr))
+
+        if sort_order is None:
+            if self._sort_order is None:
+                self._sort_order = 'asc'  # sort ascending by default
+        else:
+            self._sort_order = sort_order
 
         # check sort order is either 'asc' or 'desc' (or some synonyms)
-        if sort_order.lower() in ['asc', 'up', '^']:
+        if self._sort_order.lower() in ['asc', 'ascending', 'up', '^']:
             self._sort_order = 'asc'
-        elif sort_order.lower() in ['desc', 'descending', 'v']:
+        elif self._sort_order.lower() in ['desc', 'descending', 'down', 'v']:
             self._sort_order = 'desc'
         else:
             warnings.warn(('Unrecognised sort order "{}", defaulting to'
                            '"ascending"').format(sort_order), UserWarning)
             self._sort_order = 'asc'
 
-        self._sort_attr = sort_attr.upper()
+        sortorder = True if self._sort_order == 'asc' else False
 
-        # perform sorting
-        if self._sort_attr in self._table.colnames:
-            self._table.sort(self._sort_attr)
+        if inplace:
+            # sort the stored dataframe
+            _ = self.__dataframe.sort_values(self._sort_attr,
+                                             ascending=sortorder,
+                                             inplace=inplace)
+            return self.__dataframe
+        else:
+            return self.__dataframe.sort_values(self._sort_attr,
+                                                ascending=sortorder)
 
-            # reverse table if in descending order
-            if self._sort_order == 'desc':
-                self._table.reverse()
+    def __getitem__(self, key):
+        if key not in self.as_pandas.keys():
+            raise KeyError("Key '{}' not in queried results".format(key))
+
+        # return astropy table column
+        return self.as_table[key]
 
     def save(self, fname):
         """
-        Output the :class:`~psrqpy.search.QueryATNF` instance to a pickle file for future loading.
+        Output the :class:`~psrqpy.search.QueryATNF` instance to a pickle file
+        for future loading.
 
         Args:
             fname (str): the filename to output the pickle to
@@ -278,33 +375,36 @@ class QueryATNF(object):
         except IOError:
             raise Exception("Error reading in pickle")
 
-    def generate_query(self, version='', params=None, condition='', sortorder='asc',
-                       sortattr='JName', psrnames=None, coord1='', coord2='',
-                       radius=0., **kwargs):
+    def generate_query(self, version='', params=None, condition='',
+                       psrnames=None, coord1='', coord2='', radius=0.,
+                       **kwargs):
         """
-        Generate a query URL and return the content of the :class:`~requests.Response` from that
-        URL. If the required class attributes are set then they are used for generating the query,
-        otherwise arguments can be given to override those set when initialising the class.
+        Generate a query URL and return the content of the
+        :class:`~requests.Response` from that URL. If the required class
+        attributes are set then they are used for generating the query,
+        otherwise arguments can be given to override those set when
+        initialising the class.
 
         Args:
             version (str): a string containing the ATNF version.
-            params (list, str): a list of `parameters <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#par_list>`_ to query.
+            params (list, str): a list of `parameters <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#par_list>`_
+                to query.
             condition (str): the logical `condition
                 <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#condition>`_
                 string for the query.
-            sortorder (str): the order for sorting the results.
-            sortattr (str): the parameter on which to perform the sorting.
             psrnames (list, str): a list of pulsar names to get parameters for
-            coord1 (str): a string containing a right ascension in the format ('hh:mm:ss') that
-                centres a circular boundary in which to search for pulsars (requires `coord2` and
-                `radius` to be set).
-            coord2 (str): a string containing a declination in the format ('dd:mm:ss') that
-                centres a circular boundary in which to search for pulsars (requires `coord1` and
-                `radius` to be set).
-            radius (float): the radius (in degrees) of a circular boundary in which to search for
-                pulsars (requires `coord1` and `coord2` to be set).
-            get_ephemeris (bool): a boolean stating whether to get pulsar ephemerides rather than
-                a table of parameter values (only works if pulsar names are given)
+            coord1 (str): a string containing a right ascension in the format
+                ('hh:mm:ss') that centres a circular boundary in which to
+                search for pulsars (requires `coord2` and `radius` to be set).
+            coord2 (str): a string containing a declination in the format
+                ('dd:mm:ss') that centres a circular boundary in which to
+                search for pulsars (requires `coord1` and `radius` to be set).
+            radius (float): the radius (in degrees) of a circular boundary in
+                which to search for pulsars (requires `coord1` and `coord2` to
+                be set).
+            get_ephemeris (bool): a boolean stating whether to get pulsar
+                ephemerides rather than a table of parameter values (only works
+                if pulsar names are given)
 
         """
 
@@ -318,48 +418,18 @@ class QueryATNF(object):
         self._atnf_version = self._atnf_version if not version else version
         query_dict['version'] = self._atnf_version
 
-        if params:
-            if isinstance(params, string_types):
-                params = [params]  # convert to list
-            else:
-                if not isinstance(params, list):
-                    raise Exception('Error... input "params" for generate_query() must be a list')
-            qparams = list(params)
-            for p in params:
-                if p.upper() not in PSR_ALL_PARS:
-                    warnings.warn("Parameter {} not recognised".format(p), UserWarning)
-                    qparams.remove(p)
-            self._query_params = [qp.upper() for qp in qparams]  # convert parameter names to all be upper case
+        if params is not None:
+            # update query parameters
+            self.query_params = params
 
         pquery = ''
-        for p in self._query_params:
+        for p in self.query_params:
             pquery += '&{}={}'.format(p, p)
 
         query_dict['params'] = pquery
-        self._conditions_query = self._conditions_query if not condition else condition
-        query_dict['condition'] = self._conditions_query
-        self._sort_order = self._sort_order if sortorder == self._sort_order else sortorder
-        query_dict['sortorder'] = self._sort_order
-        self._sort_attr = self._sort_attr if sortattr == self._sort_attr else sortattr
-        query_dict['sortattr'] = self._sort_attr
         self._coord1 = self._coord1 if not coord1 else coord1
         self._coord2 = self._coord2 if not coord2 else coord2
         self._radius = self._radius if not radius else radius
-
-        if self._coord1 and self._coord2 and self._radius:
-            raunit = aunits.hourangle if isinstance(self._coord1, string_types) else aunits.rad
-            decunit = aunits.deg if isinstance(self._coord2, string_types) else aunits.rad
-            try:
-                c = SkyCoord(self._coord1, self._coord2, unit=(raunit, decunit))
-            except ValueError:
-                raise Exception("Could not parse circular boundary centre")
-            # use %3A as ':' for the seperator
-            self._coord1 = r'{}\%3A{}\%3A{}'.format(int(c.ra.hms[0]), int(c.ra.hms[1]), c.ra.hms[2])
-            self._coord2 = r'{}\%3A{}\%3A{}'.format(int(c.dec.dms[0]), int(c.dec.dms[1]), c.dec.dms[2])
-
-        query_dict['coord1'] = self._coord1
-        query_dict['coord2'] = self._coord2
-        query_dict['radius'] = self._radius
 
         if psrnames:
             if isinstance(psrnames, string_types):
@@ -449,15 +519,12 @@ class QueryATNF(object):
                             if len(self._psrs) == 0:
                                 print('No requested pulsars were found in the catalogue')
                                 query_output = None
-                                self._npulsars = 0
                                 self._pulsars = None
-                                self.table(None)
                                 return
 
         # actual table or ephemeris values should be in the final <pre> tag
         qoutput = pretags[-1].text
-        query_output = OrderedDict()
-        self._npulsars = 0
+        query_output = []  # list to contain dictionary of pulsars
         self._pulsars = None  # reset to None in case a previous query had already been performed
 
         if not self._get_ephemeris:  # not getting ephemeris values
@@ -469,50 +536,48 @@ class QueryATNF(object):
                     if len(self._psrs) != len(plist):
                         raise Exception('Number of pulsars returned is not the same as the number requested')
 
-                self._npulsars = len(plist)
-
-                for p in self._query_params:
-                    if p in PSR_ALL_PARS:
-                        query_output[p] = np.zeros(self._npulsars, dtype=PSR_ALL[p]['format'])
-
-                        if PSR_ALL[p]['err'] and self._include_errs:
-                            query_output[p+'_ERR'] = np.zeros(self._npulsars, dtype='f8')  # error can only be floats
-
-                        if PSR_ALL[p]['ref'] and self._include_refs:
-                            query_output[p+'_REF'] = np.zeros(self._npulsars, dtype='S1024')
-
-                            if self._adsref:  # also add reference URL for NASA ADS
-                                query_output[p+'_REFURL'] = np.zeros(self._npulsars, dtype='S1024')
-
                 for idx, line in enumerate(plist):
-                    # split the line on whitespace or \xa0 using re (if just using split it ignores \xa0,
-                    # which may be present for, e.g., empty reference fields, and results in the wrong
-                    # number of line entries, also ignore the first entry as it is always in index
+                    query_output.append({})
+
+                    for p in self.query_params:
+                        if p in PSR_ALL_PARS:
+                            query_output[-1][p] = []
+
+                            if PSR_ALL[p]['err'] and self._include_errs:
+                                query_output[-1][p+'_ERR'] = []
+
+                            if PSR_ALL[p]['ref'] and self._include_refs:
+                                query_output[-1][p+'_REF'] = []
+
+                                # also add reference URL for NASA ADS
+                                if self._adsref:
+                                    query_output[-1][p+'_REFURL'] = []
+
+                    # split the line on whitespace or \xa0 using re (if just
+                    # using split it ignores \xa0, which may be present for,
+                    # e.g., empty reference fields, and results in the wrong
+                    # number of line entries, also ignore the first entry as it
+                    # is always in index
                     pvals = [lv.strip() for lv in re.split(r'\s+| \xa0 | \D\xa0', line)][1:]  # strip removes '\xa0' now
 
                     vidx = 0  # index of current value
-                    for p in self._query_params:
-                        if PSR_ALL[p]['format'] == 'f8':
-                            if pvals[vidx] == '*':
-                                query_output[p][idx] = None  # put NaN entry in numpy array
-                            else:
-                                query_output[p][idx] = float(pvals[vidx])
-                        elif PSR_ALL[p]['format'] == 'i4':
-                            if pvals[vidx] == '*':
-                                query_output[p][idx] = None
-                            else:
-                                query_output[p][idx] = int(pvals[vidx])
-                        else:
-                            query_output[p][idx] = pvals[vidx]
+                    for p in self.query_params:
+                        if pvals[vidx] != '*':
+                            try:
+                                query_output[-1][p] = float(pvals[vidx])
+                            except ValueError:
+                                query_output[-1][p] = pvals[vidx]
                         vidx += 1
 
                         # get errors
                         if PSR_ALL[p]['err']:
                             if self._include_errs:
-                                if pvals[vidx] == '*':
-                                    query_output[p+'_ERR'][idx] = None
-                                else:
-                                    query_output[p+'_ERR'][idx] = float(pvals[vidx])
+                                if pvals[vidx] != '*':
+                                    try:
+                                        query_output[-1][p+'_ERR'] = float(pvals[vidx])
+                                    except ValueError:
+                                        raise ValueError("Problem converting error value to float")
+
                             vidx += 1
 
                         # get references
@@ -522,9 +587,13 @@ class QueryATNF(object):
 
                                 if reftag in self._refs:
                                     thisref = self._refs[reftag]
-                                    refstring = '{authorlist}, {year}, {title}, {journal}, {volume}'
-                                    refstring2 = re.sub(r'\s+', ' ', refstring.format(**thisref))  # remove any superfluous whitespace
-                                    query_output[p+'_REF'][idx] = ','.join([a for a in refstring2.split(',') if a.strip()])  # remove any superfluous empty ',' seperated values
+                                    refstring = ('{authorlist}, {year}, '
+                                                 '{title}, {journal}, '
+                                                 '{volume}')
+                                    # remove any superfluous whitespace
+                                    refstring2 = re.sub(r'\s+', ' ',
+                                                   refstring.format(**thisref))
+                                    query_output[-1][p+'_REF'] = ','.join([a for a in refstring2.split(',') if a.strip()])  # remove any superfluous empty ',' seperated values
 
                                     if self._adsref:
                                         if 'ADS URL' not in thisref:  # get ADS reference
@@ -544,7 +613,7 @@ class QueryATNF(object):
                                             if len(article) > 0:
                                                 self._refs[reftag]['ADS URL'] = ADS_URL.format(list(article)[0].bibcode)
 
-                                        query_output[p+'_REFURL'][idx] = thisref['ADS URL']
+                                        query_output[-1][p+'_REFURL'] = thisref['ADS URL']
                                 else:
                                     if reftag != '*':
                                         warnings.warn('Reference tag "{}" not found so omitting reference'.format(reftag), UserWarning)
@@ -557,13 +626,13 @@ class QueryATNF(object):
                 if len(psrephs) != len(self._psrs):
                     raise Exception('Number of pulsar ephemerides returned is not the same as the number requested')
 
-                self._npulsars = len(self._psrs)
-
                 # query output in this case is a dictionary of ephemerides
                 for psr, psreph in zip(self._psrs, psrephs):
-                    query_output[psr] = psreph
+                    query_output.append({})
+                    query_output[-1][psr] = psreph
 
-        self.table = query_output
+        # set the table
+        _ = self.table(query_output, self.query_params)
 
     def as_array(self):
         """
@@ -571,7 +640,10 @@ class QueryATNF(object):
             :class:`~numpy.ndarray`: the output table as an array.
         """
 
-        return self.table.as_array()
+        return self.as_table.as_array()
+
+    def __len__(self):
+        return len(self.as_pandas)
 
     @property
     def num_pulsars(self):
@@ -579,65 +651,330 @@ class QueryATNF(object):
         Return the number of pulsars found in with query
         """
 
-        return self._npulsars
+        return len(self)
 
     @property
-    def table(self):
-        """
-        Returns:
-             :class:`astropy.table.Table`: a table of the pulsar data returned by the query.
-        """
+    def as_table(self):
+        # convert to astropy table
+        thistable = Table.from_pandas(self.as_pandas)
 
-        return self.__table
+        if (self._coord is not None and 'RAJ' in thistable.colnames
+                and 'DECJ' in thistable.colnames):
+            # apply sky coordinate constraint
+            catalog = SkyCoord(thistable['RAJ'], thistable['DECJ'],
+                               unit=(aunits.hourangle, aunits.deg))
 
-    @table.setter
-    def table(self, query_params):
-        from astropy.table import Table
+            # get seperations
+            d2d = self._coord.separation(catalog)  
 
-        # make a table from the dictionary
-        psrtable = Table(data=query_params)
+            # find seperations within required radius
+            catalogmsk = d2d < self._radius*aunits.deg
 
-        # add units to columns
-        for p in self._query_params:
-            if PSR_ALL[p]['units']:
-                psrtable.columns[p].unit = PSR_ALL[p]['units']
+            thistable = thistable[catalogmsk]
 
-                if PSR_ALL[p]['err'] and self._include_errs:
-                    psrtable.columns[p+'_ERR'].unit = PSR_ALL[p]['units']
+        # add units if known
+        for key in PSR_ALL_PARS:
+            if key in thistable.colnames:
+                if PSR_ALL[key]['units']:
+                    thistable.columns[key].unit = PSR_ALL[key]['units']
+
+                    if (PSR_ALL[key]['err'] and 
+                            key+'_ERR' in thistable.colnames):
+                        thistable.columns[key+'_ERR'].unit = PSR_ALL[key]['units']
 
         # add catalogue version to metadata
-        psrtable.meta['version'] = self.get_version
-        psrtable.meta['ATNF Pulsar Catalogue'] = ATNF_BASE_URL
+        thistable.meta['version'] = self.get_version
+        thistable.meta['ATNF Pulsar Catalogue'] = ATNF_BASE_URL
 
-        self.__table = psrtable
+        return thistable
+
+    @property
+    def empty(self):
+        """
+        Return True if the :class:`pandas.DataFrame` containing the catalogue
+        is empty.
+        """
+
+        return self.__dataframe.empty
+
+    def table(self, query_list=None, query_params=None, usecondition=True,
+              useseparation=True):
+        """
+        Return an :class:`astropy.table.Table` from the query.
+
+        Args:
+            query_list (list): a list of dictionaries of pulsar parameters
+                for each pulsar as returned by a query. These are converted
+                and set as the query table. If this is None and a table already
+                exists then that table will be returned.
+            query_params (str, list): a parameter, or list of parameters, to
+                return from the query. If this is None then all parameters are
+                returned.
+            usecondition (bool, str): If True then the condition parsed to the
+                :class:`psrqpy.QueryATNF`: class will be used when returning
+                the table. If False no condition will be applied to the
+                returned table. If a string is given then that will be the
+                assumed condition string.
+            useseparation (bool): If True and a set of sky coordinates and
+                radius around which to return pulsars was set in the
+                :class:`psrqpy.QueryATNF`: class then only pulsars within the
+                given radius of the sky position will be returned. Otherwise
+                all pulsars will be returned.
+
+        Returns:
+             :class:`astropy.table.Table`: a table of the pulsar data returned
+                 by the query.
+        """
+
+        if query_list is not None:
+            if not isinstance(query_list, list):
+                raise TypeError("Query list is not a list!")
+
+            # add RA and DEC in degs and JNAME/BNAME if necessary
+            for i, psr in enumerate(list(query_list)):
+                # add RA and DEC in degs
+                if np.all([rd in psr.keys() for rd in ['RAJ', 'DECJ']]):
+                    if not np.all([rd in psr.keys() for rd in ['RAJD', 'DECJD']]):
+                        coord = SkyCoord(psr['RAJ'], psr['DECJ'],
+                                         unit=(aunits.hourangle, aunits.deg))
+                        query_list[i]['RAJD'] = coord.ra.deg    # right ascension in degrees
+                        query_list[i]['DECJD'] = coord.dec.deg  # declination in degrees
+
+                # add 'JNAME', 'BNAME' and 'NAME'
+                if 'PSRJ' in psr.keys():
+                    if 'JNAME' not in psr.keys():
+                        query_list[i]['JNAME'] = psr['PSRJ']
+                    
+                        if 'NAME' not in psr.keys():
+                            query_list[i]['NAME'] = psr['PSRJ']
+
+                if 'PSRB' in psr.keys():
+                    query_list[i]['BNAME'] = psr['PSRB']
+
+                    if 'NAME' not in query_list.keys():
+                        query_list[i]['NAME'] = psr['PSRB']
+
+            # convert query list to a pandas DataFrame
+            try:
+                df = DataFrame(query_list)
+            except RuntimeError:
+                raise RuntimeError("Could not convert list to DataFrame")
+
+        if not self.empty:  # convert to Table if DataFrame is not empty
+            if query_params is None:
+                query_params = self.columns
+            elif isinstance(query_params, string_types):
+                query_params = [query_params]
+            elif not isinstance(query_params, list):
+                raise TypeError("query_params must be a string or list.")
+
+            # convert to numpy array
+            query_params = np.array(query_params)
+
+            # check parameters are in table
+            intab = np.array([par in self.columns for par in query_params])
+
+            if not np.all(intab):
+                warnings.warn("Not all request parameters '{}' were in the "
+                              "table".format(query_params[~intab].tolist()))
+
+            if not np.any(intab):
+                warnings.warn("No requested parameters were in the table")
+
+            # return given the condition
+            expression = None
+            if usecondition == True and isinstance(self._condition, string_types):
+                expression = self._condition
+            elif isinstance(usecondition, string_types):
+                expression = usecondition
+
+            # sort table
+            dftable = self.sort(self._sort_attr, self._sort_order)
+            if expression is not None:
+                # apply conditions
+                dftable = condition(dftable, expression, self._exactmatch)
+            
+            # return only requested parameters and convert to table
+            table = Table.from_pandas(dftable[query_params[intab].tolist()])
+
+            # add units if known
+            for key in PSR_ALL_PARS:
+                if key in table.colnames:
+                    if PSR_ALL[key]['units']:
+                        table.columns[key].unit = PSR_ALL[key]['units']
+
+                    if PSR_ALL[key]['err'] and key+'_ERR' in table.colnames:
+                        table.columns[key+'_ERR'].unit = PSR_ALL[key]['units']
+
+            # add catalogue version to metadata
+            table.meta['version'] = self.get_version
+            table.meta['ATNF Pulsar Catalogue'] = ATNF_BASE_URL
+
+            if (useseparation and self._coord is not None and 'RAJ' in
+                    table.colnames and 'DECJ' in table.colnames):
+                # apply sky coordinate constraint
+                catalog = SkyCoord(table['RAJ'], table['DECJ'],
+                                   unit=(aunits.hourangle, aunits.deg))
+
+                # get seperations
+                d2d = self._coord.separation(catalog)  
+
+                # find seperations within required radius
+                catalogmsk = d2d < self._radius*aunits.deg
+
+                table = table[catalogmsk]
+
+            return table
+        else:
+            # return an empty table
+            return Table()
+
+    @property
+    def condition(self):
+        """
+        Return the string of logical conditions applied to the pulsars.
+        """
+
+        return self._condition
+
+    @condition.setter
+    def condition(self, expression):
+        """
+        Set the logical condition string to apply to queried pulsars.
+
+        Args:
+            expression (str): A string containing logical expressions to apply
+                to queried pulsars.
+        """
+
+        if not isinstance(expression, string_types) and expression is not None:
+            raise TypeError("Condition must be a string")
+
+        self._condition = expression
+
+    @property
+    def exactmatch(self):
+        """
+        Return the boolean stating whether certain conditions should apply an
+        exact match.
+        """
+
+        return self._exactmatch
+
+    @exactmatch.setter
+    def exactmatch(self, match):
+        """
+        Set whether to apply an exact match criterion for certain conditions.
+
+        Args:
+            match (bool): A boolean stating whether or not to apply an exact
+                match.
+        """
+
+        if not isinstance(match, bool):
+            if isinstance(match, int):
+                if match != 0 and match != 1:
+                    raise TypeError("Exact match requires boolean")
+            else:
+                raise TypeError("Exact match requires boolean")
+
+        self._exactmatch = bool(match)
+
+    @property
+    def query_params(self):
+        """
+        Return the parameters required for the query.
+        """
+
+        return self._query_params
+
+    @query_params.setter
+    def query_params(self, params):
+        """
+        Set the parameters with which to query from the catalogue. If
+        submitting the query via the webform then `JNAME` will always be
+        included in the query.
+
+        Args:
+            params (list, str): A list of parameter names to query from the
+               catalogue.
+        """
+
+        self._query_params = None
+
+        if isinstance(params, list):
+            if len(params) == 0 and self._webform:
+                print('No query parameters have been specified, so only '
+                      '"JNAME" will be queried')
+
+            for p in params:
+                if not isinstance(p, string_types):
+                    raise Exception("Non-string value '{}' found in params "
+                                    "list".format(p))
+
+            self._query_params = [p.upper() for p in params]
+        else:
+            if isinstance(params, string_types):
+                # make sure parameter is all upper case
+                self._query_params = [params.upper()]
+            elif params is not None:
+                # if getting ephemerides then param can be None
+                if self._psrs and self._get_ephemeris:
+                    self._query_params = None
+                else:
+                    raise Exception("'params' must be a list or string")
+
+        if self._webform:
+            # if querying via the webform make sure JNAME is included
+            self._query_params.append('JNAME')
+
+        # remove any duplicate
+        if self._query_params is not None:
+            self._query_params = list(set(self._query_params))
+ 
+            for p in list(self._query_params):
+                if p not in PSR_ALL_PARS:
+                    warnings.warn("Parameter '{}' not recognised.".format(p),
+                                  UserWarning)
+
+    @property
+    def catalogue(self):
+        """
+        Return a copy of the entire stored :class:`~pandas.DataFrame` catalogue
+        without any sorting or conditions applied.  
+        """
+
+        return self.copy()
+
+    @property
+    def as_pandas(self):
+        """
+        Return the query table as a :class:`pandas.DataFrame`.
+        """
+
+        # get only required parameters and sort
+        dftable = self.sort(self._sort_attr, self._sort_order)
+
+        if self._condition is not None:
+            # apply condition
+            dftable = condition(dftable, self._condition, self._exactmatch) 
+
+        # return only the required query parameters
+        if isinstance(self.query_params, list):
+            return dftable[self.query_params]
+        else:
+            return dftable
 
     def get_pulsars(self):
         """
         Returns:
             :class:`psrqpy.pulsar.Pulsars`: the queried pulsars returned as a
             :class:`~psrqpy.pulsar.Pulsars` object, which is a dictionary of
-            :class:`~psrqpy.pulsar.Pulsar` objects. If ``JNAME`` or ``NAME`` was not in the
-            original query, it will be performed again, so that a name is present, which is
-            required for a :class:`~psrqpy.pulsar.Pulsar` object
+            :class:`~psrqpy.pulsar.Pulsar` objects.
         """
 
         if not self._pulsars:
             from .pulsar import Pulsar, Pulsars
-
-            # check if JNAME or NAME was queried
-            if 'JNAME' not in self._query_params and 'NAME' not in self._query_params:
-                self._query_params.append('JNAME')  # add JNAME parameter
-
-                # re-do query
-                self.generate_query()
-
-                # parse the query with BeautifulSoup into a dictionary
-                self.parse_query()
-                nameattr = 'JNAME'
-            elif 'JNAME' in self._query_params:
-                nameattr = 'JNAME'
-            else:
-                nameattr = 'NAME'
 
             self._pulsars = Pulsars()
 
@@ -666,76 +1003,38 @@ class QueryATNF(object):
 
         return self._atnf_version
 
-    def parse_conditions(self, condition, psrtype=None, assoc=None, bincomp=None, exactmatch=False):
+    def parse_conditions(self, psrtype=None, assoc=None, bincomp=None):
         """
         Parse a string of `conditions
-        <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#condition>`_, i.e.,
-        logical statements with which to apply to a catalogue query, e.g.,
-        ``condition = 'f0 > 2.5 && assoc(GC)'``, so that they are in the format required for the
-        query URL.
+        <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#condition>`_,
+        i.e., logical statements with which to apply to a catalogue query,
+        e.g., ``condition = 'f0 > 2.5 && assoc(GC)'``, so that they are in the
+        format required for the query URL.
 
         Args:
-            condition (str): a string of `conditional <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#condition>`_
-                statements
-            psrtype (list, str): a list of strings, or single string, of conditions on the
-                `type <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#psr_types>`_ of
-                pulsars to return (logical AND will be used for any listed types)
-            assoc (list, str): a list of strings, or single string, of conditions on the
-                associations of pulsars to return (logical AND will be used for any listed
-                associations)
-            bincomp (list, str): a list of strings, or single string, of conditions on the
+            psrtype (list, str): a list of strings, or single string, of
+                conditions on the
+                `type <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#psr_types>`_
+                of pulsars to return (logical AND will be used for any listed
+                types)
+            assoc (list, str): a list of strings, or single string, of
+                conditions on the associations of pulsars to return (logical
+                AND will be used for any listed associations)
+            bincomp (list, str): a list of strings, or single string, of
+                conditions on the
                 `binary companion <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=normal#bincomp_type>`_
-                types of pulsars to return (logical AND will be used for any listed associations)
-            exactmatch (bool): a boolean stating whether assciations and types given as the
-                condition should be an exact match
+                types of pulsars to return (logical AND will be used for any
+                listed associations)
+            exactmatch (bool): a boolean stating whether assciations and types
+                given as the condition should be an exact match
 
         Returns:
-            str: a string with the format required for use in :attr:`~psrqpy.config.QUERY_URL`
+            str: a string with the format required for use in
+                :attr:`~psrqpy.config.QUERY_URL`
 
         """
 
-        if not condition:
-            conditionparse = ''
-        else:
-            if not isinstance(condition, string_types):
-                warnings.warn('Condition "{}" must be a string. No condition being set'.format(condition), UserWarning)
-                return ''
-
-            # split condition on >, <, &&, ||, ==, <=, >=, !=, (, ), and whitespace
-            splitvals = r'(&&)|(\|\|)|(>=)|>|(<=)|<|\(|\)|(==)|(!=)|!'  # perform splitting by substitution and then splitting on whitespace
-            condvals = re.sub(splitvals, ' ', condition).split()
-
-            # check values are numbers, parameter, names, assocition names, etc
-            for cv in condvals:
-                if cv.upper() not in PSR_ALL_PARS + PSR_TYPES + PSR_BINARY_TYPE + PSR_ASSOC_TYPE:
-                    # check if it's a number
-                    try:
-                        float(cv)
-                    except ValueError:
-                        warnings.warn('Unknown value "{}" in condition string "{}". No condition being set'.format(cv, condition), UserWarning)
-                        return ''
-
-            # remove spaces (turn into '+'), and convert values in condition
-            conditionparse = condition.strip()  # string preceeding and trailing whitespace
-            conditionparse = re.sub(r'\s+', '+', conditionparse)  # change whitespace to '+'
-
-            # substitute && for %26%26
-            conditionparse = re.sub(r'(&&)', '%26%26', conditionparse)
-
-            # substitute || for %7C%7C
-            conditionparse = re.sub(r'(\|\|)', '%7C%7C', conditionparse)
-
-            # substitute '==' for %3D%3D
-            conditionparse = re.sub(r'(==)', '%3D%3D', conditionparse)
-
-            # substitute '!=' for %21%3D
-            conditionparse = re.sub(r'(!=)', '%21%3D', conditionparse)
-
-            # substitute '>=' for >%3D
-            conditionparse = re.sub(r'(>=)', '>%3D', conditionparse)
-
-            # substitute '<=' for <%3D
-            conditionparse = re.sub(r'(<=)', '>%3D', conditionparse)
+        conditionparse = ''
 
         # add on any extra given pulsar types
         if psrtype is not None:
@@ -758,10 +1057,10 @@ class QueryATNF(object):
                     warnings.warn("Pulsar type '{}' is not recognised, no type will be required".format(p))
                     self._query_psr_types.remove(p)
                 else:
-                    if not conditionparse:
+                    if len(conditionparse) == 0:
                         conditionparse = 'type({})'.format(p.upper())
                     else:
-                        conditionparse += '+%26%26+type({})'.format(p.upper())
+                        conditionparse += ' && type({})'.format(p.upper())
 
         # add on any extra given associations
         if assoc is not None:
@@ -784,10 +1083,10 @@ class QueryATNF(object):
                     warnings.warn("Pulsar association '{}' is not recognised, no type will be required".format(p))
                     self._query_assocs.remove(p)
                 else:
-                    if not conditionparse:
+                    if len(conditionparse) == 0:
                         conditionparse = 'assoc({})'.format(p.upper())
                     else:
-                        conditionparse += '+%26%26+assoc({})'.format(p.upper())
+                        conditionparse += ' && assoc({})'.format(p.upper())
 
         # add on any extra given binary companion types
         if bincomp is not None:
@@ -810,13 +1109,10 @@ class QueryATNF(object):
                     warnings.warn("Pulsar binary companion '{}' is not recognised, no type will be required".format(p))
                     self._query_bincomps.remove(p)
                 else:
-                    if not conditionparse:
+                    if len(conditionparse) == 0:
                         conditionparse = 'bincomp({})'.format(p.upper())
                     else:
-                        conditionparse += '+%26%26+bincomp({})'.format(p.upper())
-
-        if exactmatch and conditionparse:
-            conditionparse += '&exact_match=match'
+                        conditionparse += ' && bincomp({})'.format(p.upper())
 
         return conditionparse
 
@@ -826,7 +1122,7 @@ class QueryATNF(object):
             int: :func:`len` method returns the number of pulsars
         """
 
-        return self._npulsars
+        return len(self.as_table)
 
     def __str__(self):
         """
@@ -834,7 +1130,7 @@ class QueryATNF(object):
             str: :func:`str` method returns the str method of an :class:`astropy.table.Table`.
         """
 
-        return str(self.table)
+        return str(self.as_table)
 
     def __repr__(self):
         """
@@ -842,52 +1138,60 @@ class QueryATNF(object):
             str: :func:`repr` method returns the repr method of an :class:`astropy.table.Table`.
         """
 
-        return repr(self.table)
+        return repr(self.as_table)
 
-    def ppdot(self, intrinsicpdot=False, excludeGCs=False, showtypes=[], showGCs=False,
-              showSNRs=False, markertypes={}, deathline=True, deathmodel='Ip', filldeath=True,
-              filldeathtype={}, showtau=True, brakingidx=3, tau=None, showB=True, Bfield=None,
-              pdotlims=None, periodlims=None, rcparams={}):
+    def ppdot(self, intrinsicpdot=False, excludeGCs=False, showtypes=[],
+              showGCs=False, showSNRs=False, markertypes={}, deathline=True,
+              deathmodel='Ip', filldeath=True, filldeathtype={}, showtau=True,
+              brakingidx=3, tau=None, showB=True, Bfield=None, pdotlims=None,
+              periodlims=None, usecondition=True, rcparams={}):
         """
         Draw a lovely period vs period derivative diagram.
 
         Args:
-            intrinsicpdot (bool): use the intrinsic period derivative corrected for the
-                `Shklovskii effect <https://en.wikibooks.org/wiki/Pulsars_and_neutron_stars/Pulsar_properties#Pulse_period>`_
+            intrinsicpdot (bool): use the intrinsic period derivative corrected
+                for the `Shklovskii effect <https://en.wikibooks.org/wiki/Pulsars_and_neutron_stars/Pulsar_properties#Pulse_period>`_
                 rather than the observed value. Defaults to False.
-            excludeGCs (bool): exclude globular cluster pulsars as their period derivatives can be
-                contaminated by intra-cluster accelerations. Defaults to False.
-            showtypes (list, str): a list of pulsar types to highlight with markers in the plot.
-                These can contain any of the following: ``BINARY``, ``HE``, ``NRAD``, ``RRAT``,
-                ``XINS``, ``AXP`` or ``SGR``, or ``ALL`` to show all types. Default to showing no
+            excludeGCs (bool): exclude globular cluster pulsars as their period
+                derivatives can be contaminated by intra-cluster accelerations.
+                Defaults to False.
+            showtypes (list, str): a list of pulsar types to highlight with
+                markers in the plot. These can contain any of the following:
+                ``BINARY``, ``HE``, ``NRAD``, ``RRAT``, ``XINS``, ``AXP`` or
+                ``SGR``, or ``ALL`` to show all types. Default to showing no
                 types.
-            showGCs (bool): show markers to denote the pulsars in globular clusters. Defaults to
-                False.
-            showSNRs (bool): show markers to denote the pulsars with supernova remnants associated
-                with them. Defaults to False.
-            markertypes (dict): a dictionary of marker styles and colors keyed to the pulsar types
-                above
+            showGCs (bool): show markers to denote the pulsars in globular
+                clusters. Defaults to False.
+            showSNRs (bool): show markers to denote the pulsars with supernova
+                remnants associated with them. Defaults to False.
+            markertypes (dict): a dictionary of marker styles and colors keyed
+                to the pulsar types above
             deathline (bool): draw the pulsar death line. Defaults to True.
-            deathmodel (str): the type of death line to draw based on the models in
-                :func:`psrqpy.utils.death_line`. Defaults to ``'Ip'``.
-            filldeath (bool): set whether to fill the pulsar graveyard under the death line.
-                Defaults to True.
-            filldeathtype (dict): a dictionary of keyword arguments for the fill style of the
-                pulsar graveyard.
-            showtau (bool): show lines for a selection of characteritic ages. Defaults to True,
-                and shows lines for :math:`10^5` through to :math:`10^9` yrs with steps in powers
-                of 10.
-            brakingidx (int): a braking index to use for the calculation of the characteristic age
-                lines. Defaults to 3 for magnetic dipole radiation.
+            deathmodel (str): the type of death line to draw based on the
+                models in :func:`psrqpy.utils.death_line`. Defaults to
+                ``'Ip'``.
+            filldeath (bool): set whether to fill the pulsar graveyard under
+                the death line. Defaults to True.
+            filldeathtype (dict): a dictionary of keyword arguments for the
+                fill style of the pulsar graveyard.
+            showtau (bool): show lines for a selection of characteritic ages.
+                Defaults to True, and shows lines for :math:`10^5` through to
+                :math:`10^9` yrs with steps in powers of 10.
+            brakingidx (int): a braking index to use for the calculation of the
+                characteristic age lines. Defaults to 3 for magnetic dipole
+                radiation.
             tau (list): a list of characteristic ages to show on the plot.
-            showB (bool): show lines of constant magnetic field strength. Defaults to True, and
-                shows lines for :math:`10^{10}` through to :math:`10^{14}` gauss with steps in
-                powers of 10.
+            showB (bool): show lines of constant magnetic field strength.
+                Defaults to True, and shows lines for :math:`10^{10}` through
+                to :math:`10^{14}` gauss with steps in powers of 10.
             Bfield (list): a list of magnetic field strengths to plot.
             periodlims (array_like): the [min, max] period limits to plot with
             pdotlims (array_like): the [min, max] pdot limits to plot with
-            rcparams (dict): a dictionary of :py:obj:`matplotlib.rcParams` setup parameters for the
-                plot.
+            usecondition (bool): if True create the P-Pdot diagram only with
+                pulsars that conform the the original query condition values.
+                Defaults to True.
+            rcparams (dict): a dictionary of :py:obj:`matplotlib.rcParams`
+                setup parameters for the plot.
 
         Returns:
             :class:`matplotlib.figure.Figure`: the figure object
@@ -897,18 +1201,22 @@ class QueryATNF(object):
             import matplotlib as mpl
             from matplotlib import pyplot as pl
         except ImportError:
-            raise Exception('Cannot produce P-Pdot plot as Matplotlib is not available')
+            raise Exception('Cannot produce P-Pdot plot as Matplotlib is not '
+                            'available')
 
-        # check the we have periods and period derivatives
-        nparams = len(self._query_params)
-        if 'P0' not in self._query_params:
-            self._query_params.append('P0')
-        if 'P1' not in self._query_params:
-            self._query_params.append('P1')
+        from .utils import death_line, label_line
 
-        # check if we want to use intrinsic period derivatives
-        if intrinsicpdot and 'P1_I' not in self._query_params:
-            self._query_params.append('P1_I')
+        if self._webform:
+            raise Exception("Please repeat query with 'webform=False'")
+
+        # get table containing all required parameters
+        table = self.table(condition=usecondition,
+                           query_params=['P0', 'P1', 'P1_I', 'ASSOC',
+                                         'BINARY', 'TYPE'])
+
+        if len(table) == 0:
+            print("No pulsars found, so no P-Pdot plot has been produced")
+            return None
 
         if isinstance(showtypes, string_types):
             nshowtypes = [showtypes]
@@ -918,33 +1226,15 @@ class QueryATNF(object):
         for stype in list(nshowtypes):
             if 'ALL' == stype.upper():
                 nshowtypes = list(PSR_TYPES)
-                del nshowtypes[nshowtypes.index('RADIO')]  # remove radio as none are returned as this
+                # remove radio as none are returned as this
+                del nshowtypes[nshowtypes.index('RADIO')]
                 break
             elif stype.upper() not in list(PSR_TYPES):
-                warnings.warn('"TYPE" {} is not recognised, so will not be included'.format(stype))
+                warnings.warn('"TYPE" {} is not recognised, so will not be '
+                              'included'.format(stype))
                 del nshowtypes[nshowtypes.index(stype)]
             if 'SGR' == stype.upper():  # synonym for AXP
                 nshowtypes[nshowtypes.index(stype)] = 'AXP'
-
-        if nshowtypes and 'TYPE' not in self._query_params:
-            self._query_params.append('TYPE')
-
-        if 'BINARY' in nshowtypes and 'BINARY' not in self._query_params:
-            self._query_params.append('BINARY')
-
-        if showGCs or showSNRs:
-            if 'ASSOC' not in self._query_params:
-                self._query_params.append('ASSOC')
-
-        # redo query if required
-        if len(self._query_params) != nparams:
-            # perform query
-            self.generate_query()
-            self.parse_query()
-
-        if not self.num_pulsars:
-            print("No pulsars found, so no P-Pdot plot has been produced")
-            return None
 
         # set plot parameters
         rcparams['figure.figsize'] = rcparams['figure.figsize'] if 'figure.figsize' in rcparams else (9, 9.5)
@@ -962,47 +1252,46 @@ class QueryATNF(object):
 
         fig, ax = pl.subplots()
 
-        # get astropy table of parameters
-        t = self.table
-
         # extract periods and period derivatives
-        periods = t['P0']
-        pdots = t['P1']
+        periods = table['P0']
+        pdots = table['P1']
         if intrinsicpdot:  # use instrinsic period derivatives if requested
-            ipdotidx = np.isfinite(t['P1_I'])
-            pdots[ipdotidx] = t['P1_I'][ipdotidx]
+            ipdotidx = np.isfinite(table['P1_I'])
+            pdots[ipdotidx] = table['P1_I'][ipdotidx]
 
         # get only finite values
         pidx = (np.isfinite(periods)) & (np.isfinite(pdots))
         periods = periods[pidx]
         pdots = pdots[pidx]
 
-        if 'ASSOC' in self._query_params:
-            assocs = t['ASSOC'][pidx]     # associations
-        if 'TYPE' in self._query_params:
-            types = t['TYPE'][pidx]       # pulsar types
+        if 'ASSOC' in self.query_params:
+            assocs = table['ASSOC'][pidx]     # associations
+        if 'TYPE' in self.query_params:
+            types = table['TYPE'][pidx]       # pulsar types
         if 'BINARY' in nshowtypes:
-            binaries = t['BINARY'][pidx]  # binary pulsars
+            binaries = table['BINARY'][pidx]  # binary pulsars
 
         # now get only positive pdot values
         pidx = pdots > 0.
         periods = periods[pidx]
         pdots = pdots[pidx]
-        if 'ASSOC' in self._query_params:
+        if 'ASSOC' in self.query_params:
             assocs = assocs[pidx]      # associations
-        if 'TYPE' in self._query_params:
+        if 'TYPE' in self.query_params:
             types = types[pidx]        # pulsar types
         if 'BINARY' in nshowtypes:
             binaries = binaries[pidx]  # binary pulsars
 
-        # check whether to exclude globular cluster pulsars that could have contaminated spin-down value
+        # check whether to exclude globular cluster pulsars that could have
+        # contaminated spin-down value
         if excludeGCs:
-            nongcidxs = np.flatnonzero(np.char.find(assocs, 'GC:') == -1)  # use '!=' to find GC indexes
+            # use '!=' to find GC indexes
+            nongcidxs = np.flatnonzero(np.char.find(assocs, 'GC:') == -1)
             periods = periods[nongcidxs]
             pdots = pdots[nongcidxs]
-            if 'ASSOC' in self._query_params:
+            if 'ASSOC' in self.query_params:
                 assocs = assocs[nongcidxs]
-            if 'TYPE' in self._query_params:
+            if 'TYPE' in self.query_params:
                 types = types[nongcidxs]
             if 'BINARY' in nshowtypes:
                 binaries = binaries[nongcidxs]
