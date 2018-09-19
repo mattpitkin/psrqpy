@@ -808,6 +808,10 @@ class QueryATNF(object):
     def set_derived(self):
         """
         Compute any derived parameters and add them to the class.
+
+        These calculations are based on those in the `readCatalogue.c` and
+        `defineParameters.c` files from the `PSRCAT`
+        `code <http://www.atnf.csiro.au/research/pulsar/psrcat/download.html>`_.
         """
 
         self.define_dist()      # define the DIST and DIST1 parameters
@@ -831,7 +835,7 @@ class QueryATNF(object):
         self.derived_bsurf_i()  # intrinsic Bsurf
         self.derived_edot_i()   # intrinsic luminosity
 
-    self define_dist(self):
+    def define_dist(self):
         """
         Set the `DIST` and `DIST1` parameters using other values.
         """
@@ -864,8 +868,14 @@ class QueryATNF(object):
         pxsigma = np.zeros(len(PX))
         pxsigma[idxpx] = np.abs(PX[idxpx])/PXERR[idxpx]
 
+        # use DIST_A if available
+        idxdista = np.isfinite(DIST_A)
+
+        DIST[idxdista] = DIST_A[idxdista]
+        DIST1[idxdista] = DIST_A[idxdista]
+
         # indexes of parallaxes with greater than 3 sigma significance
-        idxpxgt3 = pxsigma > 3.
+        idxpxgt3 = (pxsigma > 3.) & ~np.isfinite(DIST_A)
 
         DIST[idxpxgt3] = (ONEAU/ONEPC)*(60.*60.*180)/(PX[idxpxgt3]*np.pi)
         DIST1[idxpxgt3] = (ONEAU/ONEPC)*(60.*60.*180)/(PX[idxpxgt3]*np.pi) 
@@ -873,19 +883,26 @@ class QueryATNF(object):
         # if dist_amn and dist_amx exist and dist_dm lies within boundary
         # then use dist_dm else use the closest limit to dist_dm
         # if dist_dm is not defined then use (dism_amn + dist_amx)/2
-        DISTP = self.__dataframe['DIST_DM'].copy()
-        DIST1P = self.__dataframe['DIST_DM1'].copy()
+        idxdist = np.isfinite(DIST) & ~idxpxgt3
+        idxdist1 = np.isfinite(DIST1) & ~idxpxgt3
 
-        #idxdist = np.isfinite(DISTP) & ~idxpxgt3
-        #idxdist1 = np.isfinite(DIST1P) & ~idxpxgt3
+        idxa = ~((DIST <= DIST_AMX) & (DIST >= DIST_AMN)) 
+        idxa1 = ~((DIST1 <= DIST_AMX) & (DIST1 >= DIST_AMN))
 
-        #idxv3 = (DIST_AMX[idxdist] <= DIST_A[idxdist]) & (DIST_AMX[idxdist] >=  DIST_AMN[idxdist])
-        #DIST[idxv3] = DIST_AMX[idxdist]
+        DIST[idxa & idxdist & (DIST >= DIST_AMX)] = DIST_AMX[idxa & idxdist & (DIST >= DIST_AMX)]
+        DIST1[idxa1 & idxdist1 & (DIST1 >= DIST_AMX)] = DIST_AMX[idxa1 & idxdist1 & (DIST1 >= DIST_AMX)]
 
-        #idxv3_1 = (DIST_AMX[idxdist1] <= DIST_A[idxdist1]) & (DIST_AMX[idxdist1] >=  DIST_AMN[idxdist1])
-        #DIST[idxv3_1] = DIST_AMX[idxdist_1]
+        DIST[idxa & idxdist & (DIST < DIST_AMX)] = DIST_AMN[idxa & idxdist & (DIST < DIST_AMX)]
+        DIST1[idxa1 & idxdist1 & (DIST1 < DIST_AMX)] = DIST_AMN[idxa1 & idxdist1 & (DIST1 < DIST_AMX)]
 
-        #idxv3 = 
+        idxdist = ~np.isfinite(DIST) & ~idxpxgt3 & np.isfinite(DIST_AMN) & np.isfinite(DIST_AMX)
+        idxdist1 = ~np.isfinite(DIST) & ~idxpxgt3 & np.isfinite(DIST_AMN) & np.isfinite(DIST_AMX)
+
+        DIST[idxdist] = 0.5*(DIST_AMN[idxdist] + DIST_AMX[idxdist])
+        DIST1[idxdist1] = 0.5*(DIST_AMN[idxdist1] + DIST_AMX[idxdist1])
+
+        self.__dataframe['DIST'] = DIST
+        self.__dataframe['DIST1'] = DIST1 
 
     def derived_p0(self):
         """
