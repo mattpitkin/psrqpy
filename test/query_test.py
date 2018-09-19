@@ -9,7 +9,7 @@ from psrqpy.config import *
 
 # query all parameters for one pulsar (the Crab) one at a time via the webform
 query = QueryATNF(psrs=['J0534+2200'], include_refs=True)
-t = query.as_table
+t = query.table
 
 for i, p in enumerate(PSR_ALL_PARS):
     print('Parameter {}'.format(p))

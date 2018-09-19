@@ -353,11 +353,11 @@ class QueryATNF(object):
                                                 ascending=sortorder)
 
     def __getitem__(self, key):
-        if key not in self.as_pandas.keys():
+        if key not in self.pandas.columns:
             raise KeyError("Key '{}' not in queried results".format(key))
 
         # return astropy table column
-        return self.as_table[key]
+        return self.table[key]
 
     def save(self, fname):
         """
@@ -401,10 +401,10 @@ class QueryATNF(object):
             :class:`~numpy.ndarray`: the output table as an array.
         """
 
-        return self.as_table.as_array()
+        return self.table.as_array()
 
     def __len__(self):
-        return len(self.as_pandas)
+        return len(self.pandas)
 
     @property
     def psrs(self):
@@ -449,9 +449,9 @@ class QueryATNF(object):
         return len(self)
 
     @property
-    def as_table(self):
+    def table(self):
         # convert to astropy table
-        thistable = Table.from_pandas(self.as_pandas)
+        thistable = Table.from_pandas(self.pandas)
 
         if (self._coord is not None and 'RAJ' in thistable.colnames
                 and 'DECJ' in thistable.colnames):
@@ -492,16 +492,13 @@ class QueryATNF(object):
 
         return self.__dataframe.empty
 
-    def table(self, query_list=None, query_params=None, usecondition=True,
-              useseparation=True):
+    def query_table(self, query_params=None, usecondition=True,
+                    useseparation=True):
         """
-        Return an :class:`astropy.table.Table` from the query.
+        Return an :class:`astropy.table.Table` from the query with new
+        parameters or conditions if given.
 
         Args:
-            query_list (list): a list of dictionaries of pulsar parameters
-                for each pulsar as returned by a query. These are converted
-                and set as the query table. If this is None and a table already
-                exists then that table will be returned.
             query_params (str, list): a parameter, or list of parameters, to
                 return from the query. If this is None then all parameters are
                 returned.
@@ -520,45 +517,6 @@ class QueryATNF(object):
              :class:`astropy.table.Table`: a table of the pulsar data returned
                  by the query.
         """
-
-        if query_list is not None:
-            if not isinstance(query_list, list):
-                raise TypeError("Query list is not a list!")
-
-            # add RA and DEC in degs and JNAME/BNAME if necessary
-            for i, psr in enumerate(list(query_list)):
-                # add RA and DEC in degs
-                if np.all([rd in psr.keys() for rd in ['RAJ', 'DECJ']]):
-                    if not np.all([rd in psr.keys() for rd in ['RAJD', 'DECJD']]):
-                        coord = SkyCoord(psr['RAJ'], psr['DECJ'],
-                                         unit=(aunits.hourangle, aunits.deg))
-                        query_list[i]['RAJD'] = coord.ra.deg    # right ascension in degrees
-                        query_list[i]['DECJD'] = coord.dec.deg  # declination in degrees
-
-                # add 'JNAME', 'BNAME' and 'NAME'
-                if 'PSRJ' in psr.keys() and 'JNAME' not in psr.keys():
-                    query_list[i]['JNAME'] = psr['PSRJ']
-                    
-                    if 'NAME' not in psr.keys():
-                        query_list[i]['NAME'] = psr['PSRJ']
-                elif 'PSRJ' not in psr.keys() and 'JNAME' in psr.keys():
-                    query_list[i]['PSRJ'] = psr['JNAME']
-
-                    if 'NAME' not in psr.keys():
-                        query_list[i]['NAME'] = psr['JNAME']
-
-                if 'PSRB' in psr.keys() and 'NAME' not in psr.keys():
-                    query_list[i]['NAME'] = psr['PSRB']
-                elif 'PSRB' not in psr.keys() and 'NAME' in psr.keys():
-                    # set Besselian pulsar name
-                    if psr['NAME'][0] == 'B':
-                        query_list[i]['PSRB'] = psr['NAME']
-
-            # convert query list to a pandas DataFrame
-            try:
-                self.__dataframe = DataFrame(query_list)
-            except RuntimeError:
-                raise RuntimeError("Could not convert list to DataFrame")
 
         if not self.empty:  # convert to Table if DataFrame is not empty
             if query_params is None:
@@ -735,7 +693,15 @@ class QueryATNF(object):
         return self.__dataframe.copy()
 
     @property
-    def as_pandas(self):
+    def dataframe(self):
+        """
+        Return the query table as a :class:`pandas.DataFrame`.
+        """
+
+        return self.pandas
+
+    @property
+    def pandas(self):
         """
         Return the query table as a :class:`pandas.DataFrame`.
         """
@@ -1473,7 +1439,7 @@ class QueryATNF(object):
             self._pulsars = Pulsars()
 
             # add pulsars one by one
-            psrtable = self.as_table
+            psrtable = self.table
             for row in psrtable:
                 attrs = {}
                 for key in psrtable.colnames:
@@ -1616,7 +1582,7 @@ class QueryATNF(object):
             int: :func:`len` method returns the number of pulsars
         """
 
-        return len(self.as_pandas)
+        return len(self.pandas)
 
     def __str__(self):
         """
@@ -1624,7 +1590,7 @@ class QueryATNF(object):
             str: :func:`str` method returns the str method of an :class:`astropy.table.Table`.
         """
 
-        return str(self.as_table)
+        return str(self.table)
 
     def __repr__(self):
         """
@@ -1632,7 +1598,7 @@ class QueryATNF(object):
             str: :func:`repr` method returns the repr method of an :class:`astropy.table.Table`.
         """
 
-        return repr(self.as_table)
+        return repr(self.table)
 
     def ppdot(self, intrinsicpdot=False, excludeGCs=False, showtypes=[],
               showGCs=False, showSNRs=False, markertypes={}, deathline=True,
@@ -1701,9 +1667,9 @@ class QueryATNF(object):
         from .utils import death_line, label_line
 
         # get table containing all required parameters
-        table = self.table(condition=usecondition,
-                           query_params=['P0', 'P1', 'P1_I', 'ASSOC',
-                                         'BINARY', 'TYPE'])
+        table = self.query_table(condition=usecondition,
+                                 query_params=['P0', 'P1', 'P1_I', 'ASSOC',
+                                               'BINARY', 'TYPE'])
 
         if len(table) == 0:
             print("No pulsars found, so no P-Pdot plot has been produced")
