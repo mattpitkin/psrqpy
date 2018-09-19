@@ -1445,7 +1445,7 @@ class QueryATNF(object):
                 for key in psrtable.colnames:
                     attrs[key] = row[key]
 
-                P = Pulsar(attrs[nameattr], version=self.get_version, **attrs)
+                P = Pulsar(attrs['JNAME'], **attrs)
                 self._pulsars.add_pulsar(P)
 
         return self._pulsars
