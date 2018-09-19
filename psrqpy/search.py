@@ -23,6 +23,7 @@ import astropy.units as aunits
 from astropy.table import Table
 
 from pandas import DataFrame
+from copy import deepcopy
 
 from .config import *
 from .utils import get_version, condition
@@ -104,8 +105,6 @@ class QueryATNF(object):
         include_refs (bool): Set if wanting parameter
             `references <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_ref.html>`_
             to be returned. Defaults to False.
-        get_ephemeris (bool): Set if wanting to get pulsar ephemerides (only
-            works if `psrs` have been specified). Defaults to False.
         adsref (bool): Set if wanting to use an :class:`ads.search.SearchQuery`
             to get reference information. Defaults to False.
         loadfromdb (str): Load a pulsar database file from a given path rather
@@ -119,15 +118,21 @@ class QueryATNF(object):
         checkupdate (bool): If True then check whether a cached catalogue file
             has an update available, and re-download if there is an update.
             Defaults to False.
+        frompandas (:class:`pandas.DataFrame`): create a new
+            :class:`psrqpy.QueryATNF` object from an existing
+            :class:`pandas.DataFrame`.
+        fromtable (:class:`astropy.table.Table`): create a new
+            :class:`psrqpy.QueryATNF` object from an existing
+            :class:`astropy.table.Table`.
     """
 
     def __init__(self, params=None, condition=None, psrtype=None, assoc=None,
                  bincomp=None, exactmatch=False, sort_attr='jname',
                  sort_order='asc', psrs=None, include_errs=True,
-                 include_refs=False, get_ephemeris=False, version=None,
-                 adsref=False, loadfromfile=None, loadquery=None,
-                 loadfromdb=None, cache=True, checkupdate=False,
-                 circular_boundary=None, coord1=None, coord2=None, radius=0.):
+                 include_refs=False, adsref=False, loadfromfile=None,
+                 loadquery=None, loadfromdb=None, cache=True,
+                 checkupdate=False, circular_boundary=None, coord1=None,
+                 coord2=None, radius=0., frompandas=None, fromtable=None):
         if loadfromfile is not None and loadquery is None:
             loadquery = loadfromfile
         if loadquery:
@@ -137,7 +142,6 @@ class QueryATNF(object):
         self.__dataframe = DataFrame()
         self._include_errs = include_errs
         self._include_refs = include_refs
-        self._atnf_version = version
         self._adsref = adsref
         self._savefile = None  # file to save class to
         self._loadfile = None  # file class loaded from
@@ -146,18 +150,6 @@ class QueryATNF(object):
         self.psrs = psrs
         self._sort_order = sort_order
         self._sort_attr = sort_attr.upper()
-
-        # download and cache (if requested) the database file
-        try:
-            _ = self.get_catalogue(path_to_db=loadfromdb, cache=cache,
-                                   update=checkupdate)
-        except IOError:
-            raise IOError("Could not get catalogue database file")
-
-        self._refs = None  # set of pulsar references
-        self._get_ephemeris = get_ephemeris
-
-        self._pulsars = None  # gets set to a Pulsars object by get_pulsars()
 
         # conditions for finding pulsars within a circular boundary
         self._coord1 = coord1
@@ -192,8 +184,6 @@ class QueryATNF(object):
             coord = SkyCoord(self._coord1, self._coord2,
                              unit=(aunits.hourangle, aunits.deg))
 
-        self.query_params = params
-
         # set conditions
         condparse = self.parse_conditions(psrtype=psrtype, assoc=assoc,
                                           bincomp=bincomp)
@@ -202,6 +192,27 @@ class QueryATNF(object):
                 self._condition = condparse
             else:
                 self._condition += condparse
+
+        self.query_params = params
+        self._refs = None  # set of pulsar references
+        self._pulsars = None  # gets set to a Pulsars object by get_pulsars()
+
+        # store passed pandas DataFrame
+        if isinstance(frompandas, DataFrame):
+            self.__dataframe = frompandas.copy()
+            return
+
+        # store passed astropy Table
+        if isinstance(fromtable, Table):
+            self.__dataframe = fromtable.to_pandas()
+            return
+
+        # download and cache (if requested) the database file
+        try:
+            _ = self.get_catalogue(path_to_db=loadfromdb, cache=cache,
+                                   update=checkupdate)
+        except IOError:
+            raise IOError("Could not get catalogue database file")
 
         # get references if required
         if self._include_refs:
@@ -241,11 +252,11 @@ class QueryATNF(object):
             currently cached version. This is ignored if `path_to_db` is given.
         overwrite (bool): if True the returned catalogue will overwrite the
             catalogue currently contained within the :class:`~psrqpy.QueryATNF`
-            class. If False then a :class:`pandas.DataFrame` copy of the
+            class. If False then a new :class:`~psrqpy.QueryATNF` copy of the
             catalogue will be returned.
 
         Returns:
-            :class:`~pandas.DataFrame`: a table containing the catalogue.
+            :class:`psrqpy.QueryATNF`: a table containing the catalogue.
         """
         from .utils import get_catalogue
 
@@ -256,7 +267,19 @@ class QueryATNF(object):
             raise RuntimeError("Problem getting catalogue")
 
         if not overwrite:
-            return dbtable
+            newcatalogue = QueryATNF(params=self.query_params,
+                                     condition=self.condition,
+                                     exactmatch=self.exactmatch,
+                                     sort_attr=self._sort_attr,
+                                     sort_order=self._sort_order,
+                                     psrs=self.psrs,
+                                     include_errs=self._include_errs,
+                                     include_refs=self._include_refs,
+                                     adsref=self._adsref, cache=False,
+                                     coord1=self._coord1, coord2=self._cord2,
+                                     radius=self._radius,
+                                     frompandas=dbtable)
+            return newcatalogue
 
         # update current catalogue
         self.__dataframe = DataFrame(dbtable)
@@ -264,6 +287,9 @@ class QueryATNF(object):
         self._checkupdate = update
         self._cache = cache
         self._atnf_version = dbtable.version
+
+        # calculate derived parameters
+        self.set_derived()
 
         return self
 
@@ -275,8 +301,7 @@ class QueryATNF(object):
 
         return self.__dataframe.columns
 
-    def sort(self, sort_attr='JNAME', sort_order='asc', table=None,
-             inplace=False):
+    def sort(self, sort_attr='JNAME', sort_order='asc', inplace=False):
         """
         Sort the generated catalogue :class:`~astropy.table.Table` on a given
         attribute and in either ascending or descending order.
@@ -287,10 +312,6 @@ class QueryATNF(object):
             sort_order (str): Set to 'asc' to sort the parameter values in
                 ascending order, or 'desc' to sort in descending order.
                 Defaults to ascending.
-            table (:class:`pandas.DataFrame`): sort and return an input
-                :class:`~pandas.DataFrame`. If not set then the internal
-                :class:`~pandas.DataFrame` stored in the
-                :class:`psrqpy.QueryATNF` class instance will be sorted.
             inplace (bool): If True, and sorting the class' internal
                 :class:`~pandas.DataFrame`, then the sorting will be done
                 in place without returning a copy of the table, otherwise
@@ -315,25 +336,21 @@ class QueryATNF(object):
         elif self._sort_order.lower() in ['desc', 'descending', 'down', 'v']:
             self._sort_order = 'desc'
         else:
-            warnings.warn(('Unrecognised sort order "{}", defaulting to'
-                           '"ascending"').format(sort_order), UserWarning)
+            warnings.warn("Unrecognised sort order '{}', defaulting to "
+                          "'ascending'".format(sort_order), UserWarning)
             self._sort_order = 'asc'
 
         sortorder = True if self._sort_order == 'asc' else False
 
-        if inplace and table is None:
+        if inplace:
             # sort the stored dataframe
             _ = self.__dataframe.sort_values(self._sort_attr,
                                              ascending=sortorder,
                                              inplace=inplace)
             return self.__dataframe
-        elif table is None:
+        else:
             return self.__dataframe.sort_values(self._sort_attr,
                                                 ascending=sortorder)
-        elif isinstance(table, DataFrame):
-            return table.sort_values(self._sort_attr, ascending=sortorder)
-        else:
-            raise TypeError("Table must be a pandas DataFrame")
 
     def __getitem__(self, key):
         if key not in self.as_pandas.keys():
@@ -397,22 +414,10 @@ class QueryATNF(object):
 
         return self._psrs
 
-    @property
-    def jorb(self):
-        """
-        Return a list of whether queried pulsar names where 'J' (based on the
-        J2000 coordinates) or 'B' (based on the Besselian system).
-        """
-
-        return self._jorb
-
     @psrs.setter
     def psrs(self, psrnames=None):
         """
-        Set a list of names of pulsars to be returned by the query. This will
-        also work out if the names are based on J2000 coordinates, or the
-        Besselian system, i.e., whether they start with a 'J' or 'B'
-        respectively.
+        Set a list of names of pulsars to be returned by the query.
 
         Args:
             psrnames (str, list): a list of names, or a single name, of pulsars
@@ -422,7 +427,6 @@ class QueryATNF(object):
         # set the pulsar name list
         if psrnames is None:
             self._psrs = None
-            self._jorb = None
         else:
             if isinstance(psrnames, string_types):
                 self._psrs = [psrnames]
@@ -435,18 +439,6 @@ class QueryATNF(object):
                     raise TypeError("psrnames must be a list of strings")
             else:
                 raise TypeError("psrnames must be a list of strings")
-
-            self._jorb = []
-
-            # work out whether the names are 'J' or 'B' names
-            for psr in self._psrs:
-                if psr[0] == 'J':
-                    self._jorb.append('J')
-                elif psr[0] == 'B':
-                    self._jorb.append('B')
-                else:
-                    raise ValueError("Pulsar names must start with a 'J' or a "
-                                     "'B'")
 
     @property
     def num_pulsars(self):
@@ -714,20 +706,15 @@ class QueryATNF(object):
 
             for p in params:
                 if not isinstance(p, string_types):
-                    raise Exception("Non-string value '{}' found in params "
+                    raise TypeError("Non-string value '{}' found in params "
                                     "list".format(p))
 
             self._query_params = [p.upper() for p in params]
-        else:
-            if isinstance(params, string_types):
-                # make sure parameter is all upper case
-                self._query_params = [params.upper()]
-            elif params is not None:
-                # if getting ephemerides then param can be None
-                if self._psrs and self._get_ephemeris:
-                    self._query_params = None
-                else:
-                    raise Exception("'params' must be a list or string")
+        elif isinstance(params, string_types):
+            # make sure parameter is all upper case
+            self._query_params = [params.upper()]
+        elif params is not None:
+            raise TypeError("'params' must be a list or string")
 
         # remove any duplicate
         if self._query_params is not None:
@@ -753,51 +740,8 @@ class QueryATNF(object):
         Return the query table as a :class:`pandas.DataFrame`.
         """
 
-        # get a copy of the dataframe
-        dftable = self.__dataframe.copy()
-
-        # define any derived parameters
-        for par in PSR_DERIVED_PARS:
-            # get derived parameters if they are actually required
-            if self._condition is not None:
-                condstr = self._condition
-            else:
-                constr = ''
-
-            if (par in self.query_params or par == self._sort_attr or
-                    par in condstr):
-
-                if par in self.__dataframe:
-                    # value already exists
-                    continue
-
-                if par == 'AGE':  # characteristic age
-                    dftable['AGE'] = self.derived_age
-                elif par == 'BSURF':  # surface magnetic field
-                    dftable['BSURF'] = self.derived_bsurf
-                elif par == 'B_LC':  # magnetic field at light cylinder
-                    dftable['B_LC'] = self.derived_b_lc
-                elif par == 'EDOT':  # spin-down luminosity
-                    dftable['EDOT'] = self.derived_edot
-                elif par == 'EDOTD2':  # spin-down flux at Sun
-                    dftable['EDOTD2'] = self.derived_edotd2
-                elif par == 'PMTOT':  # total proper motion
-                    pmtot, pmtoterr = self.derived_pmtot
-                    dftable['PMTOT'] = pmtot
-                    dftable['PMTOT_ERR'] = pmtoterr
-                elif par == 'VTRANS':  # transverse velocity 
-                    dftable['VTRANS'] = self.derived_vtrans
-                elif dftable['P1_I']:  # instrinsic period derivative
-                    dftable['P1_I'] = self.derived_p1_i
-                elif dftable['AGE_I']:  # intrinsic age
-                    dftable['AGE_I'] = self.derived_age_i
-                elif dftable['BSURF_I']:
-                    dftable['BSURF_I'] = self.derived_bsurf_i
-                elif dftable['EDOT_I']:
-                    dftable['EDOT_I'] = self.derived_edot_i
-
         # get only required parameters and sort
-        dftable = self.sort(self._sort_attr, self._sort_order, table=dftable)
+        dftable = self.sort(self._sort_attr, self._sort_order)
 
         if self._condition is not None:
             # apply condition
@@ -861,238 +805,642 @@ class QueryATNF(object):
         # reset the indices to zero in the dataframe
         return dftable.reset_index(drop=True)
 
-    @property
+    def set_derived(self):
+        """
+        Compute any derived parameters and add them to the class.
+        """
+
+        self.define_dist()      # define the DIST and DIST1 parameters
+        self.derived_p0()       # derive P0 from F0 if not given
+        self.derived_f0()       # derive F0 from P0 if not given
+        self.derived_p1()       # derive P1 from F1 if not given
+        self.derived_f1()       # derive F1 from P1 if not given
+        self.derived_pb()       # derive binary period from FB0
+        self.derived_pbdot()    # derive Pbdot from FB1
+        self.derived_fb0()      # derive orbital frequency from period
+        self.derived_fb1()      # derive FB1 from PBDOT
+        self.derived_age()      # characteristic age
+        self.derived_bsurf()    # surace magnetic field
+        self.derived_b_lc()     # magnetic field at light cylinder
+        self.derived_edot()     # spin-down luminosity
+        self.derived_edotd2()   # spin-down flux at Sun
+        self.derived_pmtot()    # total proper motion
+        self.derived_vtrans()   # transverse velocity
+        self.derived_p1_i()     # instrinsic period derivative
+        self.derived_age_i()    # intrinsic age
+        self.derived_bsurf_i()  # intrinsic Bsurf
+        self.derived_edot_i()   # intrinsic luminosity
+
+    self define_dist(self):
+        """
+        Set the `DIST` and `DIST1` parameters using other values.
+        """
+
+        if not np.all([p in self.__dataframe.columns for p in ['PX', 'PX_ERR', 'DIST_A', 'DIST_AMN', 'DIST_AMX', 'DIST_DM', 'DIST_DM1']]):
+            warnings.warn("Could not set distances.",
+                          UserWarning)
+            return
+
+        PX = self.__dataframe['PX']
+        PXERR = self.__dataframe['PX_ERR']
+        DIST_A = self.__dataframe['DIST_A']
+        DIST_AMN = self.__dataframe['DIST_AMN']
+        DIST_AMX = self.__dataframe['DIST_AMX']
+        DIST_DM = self.__dataframe['DIST_DM']
+        DIST_DM1 = self.__dataframe['DIST_DM1']
+
+        # DIST defaults to DM distance
+        DIST = DIST_DM.copy()
+
+        # DIST1 defaults to DM1 distance
+        DIST1 = DIST_DM1.copy()
+
+        ONEAU = 149597870.  # AU in km (from psrcat.h)
+        ONEPC = 30.857e12   # 1 pc in km (from psrcat.h)
+
+        idxpx = np.isfinite(PX) & np.isfinite(PXERR)
+
+        # set distances using parallax if parallax has greater than 3 sigma significance
+        pxsigma = np.zeros(len(PX))
+        pxsigma[idxpx] = np.abs(PX[idxpx])/PXERR[idxpx]
+
+        # indexes of parallaxes with greater than 3 sigma significance
+        idxpxgt3 = pxsigma > 3.
+
+        DIST[idxpxgt3] = (ONEAU/ONEPC)*(60.*60.*180)/(PX[idxpxgt3]*np.pi)
+        DIST1[idxpxgt3] = (ONEAU/ONEPC)*(60.*60.*180)/(PX[idxpxgt3]*np.pi) 
+
+        # if dist_amn and dist_amx exist and dist_dm lies within boundary
+        # then use dist_dm else use the closest limit to dist_dm
+        # if dist_dm is not defined then use (dism_amn + dist_amx)/2
+        DISTP = self.__dataframe['DIST_DM'].copy()
+        DIST1P = self.__dataframe['DIST_DM1'].copy()
+
+        #idxdist = np.isfinite(DISTP) & ~idxpxgt3
+        #idxdist1 = np.isfinite(DIST1P) & ~idxpxgt3
+
+        #idxv3 = (DIST_AMX[idxdist] <= DIST_A[idxdist]) & (DIST_AMX[idxdist] >=  DIST_AMN[idxdist])
+        #DIST[idxv3] = DIST_AMX[idxdist]
+
+        #idxv3_1 = (DIST_AMX[idxdist1] <= DIST_A[idxdist1]) & (DIST_AMX[idxdist1] >=  DIST_AMN[idxdist1])
+        #DIST[idxv3_1] = DIST_AMX[idxdist_1]
+
+        #idxv3 = 
+
+    def derived_p0(self):
+        """
+        Calculate the period from the frequency in cases where period is not
+        given.
+        """
+
+        if not np.all([p in self.__dataframe.columns for p in ['P0', 'F0']]):
+            warnings.warn("Could not set periods.",
+                          UserWarning)
+            return
+
+        F0 = self.__dataframe['F0']
+        P0 = self.__dataframe['P0']
+
+        if not np.all([p in self.__dataframe.columns for p in ['P0', 'F0']]):
+            warnings.warn("Could not set periods.", UserWarning)
+            return
+
+        F0 = self.__dataframe['F0']
+        P0 = self.__dataframe['P0']
+
+        # find indices where P0 needs to be set from F0
+        idxp0 = ~np.isfinite(P0) & np.isfinite(F0)
+        P0new = P0.copy()
+        P0new[idxp0] = 1./F0[idxp0]
+        self.__dataframe.update(P0new)
+
+        # set the references
+        if np.all([p in self.__dataframe.columns for p in ['P0_REF', 'F0_REF']]):
+            P0REFnew = self.__dataframe['P0_REF'].copy()
+            F0REF = self.__dataframe['F0_REF']
+            P0REFnew[idxp0] = F0REF[idxp0]
+            self.__dataframe.update(P0REFnew)
+
+        # set the errors
+        if np.all([p in self.__dataframe.columns for p in ['P0_ERR', 'F0_ERR']]):
+            P0ERRnew = self.__dataframe['P0_ERR'].copy()
+            F0ERR = self.__dataframe['F0_ERR']
+            P0ERRnew[idxp0] = F0ERR[idxp0]*P0[idxp0]**2
+            self.__dataframe.update(P0ERRnew)
+
+    def derived_f0(self):
+        """
+        Calculate the frequency from the period in cases where frequency is not
+        given.
+        """
+
+        if not np.all([p in self.__dataframe.columns for p in ['P0', 'F0']]):
+            warnings.warn("Could not set periods.", UserWarning)
+            return
+
+        F0 = self.__dataframe['F0']
+        P0 = self.__dataframe['P0']
+
+        # find indices where F0 needs to be set from P0
+        idxf0 = np.isfinite(P0) & ~np.isfinite(F0)
+        F0new = F0.copy()
+        F0new[idxf0] = 1./P0[idxf0]
+        self.__dataframe.update(F0new)
+
+        # set the references
+        if np.all([p in self.__dataframe.columns for p in ['P0_REF', 'F0_REF']]):
+            F0REFnew = self.__dataframe['F0_REF'].copy()
+            P0REF = self.__dataframe['P0_REF']
+            F0REFnew[idxf0] = P0REF[idxf0]
+            self.__dataframe.update(F0REFnew)
+
+        # set the errors
+        if np.all([p in self.__dataframe.columns for p in ['P0_ERR', 'F0_ERR']]):
+            F0ERRnew = self.__dataframe['F0_ERR'].copy()
+            P0ERR = self.__dataframe['P0_ERR']
+            F0ERRnew[idxf0] = P0ERR[idxf0]*F0[idxf0]**2
+            self.__dataframe.update(F0ERRnew)
+
+    def derived_p1(self):
+        """
+        Calculate the period derivative from the frequency derivative in cases
+        where period derivative is not given.
+        """
+
+        if not np.all([p in self.__dataframe.columns for p in ['P0', 'F0', 'F1', 'P1']]):
+            warnings.warn("Could not set period derivatives.",
+                          UserWarning)
+            return
+
+        F0 = self.__dataframe['F0']
+        P0 = self.__dataframe['P0']
+        F1 = self.__dataframe['F1']
+        P1 = self.__dataframe['P1']
+
+        # find indices where P0 needs to be set from F0
+        idxp1 = ~np.isfinite(P1) & np.isfinite(F1)
+        P1new = P1.copy()
+        P1new[idxp1] = -(P0[idxp1]**2)*F1[idxp1]
+        self.__dataframe.update(P1new)
+
+        # set the references
+        if np.all([p in self.__dataframe.columns for p in ['P1_REF', 'F1_REF']]):
+            P1REFnew = self.__dataframe['P1_REF'].copy()
+            F1REF = self.__dataframe['F1_REF']
+            P1REFnew[idxp1] = F1REF[idxp1]
+            self.__dataframe.update(P1REFnew)
+
+        # set the errors
+        if np.all([p in self.__dataframe.columns for p in ['P0_ERR', 'F0_ERR', 'F1_ERR', 'P1_ERR']]):
+            P1ERRnew = self.__dataframe['P0_ERR'].copy()
+            F1ERR = self.__dataframe['F1_ERR']
+            F0ERR = self.__dataframe['F0_ERR']
+            P1ERRnew[idxp1] = np.sqrt((P0[idxp1]**2*F1ERR[idxp1])**2 +
+						          (2.0*P0[idxp1]**3*F1[idxp1]*F0ERR[idxp1])**2)
+            self.__dataframe.update(P1ERRnew)
+
+    def derived_f1(self):
+        """
+        Calculate the frequency derivative from the period derivative in cases
+        where frequency derivative is not given.
+        """
+
+        if not np.all([p in self.__dataframe.columns for p in ['P0', 'F0', 'F1', 'P1']]):
+            warnings.warn("Could not set period derivatives.",
+                          UserWarning)
+            return
+
+        F0 = self.__dataframe['F0']
+        P0 = self.__dataframe['P0']
+        F1 = self.__dataframe['F1']
+        P1 = self.__dataframe['P1']
+
+        # find indices where P0 needs to be set from F0
+        idxf1 = np.isfinite(P1) & ~np.isfinite(F1)
+        F1new = F1.copy()
+        F1new[idxf1] = -(F0[idxf1]**2)*P1[idxf1]
+        self.__dataframe.update(F1new)
+
+        # set the references
+        if np.all([p in self.__dataframe.columns for p in ['P1_REF', 'F1_REF']]):
+            F1REFnew = self.__dataframe['F1_REF'].copy()
+            P1REF = self.__dataframe['P1_REF']
+            F1REFnew[idxf1] = P1REF[idxf1]
+            self.__dataframe.update(F1REFnew)
+
+        # set the errors
+        if np.all([p in self.__dataframe.columns for p in ['P0_ERR', 'F0_ERR', 'F1_ERR', 'P1_ERR']]):
+            F1ERRnew = self.__dataframe['F0_ERR'].copy()
+            P1ERR = self.__dataframe['P1_ERR']
+            P0ERR = self.__dataframe['P0_ERR']
+            F1ERRnew[idxf1] = np.sqrt((F0[idxf1]**2*P1ERR[idxf1])**2 +
+						          (2.0*F0[idxf1]**3*P1[idxf1]*P0ERR[idxf1])**2)
+            self.__dataframe.update(F1ERRnew)
+
+    def derived_pb(self):
+        """
+        Calculate binary orbital period from orbital frequency.
+        """
+
+        if not np.all([p in self.__dataframe.columns for p in ['PB', 'FB0']]):
+            warnings.warn("Could not set orbital period.",
+                          UserWarning)
+            return
+
+        FB0 = self.__dataframe['FB0']
+        PBnew = self.__dataframe['PB'].copy()
+
+        idxpb = ~np.isfinite(PBnew) & np.isfinite(FB0)
+        PBnew[idxpb] = 1./(FB0[idxpb]*86400.)
+        self.__dataframe.update(PBnew)
+
+        # set the references
+        if np.all([p in self.__dataframe.columns for p in ['PB_REF', 'FB0_REF']]):
+            PBREFnew = self.__dataframe['PB_REF'].copy()
+            FB0REF = self.__dataframe['FB0_REF']
+            PBREFnew[idxpb] = FB0REF[idxpb]
+            self.__dataframe.update(PBREFnew)
+
+        # set the errors
+        if np.all([p in self.__dataframe.columns for p in ['PB_ERR', 'FB0_ERR']]):
+            PBERRnew = self.__dataframe['PB_ERR'].copy()
+            FB0ERR = self.__dataframe['FB0_ERR']
+            PBERRnew[idxpb] = FB0ERR[idxpb]*PBnew[idxpb]**2*86400.
+            self.__dataframe.update(PBERRnew)
+
+    def derived_pbdot(self):
+        """
+        Calculate binary orbital period derivative from orbital frequency
+        derivative.
+        """
+
+        if not np.all([p in self.__dataframe.columns for p in ['PBDOT', 'FB1', 'PB']]):
+            warnings.warn("Could not set orbital period derivative.",
+                          UserWarning)
+            return
+
+        FB1 = self.__dataframe['FB1']
+        PB = self.__dataframe['PB']
+        PBDOTnew = self.__dataframe['PBDOT'].copy()
+
+        idxpbdot = ~np.isfinite(PBDOTnew) & np.isfinite(FB1)
+        PBDOTnew[idxpbdot] = -(PB[idxpbdot]**2*FB1[idxpbdot])
+        self.__dataframe.update(PBDOTnew)
+
+        # set the references
+        if np.all([p in self.__dataframe.columns for p in ['PBDOT_REF', 'FB1_REF']]):
+            PBDOTREFnew = self.__dataframe['PBDOT_REF'].copy()
+            FB1REF = self.__dataframe['FB1_REF']
+            PBDOTREFnew[idxpbdot] = FB1REF[idxpbdot]
+            self.__dataframe.update(PBDOTREFnew)
+
+        # set the errors
+        if np.all([p in self.__dataframe.columns for p in ['PBDOT_ERR', 'FB1_ERR', 'FB0_ERR']]):
+            PBDOTERRnew = self.__dataframe['PBDOT_ERR'].copy()
+            FB1ERR = self.__dataframe['FB1_ERR']
+            FB0ERR = self.__dataframe['FB0_ERR']
+            PBDOTERRnew[idxpbdot] = np.sqrt((PB[idxpbdot]**2*FB1ERR[idxpbdot])**2 +
+						          (2.0*PB[idxpbdot]**3*FB1[idxpbdot]*FB0ERR[idxpbdot])**2)
+            self.__dataframe.update(PBDOTERRnew)
+
+    def derived_fb0(self):
+        """
+        Calculate orbital frequency from orbital period.
+        """
+
+        if not np.all([p in self.__dataframe.columns for p in ['PB', 'FB0']]):
+            warnings.warn("Could not set orbital frequency.",
+                          UserWarning)
+            return
+
+        PB = self.__dataframe['PB']
+        FB0new = self.__dataframe['FB0'].copy()
+
+        idxfb0 = ~np.isfinite(FB0new) & np.isfinite(PB)
+        FB0new[idxfb0] = 1./(PB[idxfb0]*86400.)
+        self.__dataframe.update(FB0new)
+
+        # set the references
+        if np.all([p in self.__dataframe.columns for p in ['PB_REF', 'FB0_REF']]):
+            FB0REFnew = self.__dataframe['FB0_REF'].copy()
+            PBREF = self.__dataframe['PB_REF']
+            FB0REFnew[idxfb0] = PBREF[idxfb0]
+            self.__dataframe.update(FB0REFnew)
+
+        # set the errors
+        if np.all([p in self.__dataframe.columns for p in ['PB_ERR', 'FB0_ERR']]):
+            FB0ERRnew = self.__dataframe['FB0_ERR'].copy()
+            PBERR = self.__dataframe['PB_ERR']
+            FB0ERRnew[idxfb0] = PBERR[idxfb0]*(FB0new[idxfb0]**2)*86400.
+            self.__dataframe.update(FB0ERRnew)
+
+    def derived_fb1(self):
+        """
+        Calculate theorbital frequency derivative from the binary orbital
+        period derivative.
+        """
+
+        if not np.all([p in self.__dataframe.columns for p in ['PBDOT', 'FB1', 'FB0']]):
+            warnings.warn("Could not set orbital period derivative.",
+                          UserWarning)
+            return
+
+        PBDOT = self.__dataframe['PBDOT']
+        FB0 = self.__dataframe['FB0']
+        FB1new = self.__dataframe['FB1'].copy()
+
+        idxfb1 = ~np.isfinite(FB1new) & np.isfinite(PBDOT)
+        FB1new[idxfb1] = -(FB0[idxfb1]**2*PBDOT[idxfb1])
+        self.__dataframe.update(FB1new)
+
+        # set the references
+        if np.all([p in self.__dataframe.columns for p in ['PBDOT_REF', 'FB1_REF']]):
+            FB1REFnew = self.__dataframe['FB1_REF'].copy()
+            PBDOTREF = self.__dataframe['PBDOT_REF']
+            FB1REFnew[idxfb1] = PBDOTREF[idxfb1]
+            self.__dataframe.update(FB1REFnew)
+
+        # set the errors
+        if np.all([p in self.__dataframe.columns for p in ['PBDOT_ERR', 'FB1_ERR', 'PB_ERR']]):
+            FB1ERRnew = self.__dataframe['FB1_ERR'].copy()
+            PBDOTERR = self.__dataframe['PBDOT_ERR']
+            PBERR = self.__dataframe['PB_ERR']
+            FB1ERRnew[idxfb1] = np.sqrt((FB0[idxfb1]**2*PBDOTERR[idxfb1])**2 +
+						          (2.0*FB0[idxfb1]**3*PBDOT[idxfb1]*PBERR[idxfb1]*86400.)**2)
+            self.__dataframe.update(FB1ERRnew)
+
     def derived_p1_i(self):
         """
-        Return the intrinsic period derivative.
+        Calculate the intrinsic period derivative.
         """
 
-        if 'VTRANS' not in self.__dataframe.columns:
-            self.__dataframe['VTRANS'] = self.derived_vtrans
+        if 'P1_I' in self.__dataframe.columns:
+            return
 
-        try:
-            # get period and period derivative
-            VTRANS = self.__dataframe['VTRANS']
-            P0 = self.__dataframe['P0']
-            P1 = self.__dataframe['P1']
-            DIST = self.__dataframe['DIST']
-        except KeyError:
-            raise KeyError("Could not get required parameters.")
+        if 'VTRANS' not in self.__dataframe.columns:
+            self.derived_vtrans()
+
+        if not np.all([p in self.__dataframe.columns for p in ['VTRANS', 'P0', 'P1', 'DIST']]):
+            warnings.warn("Could not set intrinsic period derivative.",
+                          UserWarning)
+            return
+
+        # get required parameters
+        VTRANS = self.__dataframe['VTRANS']
+        P0 = self.__dataframe['P0']
+        P1 = self.__dataframe['P1']
+        DIST = self.__dataframe['DIST']
 
         p1i = ((P1/1.0e-15) - VTRANS**2*1.0e10*P0/(DIST*3.086e6)/2.9979e10)*1.0e-15
         p1i[~np.isfinite(P1) | ~np.isfinite(P0) | ~np.isfinite(VTRANS) | ~np.isfinite(DIST)] = np.nan
-        return p1i
+        self.__dataframe['P1_I'] = p1i
 
-    @property
     def derived_age(self):
         """
-        Return the characteristic age, dervied from period and period
-        derivative, as a :class:`numpy.ndarray`.
+        Calculate the characteristic age.
         """
 
-        try:
-            # get period and period derivative
-            P0 = self.__dataframe['P0']
-            P1 = self.__dataframe['P1']
-        except KeyError:
-            raise KeyError("Could not get period and/or period derivative")
+        # check if AGE is already defined
+        if 'AGE' in self.__dataframe.columns:
+            return
+
+        if not np.all([p in self.__dataframe.columns for p in ['P0', 'P1']]):
+            warnings.warn("Could not set characteristic age.",
+                          UserWarning)
+            return
+
+        # get period and period derivative
+        P0 = self.__dataframe['P0']
+        P1 = self.__dataframe['P1']
 
         age = 0.5 * P0 / P1 / (60.0 * 60.0 * 24.0 * 365.25)
         age[(P1 < 0) | ~np.isfinite(P1) | ~np.isfinite(P0)] = np.nan
-        return age
+        self.__dataframe['AGE'] = age
 
-    @property
     def derived_age_i(self):
         """
-        Return the characteristic age, dervied from period and intrinsic
-        period derivative, as a :class:`numpy.ndarray`.
+        Calculate the characteristic age, dervied from period and intrinsic
+        period derivative.
         """
 
-        if 'P1_I' not in self.__dataframe.columns:
-            self.__dataframe['P1_I'] = self.derived_p1_i
+        if 'AGE_I' in self.__dataframe.columns:
+            return
 
-        try:
-            # get period and period derivative
-            P0 = self.__dataframe['P0']
-            P1_I = self.__dataframe['P1_I']
-        except KeyError:
-            raise KeyError("Could not get period and/or period derivative")
+        if 'P1_I' not in self.__dataframe.columns:
+            self.derived_p1_i()
+
+        if not np.all([p in self.__dataframe.columns for p in ['P0', 'P1_I']]):
+            warnings.warn("Could not set characteristic age.",
+                          UserWarning)
+            return
+
+        # get period and period derivative
+        P0 = self.__dataframe['P0']
+        P1_I = self.__dataframe['P1_I']
 
         age_i = 0.5 * (P0 / P1_I) / (60.0 * 60.0 * 24.0 * 365.25)
         age_i[(P1_I < 0) | ~np.isfinite(P1_I) | ~np.isfinite(P0)] = np.nan
-        return age_i
+        self.__dataframe['AGE_I'] = age_i
 
-    @property
     def derived_bsurf(self):
         """
-        Return the surface magnetic field strength, dervied from period and
-        period derivative, as a :class:`numpy.ndarray`.
+        Calculate the surface magnetic field strength.
         """
 
-        try:
-            # get period and period derivative
-            P0 = self.__dataframe['P0']
-            P1 = self.__dataframe['P1']
-        except KeyError:
-            raise KeyError("Could not get period and/or period derivative")
+        if 'BSURF' in self.__dataframe.columns:
+            return
+        
+        if not np.all([p in self.__dataframe.columns for p in ['P0', 'P1']]):
+            warnings.warn("Could not set surface magnetic field.",
+                          UserWarning)
+            return
+
+        # get period and period derivative
+        P0 = self.__dataframe['P0']
+        P1 = self.__dataframe['P1']
 
         bsurf = 3.2e19 * np.sqrt(np.abs(P0 * P1))
         bsurf[(P1 < 0) | ~np.isfinite(P1) | ~np.isfinite(P0)] = np.nan
-        return bsurf
+        self.__dataframe['BSURF'] = bsurf
 
-    @property
     def derived_bsurf_i(self):
         """
-        Return the surface magnetic field strength, dervied from period and
-        intrinsic period derivative, as a :class:`numpy.ndarray`.
+        Calculate the surface magnetic field strength, dervied from period and
+        intrinsic period derivative.
         """
 
-        if 'P1_I' not in self.__dataframe.columns:
-            self.__dataframe['P1_I'] = self.derived_p1_i
+        if 'BSURF_I' in self.__dataframe.columns:
+            return
 
-        try:
-            # get period and period derivative
-            P0 = self.__dataframe['P0']
-            P1_I = self.__dataframe['P1']
-        except KeyError:
-            raise KeyError("Could not get period and/or period derivative")
+        if 'P1_I' not in self.__dataframe.columns:
+            self.derived_p1_i()
+
+        if not np.all([p in self.__dataframe.columns for p in ['P0', 'P1_I']]):
+            warnings.warn("Could not set surface magnetic field.",
+                          UserWarning)
+            return
+
+        # get period and period derivative
+        P0 = self.__dataframe['P0']
+        P1_I = self.__dataframe['P1_I']
 
         bsurf_i = 3.2e19 * np.sqrt(np.abs(P0 * P1_I))
         bsurf_i[(P1_I < 0) | ~np.isfinite(P1_I) | ~np.isfinite(P0)] = np.nan
-        return bsurf_i
+        self.__dataframe['BSURF_I'] = bsurf_i
 
-    @property
     def derived_b_lc(self):
         """
-        Return the magnetic field strength at the light cylinder, dervied from
-        period and period derivative, as a :class:`numpy.ndarray`.
+        Calculate the magnetic field strength at the light cylinder.
         """
 
-        try:
-            # get period and period derivative
-            P0 = self.__dataframe['P0']
-            P1 = self.__dataframe['P1']
-        except KeyError:
-            raise KeyError("Could not get period and/or period derivative")
+        if 'B_LC' in self.__dataframe.columns:
+            return
+
+        if not np.all([p in self.__dataframe.columns for p in ['P0', 'P1']]):
+            warnings.warn("Could not set light cylinder magnetic field.",
+                          UserWarning)
+            return
+
+        # get period and period derivative
+        P0 = self.__dataframe['P0']
+        P1 = self.__dataframe['P1']
 
         blc = 3.0e8*np.sqrt(np.abs(P1))*np.abs(P0)**(-5./2.)
         blc[(P1 < 0) | ~np.isfinite(P1) | ~np.isfinite(P0)] = np.nan
-        return blc
+        self.__dataframe['B_LC'] = blc
 
-    @property
     def derived_edot(self):
         """
-        Return the spin-down luminosity, dervied from period and period
-        derivative, as a :class:`numpy.ndarray`.
+        Calculate the spin-down luminosity.
         """
 
-        try:
-            # get period and period derivative
-            P0 = self.__dataframe['P0']
-            P1 = self.__dataframe['P1']
-        except KeyError:
-            raise KeyError("Could not get period and/or period derivative")
+        if 'EDOT' in self.__dataframe.columns:
+            return
+
+        if not np.all([p in self.__dataframe.columns for p in ['P0', 'P1']]):
+            warnings.warn("Could not set spin-down luminosity.",
+                          UserWarning)
+            return
+
+        # get period and period derivative
+        P0 = self.__dataframe['P0']
+        P1 = self.__dataframe['P1']
 
         edot = 4.0 * np.pi**2 * 1e45 * P1 / P0**3
         edot[(P1 < 0) | ~np.isfinite(P1) | ~np.isfinite(P0)] = np.nan
-        return edot
+        self.__dataframe['EDOT'] = edot
 
-    @property
     def derived_edot_i(self):
         """
-        Return the spin-down luminosity, dervied from period and intrinsic
-        period derivative, as a :class:`numpy.ndarray`.
+        Calculate the spin-down luminosity, dervied from period and intrinsic
+        period derivative.
         """
 
-        if 'P1_I' not in self.__dataframe.columns:
-            self.__dataframe['P1_I'] = self.derived_p1_i
+        if 'EDOT_I' in self.__dataframe.columns:
+            return
 
-        try:
-            # get period and period derivative
-            P0 = self.__dataframe['P0']
-            P1_I = self.__dataframe['P1']
-        except KeyError:
-            raise KeyError("Could not get period and/or period derivative")
+        if 'P1_I' not in self.__dataframe.columns:
+            self.derived_p1_i()
+
+        if not np.all([p in self.__dataframe.columns for p in ['P0', 'P1_I']]):
+            warnings.warn("Could not set spin-down luminosity.",
+                          UserWarning)
+            return
+
+        # get period and period derivative
+        P0 = self.__dataframe['P0']
+        P1_I = self.__dataframe['P1_I']
 
         edot_i = 4.0 * np.pi**2 * 1e45 * P1_I / P0**3
         edot_i[(P1_I < 0) | ~np.isfinite(P1_I) | ~np.isfinite(P0)] = np.nan
-        return edot_i
+        self.__dataframe['EDOT_I'] = edot_i
 
-    @property
     def derived_edotd2(self):
         """
-        Return the spin-down luminosity flux at the Sun, dervied from period,
-        period derivative, and distance, as a :class:`numpy.ndarray`.
+        Calculate the spin-down luminosity flux at the Sun.
         """
 
-        try:
-            # get period and period derivative
-            P0 = self.__dataframe['P0']
-            P1 = self.__dataframe['P1']
-            DIST = self.__dataframe['DIST']
-        except KeyError:
-            raise KeyError("Could not get period and/or period derivative")
+        if 'EDOTD2' in self.__dataframe.columns:
+            return
+
+        if not np.all([p in self.__dataframe.columns for p in ['P0', 'P1', 'DIST']]):
+            warnings.warn("Could not set spin-down luminosity flux.",
+                          UserWarning)
+            return
+
+        # get period, period derivative and distance
+        P0 = self.__dataframe['P0']
+        P1 = self.__dataframe['P1']
+        DIST = self.__dataframe['DIST']
 
         edotd2 = 4.0 * np.pi**2 * 1e45 * (P1 / P0**3) / DIST**2
         edotd2[(P1 < 0) | ~np.isfinite(P1) | ~np.isfinite(P0) | ~np.isfinite(DIST)] = np.nan
-        return edotd2
+        self.__dataframe['EDOTD2'] = edotd2
 
-    @property
     def derived_pmtot(self):
         """
-        Return the total proper motion and error.
+        Calculate the total proper motion and error.
         """
-
-        try:
-            # get PMRA and PMDEC
-            PMRA = self.__dataframe['PMRA']
-            PMDEC = self.__dataframe['PMDEC']
-            PMRA_ERR = self.__dataframe['PMRA_ERR']
-            PMDEC_ERR = self.__dataframe['PMDEC_ERR']
-            PMELONG = self.__dataframe['PMELONG']
-            PMELAT = self.__dataframe['PMELAT']
-            PMELONG_ERR = self.__dataframe['PMELONG_ERR']
-            PMELAT_ERR = self.__dataframe['PMELAT_ERR']
-
-            # use PM ELONG or ELAT if no RA and DEC
-            useelong = ~np.isfinite(PMRA) & np.isfinite(PMELONG)
-            useelat = ~np.isfinite(PMDEC) & np.isfinite(PMELAT)
-            PMRA[useelong] = PMELONG[useelong]
-            PMDEC[useelat] = PMELAT[useelat]
-
-            PMDEC_ERR[useelong] = PMELONG_ERR[useelong]
-            PMRA_ERR[useelat] = PMELAT_ERR[useelat]
-        except KeyError:
-            raise KeyError("Could not get required parameters")
         
-	    pmtoterr = np.sqrt(((PMRA*PMRA_ERR)**2+(PMDEC*PMDEC_ERR)**2)/(PMRA**2 + PMDEC**2))
-	    pmtot = np.sqrt(PMRA**2+PMDEC**2)
+        if 'PMTOT' in self.__dataframe.columns:
+            return
 
-        # return tuple with PMTOT and error
-        return (pmtot, pmtoterr)
+        if not np.all([p in self.__dataframe.columns for p in ['PMRA', 'PMDEC', 'PMELONG', 'PMELAT']]):
+            warnings.warn("Could not set total proper motion.",
+                          UserWarning)
+            return
 
-    @property
+        # get PMRA and PMDEC
+        PMRA = self.__dataframe['PMRA'].copy()
+        PMDEC = self.__dataframe['PMDEC'].copy()
+        PMELONG = self.__dataframe['PMELONG']
+        PMELAT = self.__dataframe['PMELAT']
+
+        # use PM ELONG or ELAT if no RA and DEC
+        useelong = ~np.isfinite(PMRA) & np.isfinite(PMELONG)
+        useelat = ~np.isfinite(PMDEC) & np.isfinite(PMELAT)
+        PMRA[useelong] = PMELONG[useelong]
+        PMDEC[useelat] = PMELAT[useelat]
+
+        pmtot = np.sqrt(PMRA**2+PMDEC**2)
+        self.__dataframe['PMTOT'] = pmtot
+
+        # get the error
+        if not np.all([p in self.__dataframe.columns for p in ['PMRA_ERR', 'PMDEC_ERR', 'PMELONG_ERR', 'PMELAT_ERR']]):
+            return
+
+        PMRA_ERR = self.__dataframe['PMRA_ERR'].copy()
+        PMDEC_ERR = self.__dataframe['PMDEC_ERR'].copy()
+        PMELONG_ERR = self.__dataframe['PMELONG_ERR']
+        PMELAT_ERR = self.__dataframe['PMELAT_ERR']
+        PMDEC_ERR[useelong] = PMELONG_ERR[useelong]
+        PMRA_ERR[useelat] = PMELAT_ERR[useelat]
+
+        pmtoterr = np.sqrt(((PMRA*PMRA_ERR)**2+(PMDEC*PMDEC_ERR)**2)/(PMRA**2 + PMDEC**2))
+        self.__dataframe['PMTOT_ERR'] = pmtoterr
+
     def derived_vtrans(self):
         """
-        Return the total proper motion and error.
+        Calculate the transverse velocity.
         """
 
-        if 'PMTOT' not in self.__dataframe.columns:
-            # get PMTOT if not defined
-            pmtot, pmtoterr = self.derived_pmtot
-            self.__dataframe['PMTOT'] = pmtot
-            self.__dataframe['PMTOT_ERR'] = pmtoterr
+        if 'VTRANS' in self.__dataframe.columns:
+            return
 
-        try:
-            # get PMRA and PMDEC
-            PMTOT = self.__dataframe['PMTOT']
-            DIST = self.__dataframe['DIST']
-        except KeyError:
-            raise KeyError("Could not get required parameters")
-        
+        if 'PMTOT' not in self.__dataframe.columns:
+            self.derived_pmtot()
+
+        if not np.all([p in self.__dataframe.columns for p in ['PMTOT', 'DIST']]):
+            warnings.warn("Could not set transverse velocity.",
+                          UserWarning)
+            return
+
+        PMTOT = self.__dataframe['PMTOT']
+        DIST = self.__dataframe['DIST']
+
         vtrans = (PMTOT/(1000.0*3600.0*180.0*np.pi*365.25*86400.0))*3.086e16*DIST
         vtrans[~np.isfinite(PMTOT) | ~np.isfinite(DIST)] = np.nan
-        return vtrans
+        self.__dataframe['VTRANS'] = vtrans
 
     def get_pulsars(self):
         """

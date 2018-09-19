@@ -223,13 +223,6 @@ PSR_DERIVED = {'R_LUM':    {'ref': False, 'err': False, 'units': 'mJy kpc^2'},  
 
 PSR_DERIVED_PARS = list(PSR_DERIVED.keys())
 
-# synomimcs for use if submitting a query via the webform
-PSR_SYNONYMS = {'PSRJ': 'JNAME',
-                'PSRB': 'NAME',
-                'BNAME': 'NAME',
-                'RAJD': 'RAJ',
-                'DECJD': 'DECJ'}
-
 # a list of all allowed parameters for querying
 PSR_ALL = dict(itertools.chain(PSR_GENERAL.items(), PSR_TIMING.items(), PSR_BINARY.items(), PSR_DERIVED.items()))
 """: a dict of allowed pulsars parameters (e.g., name, position, distance...)
