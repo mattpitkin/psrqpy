@@ -110,6 +110,7 @@ PSR_TIMING = {'P0':      {'ref': True,  'err': True,  'units': 's'},      # Bary
               'W10':     {'ref': True,  'err': True,  'units': 'ms'},  # Width of pulse at 10% (ms). Note the comments above for W50.
               'UNITS':   {'ref': True,  'err': False, 'units': None},  # Timescale for period/frequency and epoch data: TCB or TDB. See Hobbs, Edwards & Manchester (2006) for a discussion of the relationship between TCB and TDB.
               'TAU_SC':  {'ref': True,  'err': True,  'units': 's'},    # Temporal broadening of pulses at 1 GHz due to interestellar scattering (s)
+              'SI414':   {'ref': False, 'err': False, 'units': None},   # spectral index between 400 and 1400 MHz
               'S400':    {'ref': True,  'err': True,  'units': 'mJy'},  # Mean flux density at 400 MHz (mJy)
               'S1400':   {'ref': True,  'err': True,  'units': 'mJy'},  # Mean flux density at 1400 MHz (mJy)
               'S2000':   {'ref': True,  'err': True,  'units': 'mJy'},  # Mean flux density at 2000 MHz (mJy)

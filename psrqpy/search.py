@@ -800,6 +800,7 @@ class QueryATNF(object):
         self.derived_age_i()    # intrinsic age
         self.derived_bsurf_i()  # intrinsic Bsurf
         self.derived_edot_i()   # intrinsic luminosity
+        self.derived_flux()     # radio flux
 
     def define_dist(self):
         """
@@ -1424,6 +1425,44 @@ class QueryATNF(object):
         vtrans = (PMTOT/(1000.0*3600.0*180.0*np.pi*365.25*86400.0))*3.086e16*DIST
         vtrans[~np.isfinite(PMTOT) | ~np.isfinite(DIST)] = np.nan
         self.__dataframe['VTRANS'] = vtrans
+
+    def derived_flux(self):
+        """
+        Calculate spectral index between 400 and 1400 MHz and radio
+        flux at 400 and 1400 MHz.
+        """
+
+        if 'SI414' in self.__dataframe.columns:
+            return
+
+        if not np.all([p in self.__dataframe.columns for p in ['S1400', 'S400']]):
+            warnings.warn("Could not set spectral index.",
+                          UserWarning)
+            return
+
+        S1400 = self.__dataframe['S1400']
+        S400 = self.__dataframe['S400']
+
+        SI414 = -np.log10(S400/S1400)/(np.log10(400.0/1400.0))
+        SI414[~np.isfinite(S1400) | ~np.isfinite(S400)] = np.nan
+        self.__dataframe['SI414'] = SI414
+
+        # need distance for flux
+        if 'DIST' not in self.__dataframe.columns:
+            self.define_dist()
+
+        if 'DIST' not in self.__dataframe.columns:
+            return
+
+        DIST = self.__dataframe['DIST']
+
+        R_LUM = S400 * DIST**2
+        R_LUM[~np.isfinite(S400) | ~np.isfinite(DIST)] = np.nan
+        self.__dataframe['R_LUM'] = R_LUM
+
+        R_LUM14 = S1400 * DIST**2
+        R_LUM14[~np.isfinite(S1400) | ~np.isfinite(DIST)] = np.nan
+        self.__dataframe['R_LUM14'] = R_LUM14
 
     def get_pulsars(self):
         """
