@@ -23,9 +23,10 @@ import astropy.units as aunits
 from astropy.table import Table
 
 from pandas import DataFrame
+from copy import deepcopy
 
 from .config import *
-from .utils import get_references, get_version, condition
+from .utils import get_version, condition
 
 
 # set formatting of warnings to not include line number and code (see
@@ -42,21 +43,17 @@ class QueryATNF(object):
     A class to generate a query of the
     `ATNF pulsar catalogue <http://www.atnf.csiro.au/people/pulsar/psrcat/>`_.
     By default this class will download and cache the latest version of the
-    catalogue database file, although a query can be generated from the
-    catalogue webform interface if requested. The catalogue can be queried for
-    specific pulsar parameters and for specific named pulsars. Conditions on
-    the parameter can be specified. The results will be stored as a
-    :class:`pandas.DataFrame`, but can also be accessed as an
-    :class:`astropy.table.Table`.
+    catalogue database file. The catalogue can be queried for specificpulsar
+    parameters and for specific named pulsars. Conditions on the parameter can
+    be specified. The results will be stored as a :class:`pandas.DataFrame`,
+    but can also be accessed as an :class:`astropy.table.Table`.
 
     Args:
         params (str, :obj:`list`): a list of strings with the
             pulsar `parameters
             <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=expert#par_list>`_
             to query. The parameter names are case insensitive. If this is not
-            given then all parameters will be returned by default, unless
-            querying via the webform in which case only `JNAME` will be
-            returned by default.
+            given then all parameters will be returned by default.
         condition (str): a string with logical conditions for the returned
             parameters. The allowed format of the condition string is given
             `here
@@ -108,8 +105,6 @@ class QueryATNF(object):
         include_refs (bool): Set if wanting parameter
             `references <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_ref.html>`_
             to be returned. Defaults to False.
-        get_ephemeris (bool): Set if wanting to get pulsar ephemerides (only
-            works if `psrs` have been specified). Defaults to False.
         adsref (bool): Set if wanting to use an :class:`ads.search.SearchQuery`
             to get reference information. Defaults to False.
         loadfromdb (str): Load a pulsar database file from a given path rather
@@ -119,26 +114,25 @@ class QueryATNF(object):
             `loadfromfile` in earlier versions, which still works but has been
             deprecated. Defaults to None.
         cache (bool): Cache the catalogue database file for future use. This is
-            ignored if `loadfromdb` is given or the request is via the webform.
-            Defaults to True.
+            ignored if `loadfromdb` is given. Defaults to True.
         checkupdate (bool): If True then check whether a cached catalogue file
             has an update available, and re-download if there is an update.
             Defaults to False.
-        webform (bool): Query the catalogue webform rather than downloading the
-           database file. Defaults to False.
-        version (str): A string with the ATNF version to use. This will only be
-            used if querying via the webform and will default to the current
-            version if set as None.
+        frompandas (:class:`pandas.DataFrame`): create a new
+            :class:`psrqpy.QueryATNF` object from an existing
+            :class:`pandas.DataFrame`.
+        fromtable (:class:`astropy.table.Table`): create a new
+            :class:`psrqpy.QueryATNF` object from an existing
+            :class:`astropy.table.Table`.
     """
 
     def __init__(self, params=None, condition=None, psrtype=None, assoc=None,
                  bincomp=None, exactmatch=False, sort_attr='jname',
                  sort_order='asc', psrs=None, include_errs=True,
-                 include_refs=False, get_ephemeris=False, version=None,
-                 adsref=False, loadfromfile=None, loadquery=None,
-                 loadfromdb=None, cache=True, checkupdate=False,
-                 circular_boundary=None, coord1=None, coord2=None, radius=0.,
-                 webform=False):
+                 include_refs=False, adsref=False, loadfromfile=None,
+                 loadquery=None, loadfromdb=None, cache=True,
+                 checkupdate=False, circular_boundary=None, coord1=None,
+                 coord2=None, radius=0., frompandas=None, fromtable=None):
         if loadfromfile is not None and loadquery is None:
             loadquery = loadfromfile
         if loadquery:
@@ -146,34 +140,16 @@ class QueryATNF(object):
             return
 
         self.__dataframe = DataFrame()
-        self._psrs = psrs
         self._include_errs = include_errs
         self._include_refs = include_refs
-        self._atnf_version = version
         self._adsref = adsref
         self._savefile = None  # file to save class to
         self._loadfile = None  # file class loaded from
         self.condition = condition
         self.exactmatch = exactmatch
+        self.psrs = psrs
         self._sort_order = sort_order
         self._sort_attr = sort_attr.upper()
-        self._webform = webform
-
-        if not self._webform:
-            # download and cache (if requested) the database file
-            try:
-                _ = self.get_catalogue(path_to_db=loadfromdb, cache=cache,
-                                       update=checkupdate)
-            except IOError:
-                raise IOError("Could not get catalogue database file")
-        else:
-            # if no version is set this will return the current or default value
-            self._atnf_version = self.get_version
-
-        self._refs = None  # set of pulsar references
-        self._get_ephemeris = get_ephemeris
-
-        self._pulsars = None  # gets set to a Pulsars object by get_pulsars()
 
         # conditions for finding pulsars within a circular boundary
         self._coord1 = coord1
@@ -208,12 +184,6 @@ class QueryATNF(object):
             coord = SkyCoord(self._coord1, self._coord2,
                              unit=(aunits.hourangle, aunits.deg))
 
-            # make sure 'RAJ' and 'DECJ' are queried
-            params.append('RAJ')
-            params.append('DECJ')
-
-        self.query_params = params
-
         # set conditions
         condparse = self.parse_conditions(psrtype=psrtype, assoc=assoc,
                                           bincomp=bincomp)
@@ -223,19 +193,47 @@ class QueryATNF(object):
             else:
                 self._condition += condparse
 
+        self.query_params = params
+        self._refs = None  # set of pulsar references
+        self._pulsars = None  # gets set to a Pulsars object by get_pulsars()
+
+        # store passed pandas DataFrame
+        if isinstance(frompandas, DataFrame):
+            self.__dataframe = frompandas.copy()
+            return
+
+        # store passed astropy Table
+        if isinstance(fromtable, Table):
+            self.__dataframe = fromtable.to_pandas()
+            return
+
+        # download and cache (if requested) the database file
+        try:
+            _ = self.get_catalogue(path_to_db=loadfromdb, cache=cache,
+                                   update=checkupdate)
+        except IOError:
+            raise IOError("Could not get catalogue database file")
+
         # get references if required
         if self._include_refs:
-            self._refs = get_references()  # CHANGE GET_REFERENCES TO USE FILE IN TARBALL
-
-        if self._webform:
-            # perform query
-            self.generate_query()
-
-            # parse the query with BeautifulSoup into a dictionary
-            self.parse_query()
+            self.get_references(adsref, cache=self._cache)
 
         # perform requested sorting
         _ = self.sort(inplace=True)
+
+    def get_references(self, useads=False, cache=True):
+
+        from .utils import get_references
+
+        self._useads = useads
+        self._refs = None
+        self._adsrefs = None
+
+        if self._useads:
+            self._refs, self._adsrefs = get_references(self._useads,
+                                                       cache=cache)
+        else:
+            self._refs = get_references(False, cache=cache)
 
     def get_catalogue(self, path_to_db=None, cache=True, update=False,
                       overwrite=True):
@@ -254,11 +252,11 @@ class QueryATNF(object):
             currently cached version. This is ignored if `path_to_db` is given.
         overwrite (bool): if True the returned catalogue will overwrite the
             catalogue currently contained within the :class:`~psrqpy.QueryATNF`
-            class. If False then a :class:`pandas.DataFrame` copy of the
+            class. If False then a new :class:`~psrqpy.QueryATNF` copy of the
             catalogue will be returned.
 
         Returns:
-            :class:`~pandas.DataFrame`: a table containing the catalogue.
+            :class:`psrqpy.QueryATNF`: a table containing the catalogue.
         """
         from .utils import get_catalogue
 
@@ -269,7 +267,19 @@ class QueryATNF(object):
             raise RuntimeError("Problem getting catalogue")
 
         if not overwrite:
-            return dbtable
+            newcatalogue = QueryATNF(params=self.query_params,
+                                     condition=self.condition,
+                                     exactmatch=self.exactmatch,
+                                     sort_attr=self._sort_attr,
+                                     sort_order=self._sort_order,
+                                     psrs=self.psrs,
+                                     include_errs=self._include_errs,
+                                     include_refs=self._include_refs,
+                                     adsref=self._adsref, cache=False,
+                                     coord1=self._coord1, coord2=self._cord2,
+                                     radius=self._radius,
+                                     frompandas=dbtable)
+            return newcatalogue
 
         # update current catalogue
         self.__dataframe = DataFrame(dbtable)
@@ -277,6 +287,9 @@ class QueryATNF(object):
         self._checkupdate = update
         self._cache = cache
         self._atnf_version = dbtable.version
+
+        # calculate derived parameters
+        self.set_derived()
 
         return self
 
@@ -288,27 +301,34 @@ class QueryATNF(object):
 
         return self.__dataframe.columns
 
-    def sort(self, sort_attr=None, sort_order=None, inplace=False):
+    def sort(self, sort_attr='JNAME', sort_order='asc', inplace=False):
         """
         Sort the generated catalogue :class:`~astropy.table.Table` on a given
         attribute and in either ascending or descending order.
+
+        Args:
+            sort_attr (str): The parameter on which to perform the sorting of
+                the query output. Defaults to 'JNAME'.
+            sort_order (str): Set to 'asc' to sort the parameter values in
+                ascending order, or 'desc' to sort in descending order.
+                Defaults to ascending.
+            inplace (bool): If True, and sorting the class' internal
+                :class:`~pandas.DataFrame`, then the sorting will be done
+                in place without returning a copy of the table, otherwise
+                a sorted copy of the table will be returned.
+
+        Returns:
+            :class:`~pandas.DataFrame`: a table containing the sorted
+                catalogue.
         """
 
-        if sort_attr is None:
-            if self._sort_attr is None:
-                self._sort_attr = 'JNAME'  # sort by name by default
-        else:
-            self._sort_attr = sort_attr.upper()
+        self._sort_attr = sort_attr.upper()
 
         if self._sort_attr not in self.columns:
             raise KeyError("Sorting by attribute '{}' is not possible as it "
                            "is not in the table".format(self._sort_attr))
 
-        if sort_order is None:
-            if self._sort_order is None:
-                self._sort_order = 'asc'  # sort ascending by default
-        else:
-            self._sort_order = sort_order
+        self._sort_order = sort_order
 
         # check sort order is either 'asc' or 'desc' (or some synonyms)
         if self._sort_order.lower() in ['asc', 'ascending', 'up', '^']:
@@ -316,8 +336,8 @@ class QueryATNF(object):
         elif self._sort_order.lower() in ['desc', 'descending', 'down', 'v']:
             self._sort_order = 'desc'
         else:
-            warnings.warn(('Unrecognised sort order "{}", defaulting to'
-                           '"ascending"').format(sort_order), UserWarning)
+            warnings.warn("Unrecognised sort order '{}', defaulting to "
+                          "'ascending'".format(sort_order), UserWarning)
             self._sort_order = 'asc'
 
         sortorder = True if self._sort_order == 'asc' else False
@@ -333,11 +353,11 @@ class QueryATNF(object):
                                                 ascending=sortorder)
 
     def __getitem__(self, key):
-        if key not in self.as_pandas.keys():
+        if key not in self.pandas.columns:
             raise KeyError("Key '{}' not in queried results".format(key))
 
         # return astropy table column
-        return self.as_table[key]
+        return self.table[key]
 
     def save(self, fname):
         """
@@ -375,275 +395,50 @@ class QueryATNF(object):
         except IOError:
             raise Exception("Error reading in pickle")
 
-    def generate_query(self, version='', params=None, condition='',
-                       psrnames=None, coord1='', coord2='', radius=0.,
-                       **kwargs):
-        """
-        Generate a query URL and return the content of the
-        :class:`~requests.Response` from that URL. If the required class
-        attributes are set then they are used for generating the query,
-        otherwise arguments can be given to override those set when
-        initialising the class.
-
-        Args:
-            version (str): a string containing the ATNF version.
-            params (list, str): a list of `parameters <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#par_list>`_
-                to query.
-            condition (str): the logical `condition
-                <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#condition>`_
-                string for the query.
-            psrnames (list, str): a list of pulsar names to get parameters for
-            coord1 (str): a string containing a right ascension in the format
-                ('hh:mm:ss') that centres a circular boundary in which to
-                search for pulsars (requires `coord2` and `radius` to be set).
-            coord2 (str): a string containing a declination in the format
-                ('dd:mm:ss') that centres a circular boundary in which to
-                search for pulsars (requires `coord1` and `radius` to be set).
-            radius (float): the radius (in degrees) of a circular boundary in
-                which to search for pulsars (requires `coord1` and `coord2` to
-                be set).
-            get_ephemeris (bool): a boolean stating whether to get pulsar
-                ephemerides rather than a table of parameter values (only works
-                if pulsar names are given)
-
-        """
-
-        # get_ephemeris is the only keyword argument at the moment
-        for key, value in six.iteritems(kwargs):
-            if key == 'get_ephemeris':
-                if isinstance(value, bool):
-                    self._get_ephemeris = value  # overwrite the pre-set class _get_ephemeris value
-
-        query_dict = {}
-        self._atnf_version = self._atnf_version if not version else version
-        query_dict['version'] = self._atnf_version
-
-        if params is not None:
-            # update query parameters
-            self.query_params = params
-
-        pquery = ''
-        for p in self.query_params:
-            pquery += '&{}={}'.format(p, p)
-
-        query_dict['params'] = pquery
-        self._coord1 = self._coord1 if not coord1 else coord1
-        self._coord2 = self._coord2 if not coord2 else coord2
-        self._radius = self._radius if not radius else radius
-
-        if psrnames:
-            if isinstance(psrnames, string_types):
-                self._psrs = [psrnames]  # convert to list
-            else:
-                if not isinstance(psrnames, list):
-                    raise Exception('Error... input "psrnames" for generate_query() must be a list')
-                self._psrs = list(psrnames)  # reset self._psrs
-
-        qpulsars = ''  # pulsar name query string
-        if self._psrs is not None:
-            if isinstance(self._psrs, string_types):
-                self._psrs = [self._psrs]  # if a string pulsar name then convert to list
-
-            for psr in self._psrs:
-                if '+' in psr:  # convert '+'s in pulsar names to '%2B' for the query string
-                    qpulsars += psr.replace('+', '%2B')
-                else:
-                    qpulsars += psr
-                qpulsars += '+'  # seperator between pulsars
-            qpulsars = qpulsars.strip('+')  # remove the trailing '+'
-        query_dict['psrnames'] = qpulsars
-
-        # get pulsar ephemeris rather than table (parsing of this is not implemented yet)
-        query_dict['getephemeris'] = ''
-        if self._get_ephemeris:
-            if self._psrs is not None:
-                query_dict['getephemeris'] = 'Get+Ephemeris'
-            else:
-                warnings.warn('Cannot get ephemeris if no pulsar names are provided. No ephemerides will be returned.', UserWarning)
-                self._get_ephemeris = False
-
-        # generate query URL
-        self._query_url = QUERY_URL.format(**query_dict)
-
-        # generate request
-        psrrequest = requests.get(self._query_url)
-
-        if psrrequest.status_code != 200:
-            raise Exception('Error... their was a problem with the request: status code {}'.format(psrrequest.status_code))
-
-        self._query_content = psrrequest.content
-
-    def parse_query(self, requestcontent=''):
-        """
-        Parse the query returned by requests.
-
-        Args:
-            requestcontent (str): The content of a :class:`~requests.Response` returned by
-                :func:`~requests.get`
-
-        """
-
-        # update request if required
-        self._query_content = requestcontent if requestcontent else self._query_content
-
-        # parse through BeautifulSoup
-        try:
-            psrsoup = BeautifulSoup(self._query_content, 'html.parser')
-        except RuntimeError:
-            raise RuntimeError('Error... problem parsing catalogue with BeautifulSoup')
-
-        pretags = psrsoup.find_all('pre')  # get any <pre> html tags
-
-        if pretags is None:
-            # couldn't find anything, or their was a query problem
-            raise Exception('Error... problem parsing catalogue for currently requested parameters')
-
-        # check for any warnings generated by the request
-        self._bad_pulsars = []  # any requested pulsars that were not found
-        for pt in pretags:
-            if 'WARNING' in pt.text:
-                warnings.warn('Request generated warning: "{}"'.format(pt.text), UserWarning)
-
-                # check if warning was for a specific requested pulsar: given by warning string "WARNING: PSR XXXXXXX not in catalogue"
-                if 'PSR' in pt.text:
-                    pat = r'WARNING: PSR (?P<psr>\S+) not in catalogue'
-                    wvalues = re.search(pat, pt.text).groupdict()
-
-                    if 'psr' in wvalues:
-                        self._bad_pulsars.append(wvalues['psr'])
-                        # remove any pulsars that weren't found
-                        if wvalues['psr'] in self._psrs:
-                            del self._psrs[self._psrs.index(wvalues['psr'])]
-
-                            # if there are no pulsars left in the list then return None
-                            if len(self._psrs) == 0:
-                                print('No requested pulsars were found in the catalogue')
-                                query_output = None
-                                self._pulsars = None
-                                return
-
-        # actual table or ephemeris values should be in the final <pre> tag
-        qoutput = pretags[-1].text
-        query_output = []  # list to contain dictionary of pulsars
-        self._pulsars = None  # reset to None in case a previous query had already been performed
-
-        if not self._get_ephemeris:  # not getting ephemeris values
-            # put the data in an ordered dictionary dictionary
-            if qoutput:
-                plist = qoutput.strip().split('\n')  # split output string
-
-                if self._psrs:
-                    if len(self._psrs) != len(plist):
-                        raise Exception('Number of pulsars returned is not the same as the number requested')
-
-                for idx, line in enumerate(plist):
-                    query_output.append({})
-
-                    for p in self.query_params:
-                        if p in PSR_ALL_PARS:
-                            query_output[-1][p] = []
-
-                            if PSR_ALL[p]['err'] and self._include_errs:
-                                query_output[-1][p+'_ERR'] = []
-
-                            if PSR_ALL[p]['ref'] and self._include_refs:
-                                query_output[-1][p+'_REF'] = []
-
-                                # also add reference URL for NASA ADS
-                                if self._adsref:
-                                    query_output[-1][p+'_REFURL'] = []
-
-                    # split the line on whitespace or \xa0 using re (if just
-                    # using split it ignores \xa0, which may be present for,
-                    # e.g., empty reference fields, and results in the wrong
-                    # number of line entries, also ignore the first entry as it
-                    # is always in index
-                    pvals = [lv.strip() for lv in re.split(r'\s+| \xa0 | \D\xa0', line)][1:]  # strip removes '\xa0' now
-
-                    vidx = 0  # index of current value
-                    for p in self.query_params:
-                        if pvals[vidx] != '*':
-                            try:
-                                query_output[-1][p] = float(pvals[vidx])
-                            except ValueError:
-                                query_output[-1][p] = pvals[vidx]
-                        vidx += 1
-
-                        # get errors
-                        if PSR_ALL[p]['err']:
-                            if self._include_errs:
-                                if pvals[vidx] != '*':
-                                    try:
-                                        query_output[-1][p+'_ERR'] = float(pvals[vidx])
-                                    except ValueError:
-                                        raise ValueError("Problem converting error value to float")
-
-                            vidx += 1
-
-                        # get references
-                        if PSR_ALL[p]['ref']:
-                            if self._include_refs:
-                                reftag = pvals[vidx]
-
-                                if reftag in self._refs:
-                                    thisref = self._refs[reftag]
-                                    refstring = ('{authorlist}, {year}, '
-                                                 '{title}, {journal}, '
-                                                 '{volume}')
-                                    # remove any superfluous whitespace
-                                    refstring2 = re.sub(r'\s+', ' ',
-                                                   refstring.format(**thisref))
-                                    query_output[-1][p+'_REF'] = ','.join([a for a in refstring2.split(',') if a.strip()])  # remove any superfluous empty ',' seperated values
-
-                                    if self._adsref:
-                                        if 'ADS URL' not in thisref:  # get ADS reference
-                                            try:
-                                                import ads
-                                            except ImportError:
-                                                warnings.warn('Could not import ADS module, so no ADS information will be included', UserWarning)
-                                                article = []
-
-                                            try:
-                                                article = ads.SearchQuery(year=thisref['year'], first_author=thisref['authors'][0], title=thisref['title'])
-                                            except IOError:
-                                                warnings.warn('Could not get reference information, so no ADS information will be included', UserWarning)
-                                                article = []
-
-                                            article = list(article)
-                                            if len(article) > 0:
-                                                self._refs[reftag]['ADS URL'] = ADS_URL.format(list(article)[0].bibcode)
-
-                                        query_output[-1][p+'_REFURL'] = thisref['ADS URL']
-                                else:
-                                    if reftag != '*':
-                                        warnings.warn('Reference tag "{}" not found so omitting reference'.format(reftag), UserWarning)
-                            vidx += 1
-        else:  # getting ephemeris
-            # split ephemerides for each requested pulsar (they are seperated by '@-----'...)
-            if qoutput:
-                psrephs = re.split(r'@-+', qoutput)
-
-                if len(psrephs) != len(self._psrs):
-                    raise Exception('Number of pulsar ephemerides returned is not the same as the number requested')
-
-                # query output in this case is a dictionary of ephemerides
-                for psr, psreph in zip(self._psrs, psrephs):
-                    query_output.append({})
-                    query_output[-1][psr] = psreph
-
-        # set the table
-        _ = self.table(query_output, self.query_params)
-
     def as_array(self):
         """
         Returns:
             :class:`~numpy.ndarray`: the output table as an array.
         """
 
-        return self.as_table.as_array()
+        return self.table.as_array()
 
     def __len__(self):
-        return len(self.as_pandas)
+        return len(self.pandas)
+
+    @property
+    def psrs(self):
+        """
+        Return the name(s) of particular pulsars asked for in the query.
+        """
+
+        return self._psrs
+
+    @psrs.setter
+    def psrs(self, psrnames=None):
+        """
+        Set a list of names of pulsars to be returned by the query.
+
+        Args:
+            psrnames (str, list): a list of names, or a single name, of pulsars
+                to be returned by the query.
+        """
+
+        # set the pulsar name list
+        if psrnames is None:
+            self._psrs = None
+        else:
+            if isinstance(psrnames, string_types):
+                self._psrs = [psrnames]
+            elif isinstance(psrnames, list):
+                self._psrs = psrnames
+            elif isinstance(psrnames, np.ndarray):
+                if psrnames.dtype == np.str or psrnames.dtype == np.unicode:
+                    self._psrs = psrnames.tolist()
+                else:
+                    raise TypeError("psrnames must be a list of strings")
+            else:
+                raise TypeError("psrnames must be a list of strings")
 
     @property
     def num_pulsars(self):
@@ -654,9 +449,9 @@ class QueryATNF(object):
         return len(self)
 
     @property
-    def as_table(self):
+    def table(self):
         # convert to astropy table
-        thistable = Table.from_pandas(self.as_pandas)
+        thistable = Table.from_pandas(self.pandas)
 
         if (self._coord is not None and 'RAJ' in thistable.colnames
                 and 'DECJ' in thistable.colnames):
@@ -697,16 +492,13 @@ class QueryATNF(object):
 
         return self.__dataframe.empty
 
-    def table(self, query_list=None, query_params=None, usecondition=True,
-              useseparation=True):
+    def query_table(self, query_params=None, usecondition=True,
+                    useseparation=True):
         """
-        Return an :class:`astropy.table.Table` from the query.
+        Return an :class:`astropy.table.Table` from the query with new
+        parameters or conditions if given.
 
         Args:
-            query_list (list): a list of dictionaries of pulsar parameters
-                for each pulsar as returned by a query. These are converted
-                and set as the query table. If this is None and a table already
-                exists then that table will be returned.
             query_params (str, list): a parameter, or list of parameters, to
                 return from the query. If this is None then all parameters are
                 returned.
@@ -725,40 +517,6 @@ class QueryATNF(object):
              :class:`astropy.table.Table`: a table of the pulsar data returned
                  by the query.
         """
-
-        if query_list is not None:
-            if not isinstance(query_list, list):
-                raise TypeError("Query list is not a list!")
-
-            # add RA and DEC in degs and JNAME/BNAME if necessary
-            for i, psr in enumerate(list(query_list)):
-                # add RA and DEC in degs
-                if np.all([rd in psr.keys() for rd in ['RAJ', 'DECJ']]):
-                    if not np.all([rd in psr.keys() for rd in ['RAJD', 'DECJD']]):
-                        coord = SkyCoord(psr['RAJ'], psr['DECJ'],
-                                         unit=(aunits.hourangle, aunits.deg))
-                        query_list[i]['RAJD'] = coord.ra.deg    # right ascension in degrees
-                        query_list[i]['DECJD'] = coord.dec.deg  # declination in degrees
-
-                # add 'JNAME', 'BNAME' and 'NAME'
-                if 'PSRJ' in psr.keys():
-                    if 'JNAME' not in psr.keys():
-                        query_list[i]['JNAME'] = psr['PSRJ']
-                    
-                        if 'NAME' not in psr.keys():
-                            query_list[i]['NAME'] = psr['PSRJ']
-
-                if 'PSRB' in psr.keys():
-                    query_list[i]['BNAME'] = psr['PSRB']
-
-                    if 'NAME' not in query_list.keys():
-                        query_list[i]['NAME'] = psr['PSRB']
-
-            # convert query list to a pandas DataFrame
-            try:
-                df = DataFrame(query_list)
-            except RuntimeError:
-                raise RuntimeError("Could not convert list to DataFrame")
 
         if not self.empty:  # convert to Table if DataFrame is not empty
             if query_params is None:
@@ -891,9 +649,7 @@ class QueryATNF(object):
     @query_params.setter
     def query_params(self, params):
         """
-        Set the parameters with which to query from the catalogue. If
-        submitting the query via the webform then `JNAME` will always be
-        included in the query.
+        Set the parameters with which to query from the catalogue.
 
         Args:
             params (list, str): A list of parameter names to query from the
@@ -903,30 +659,20 @@ class QueryATNF(object):
         self._query_params = None
 
         if isinstance(params, list):
-            if len(params) == 0 and self._webform:
-                print('No query parameters have been specified, so only '
-                      '"JNAME" will be queried')
+            if len(params) == 0:
+                print('No query parameters have been specified')
 
             for p in params:
                 if not isinstance(p, string_types):
-                    raise Exception("Non-string value '{}' found in params "
+                    raise TypeError("Non-string value '{}' found in params "
                                     "list".format(p))
 
             self._query_params = [p.upper() for p in params]
-        else:
-            if isinstance(params, string_types):
-                # make sure parameter is all upper case
-                self._query_params = [params.upper()]
-            elif params is not None:
-                # if getting ephemerides then param can be None
-                if self._psrs and self._get_ephemeris:
-                    self._query_params = None
-                else:
-                    raise Exception("'params' must be a list or string")
-
-        if self._webform:
-            # if querying via the webform make sure JNAME is included
-            self._query_params.append('JNAME')
+        elif isinstance(params, string_types):
+            # make sure parameter is all upper case
+            self._query_params = [params.upper()]
+        elif params is not None:
+            raise TypeError("'params' must be a list or string")
 
         # remove any duplicate
         if self._query_params is not None:
@@ -944,10 +690,18 @@ class QueryATNF(object):
         without any sorting or conditions applied.  
         """
 
-        return self.copy()
+        return self.__dataframe.copy()
 
     @property
-    def as_pandas(self):
+    def dataframe(self):
+        """
+        Return the query table as a :class:`pandas.DataFrame`.
+        """
+
+        return self.pandas
+
+    @property
+    def pandas(self):
         """
         Return the query table as a :class:`pandas.DataFrame`.
         """
@@ -959,11 +713,756 @@ class QueryATNF(object):
             # apply condition
             dftable = condition(dftable, self._condition, self._exactmatch) 
 
+        # return only requested pulsars
+        if self.psrs is not None:
+            jnames = np.zeros(len(dftable), dtype=np.bool)
+            if 'JNAME' in dftable.columns:
+                jnames = np.array([psr in self.psrs
+                                   for psr in dftable['JNAME']])
+
+            bnames = np.zeros(len(dftable), dtype=np.bool)
+            if 'BNAME' in dftable.columns:
+                bnames = np.array([psr in self.psrs
+                                   for psr in dftable['BNAME']])
+
+            if np.any(jnames) and np.any(bnames):
+                allnames = jnames | bnames
+            elif np.any(jnames):
+                allnames = jnames
+            elif np.any(bnames):
+                allnames = bnames
+            else:
+                warnings.warn("No requested pulsars '{}' were "
+                              "found.".format(self.psrs), UserWarning)
+
+            dftable = dftable[allnames]
+
         # return only the required query parameters
         if isinstance(self.query_params, list):
-            return dftable[self.query_params]
-        else:
-            return dftable
+            retpars = list(self.query_params)  # return parameters
+            
+            for par in self.query_params:
+                if par in PSR_ALL_PARS:
+                    if PSR_ALL[par]['err'] and self._include_errs:
+                        retpars.append(par+'_ERR')
+
+                    if PSR_ALL[par]['ref'] and self._include_refs:
+                        retpars.append(par+'_REF')
+
+                        if self._useads and self._adsref is not None:
+                            retpars.append(p+'_REFURL')
+
+            retpars = list(set(retpars))  # remove duplicates
+
+            dftable = dftable[retpars]
+
+        # convert reference tags to reference strings
+        if self._include_refs and isinstance(self._refs, dict):
+            for par in dftable.columns:
+                if par[-4:] == '_REF':
+                    for i in dftable[par].index.values:
+                        reftag = dftable[par][i]
+                        if reftag in self._refs:
+                            dftable.loc[i, par] = self._refs[reftag]
+
+                            if self._useads and reftag in self._adsref:
+                                dftable[par+'_REFURL'] = self._adsref[reftag]
+
+        # reset the indices to zero in the dataframe
+        return dftable.reset_index(drop=True)
+
+    def set_derived(self):
+        """
+        Compute any derived parameters and add them to the class.
+
+        These calculations are based on those in the `readCatalogue.c` and
+        `defineParameters.c` files from the `PSRCAT`
+        `code <http://www.atnf.csiro.au/research/pulsar/psrcat/download.html>`_.
+        """
+
+        self.define_dist()      # define the DIST and DIST1 parameters
+        self.derived_p0()       # derive P0 from F0 if not given
+        self.derived_f0()       # derive F0 from P0 if not given
+        self.derived_p1()       # derive P1 from F1 if not given
+        self.derived_f1()       # derive F1 from P1 if not given
+        self.derived_pb()       # derive binary period from FB0
+        self.derived_pbdot()    # derive Pbdot from FB1
+        self.derived_fb0()      # derive orbital frequency from period
+        self.derived_fb1()      # derive FB1 from PBDOT
+        self.derived_age()      # characteristic age
+        self.derived_bsurf()    # surace magnetic field
+        self.derived_b_lc()     # magnetic field at light cylinder
+        self.derived_edot()     # spin-down luminosity
+        self.derived_edotd2()   # spin-down flux at Sun
+        self.derived_pmtot()    # total proper motion
+        self.derived_vtrans()   # transverse velocity
+        self.derived_p1_i()     # instrinsic period derivative
+        self.derived_age_i()    # intrinsic age
+        self.derived_bsurf_i()  # intrinsic Bsurf
+        self.derived_edot_i()   # intrinsic luminosity
+        self.derived_flux()     # radio flux
+
+    def define_dist(self):
+        """
+        Set the `DIST` and `DIST1` parameters using other values.
+        """
+
+        if not np.all([p in self.__dataframe.columns for p in ['PX', 'PX_ERR', 'DIST_A', 'DIST_AMN', 'DIST_AMX', 'DIST_DM', 'DIST_DM1']]):
+            warnings.warn("Could not set distances.",
+                          UserWarning)
+            return
+
+        PX = self.__dataframe['PX']
+        PXERR = self.__dataframe['PX_ERR']
+        DIST_A = self.__dataframe['DIST_A']
+        DIST_AMN = self.__dataframe['DIST_AMN']
+        DIST_AMX = self.__dataframe['DIST_AMX']
+        DIST_DM = self.__dataframe['DIST_DM']
+        DIST_DM1 = self.__dataframe['DIST_DM1']
+
+        # DIST defaults to DM distance
+        DIST = DIST_DM.copy()
+
+        # DIST1 defaults to DM1 distance
+        DIST1 = DIST_DM1.copy()
+
+        ONEAU = 149597870.  # AU in km (from psrcat.h)
+        ONEPC = 30.857e12   # 1 pc in km (from psrcat.h)
+
+        idxpx = np.isfinite(PX) & np.isfinite(PXERR)
+
+        # set distances using parallax if parallax has greater than 3 sigma significance
+        pxsigma = np.zeros(len(PX))
+        pxsigma[idxpx] = np.abs(PX[idxpx])/PXERR[idxpx]
+
+        # use DIST_A if available
+        idxdista = np.isfinite(DIST_A)
+
+        DIST[idxdista] = DIST_A[idxdista]
+        DIST1[idxdista] = DIST_A[idxdista]
+
+        # indexes of parallaxes with greater than 3 sigma significance
+        idxpxgt3 = (pxsigma > 3.) & ~np.isfinite(DIST_A)
+
+        DIST[idxpxgt3] = (ONEAU/ONEPC)*(60.*60.*180)/(PX[idxpxgt3]*np.pi)
+        DIST1[idxpxgt3] = (ONEAU/ONEPC)*(60.*60.*180)/(PX[idxpxgt3]*np.pi) 
+
+        # if dist_amn and dist_amx exist and dist_dm lies within boundary
+        # then use dist_dm else use the closest limit to dist_dm
+        # if dist_dm is not defined then use (dism_amn + dist_amx)/2
+        idxdist = np.isfinite(DIST) & ~idxpxgt3
+        idxdist1 = np.isfinite(DIST1) & ~idxpxgt3
+
+        idxa = ~((DIST <= DIST_AMX) & (DIST >= DIST_AMN)) 
+        idxa1 = ~((DIST1 <= DIST_AMX) & (DIST1 >= DIST_AMN))
+
+        DIST[idxa & idxdist & (DIST >= DIST_AMX)] = DIST_AMX[idxa & idxdist & (DIST >= DIST_AMX)]
+        DIST1[idxa1 & idxdist1 & (DIST1 >= DIST_AMX)] = DIST_AMX[idxa1 & idxdist1 & (DIST1 >= DIST_AMX)]
+
+        DIST[idxa & idxdist & (DIST < DIST_AMX)] = DIST_AMN[idxa & idxdist & (DIST < DIST_AMX)]
+        DIST1[idxa1 & idxdist1 & (DIST1 < DIST_AMX)] = DIST_AMN[idxa1 & idxdist1 & (DIST1 < DIST_AMX)]
+
+        idxdist = ~np.isfinite(DIST) & ~idxpxgt3 & np.isfinite(DIST_AMN) & np.isfinite(DIST_AMX)
+        idxdist1 = ~np.isfinite(DIST) & ~idxpxgt3 & np.isfinite(DIST_AMN) & np.isfinite(DIST_AMX)
+
+        DIST[idxdist] = 0.5*(DIST_AMN[idxdist] + DIST_AMX[idxdist])
+        DIST1[idxdist1] = 0.5*(DIST_AMN[idxdist1] + DIST_AMX[idxdist1])
+
+        self.__dataframe['DIST'] = DIST
+        self.__dataframe['DIST1'] = DIST1 
+
+    def derived_p0(self):
+        """
+        Calculate the period from the frequency in cases where period is not
+        given.
+        """
+
+        if not np.all([p in self.__dataframe.columns for p in ['P0', 'F0']]):
+            warnings.warn("Could not set periods.",
+                          UserWarning)
+            return
+
+        F0 = self.__dataframe['F0']
+        P0 = self.__dataframe['P0']
+
+        if not np.all([p in self.__dataframe.columns for p in ['P0', 'F0']]):
+            warnings.warn("Could not set periods.", UserWarning)
+            return
+
+        F0 = self.__dataframe['F0']
+        P0 = self.__dataframe['P0']
+
+        # find indices where P0 needs to be set from F0
+        idxp0 = ~np.isfinite(P0) & np.isfinite(F0)
+        P0new = P0.copy()
+        P0new[idxp0] = 1./F0[idxp0]
+        self.__dataframe.update(P0new)
+
+        # set the references
+        if np.all([p in self.__dataframe.columns for p in ['P0_REF', 'F0_REF']]):
+            P0REFnew = self.__dataframe['P0_REF'].copy()
+            F0REF = self.__dataframe['F0_REF']
+            P0REFnew[idxp0] = F0REF[idxp0]
+            self.__dataframe.update(P0REFnew)
+
+        # set the errors
+        if np.all([p in self.__dataframe.columns for p in ['P0_ERR', 'F0_ERR']]):
+            P0ERRnew = self.__dataframe['P0_ERR'].copy()
+            F0ERR = self.__dataframe['F0_ERR']
+            P0ERRnew[idxp0] = F0ERR[idxp0]*P0[idxp0]**2
+            self.__dataframe.update(P0ERRnew)
+
+    def derived_f0(self):
+        """
+        Calculate the frequency from the period in cases where frequency is not
+        given.
+        """
+
+        if not np.all([p in self.__dataframe.columns for p in ['P0', 'F0']]):
+            warnings.warn("Could not set periods.", UserWarning)
+            return
+
+        F0 = self.__dataframe['F0']
+        P0 = self.__dataframe['P0']
+
+        # find indices where F0 needs to be set from P0
+        idxf0 = np.isfinite(P0) & ~np.isfinite(F0)
+        F0new = F0.copy()
+        F0new[idxf0] = 1./P0[idxf0]
+        self.__dataframe.update(F0new)
+
+        # set the references
+        if np.all([p in self.__dataframe.columns for p in ['P0_REF', 'F0_REF']]):
+            F0REFnew = self.__dataframe['F0_REF'].copy()
+            P0REF = self.__dataframe['P0_REF']
+            F0REFnew[idxf0] = P0REF[idxf0]
+            self.__dataframe.update(F0REFnew)
+
+        # set the errors
+        if np.all([p in self.__dataframe.columns for p in ['P0_ERR', 'F0_ERR']]):
+            F0ERRnew = self.__dataframe['F0_ERR'].copy()
+            P0ERR = self.__dataframe['P0_ERR']
+            F0ERRnew[idxf0] = P0ERR[idxf0]*F0[idxf0]**2
+            self.__dataframe.update(F0ERRnew)
+
+    def derived_p1(self):
+        """
+        Calculate the period derivative from the frequency derivative in cases
+        where period derivative is not given.
+        """
+
+        if not np.all([p in self.__dataframe.columns for p in ['P0', 'F0', 'F1', 'P1']]):
+            warnings.warn("Could not set period derivatives.",
+                          UserWarning)
+            return
+
+        F0 = self.__dataframe['F0']
+        P0 = self.__dataframe['P0']
+        F1 = self.__dataframe['F1']
+        P1 = self.__dataframe['P1']
+
+        # find indices where P0 needs to be set from F0
+        idxp1 = ~np.isfinite(P1) & np.isfinite(F1)
+        P1new = P1.copy()
+        P1new[idxp1] = -(P0[idxp1]**2)*F1[idxp1]
+        self.__dataframe.update(P1new)
+
+        # set the references
+        if np.all([p in self.__dataframe.columns for p in ['P1_REF', 'F1_REF']]):
+            P1REFnew = self.__dataframe['P1_REF'].copy()
+            F1REF = self.__dataframe['F1_REF']
+            P1REFnew[idxp1] = F1REF[idxp1]
+            self.__dataframe.update(P1REFnew)
+
+        # set the errors
+        if np.all([p in self.__dataframe.columns for p in ['P0_ERR', 'F0_ERR', 'F1_ERR', 'P1_ERR']]):
+            P1ERRnew = self.__dataframe['P0_ERR'].copy()
+            F1ERR = self.__dataframe['F1_ERR']
+            F0ERR = self.__dataframe['F0_ERR']
+            P1ERRnew[idxp1] = np.sqrt((P0[idxp1]**2*F1ERR[idxp1])**2 +
+						          (2.0*P0[idxp1]**3*F1[idxp1]*F0ERR[idxp1])**2)
+            self.__dataframe.update(P1ERRnew)
+
+    def derived_f1(self):
+        """
+        Calculate the frequency derivative from the period derivative in cases
+        where frequency derivative is not given.
+        """
+
+        if not np.all([p in self.__dataframe.columns for p in ['P0', 'F0', 'F1', 'P1']]):
+            warnings.warn("Could not set period derivatives.",
+                          UserWarning)
+            return
+
+        F0 = self.__dataframe['F0']
+        P0 = self.__dataframe['P0']
+        F1 = self.__dataframe['F1']
+        P1 = self.__dataframe['P1']
+
+        # find indices where P0 needs to be set from F0
+        idxf1 = np.isfinite(P1) & ~np.isfinite(F1)
+        F1new = F1.copy()
+        F1new[idxf1] = -(F0[idxf1]**2)*P1[idxf1]
+        self.__dataframe.update(F1new)
+
+        # set the references
+        if np.all([p in self.__dataframe.columns for p in ['P1_REF', 'F1_REF']]):
+            F1REFnew = self.__dataframe['F1_REF'].copy()
+            P1REF = self.__dataframe['P1_REF']
+            F1REFnew[idxf1] = P1REF[idxf1]
+            self.__dataframe.update(F1REFnew)
+
+        # set the errors
+        if np.all([p in self.__dataframe.columns for p in ['P0_ERR', 'F0_ERR', 'F1_ERR', 'P1_ERR']]):
+            F1ERRnew = self.__dataframe['F0_ERR'].copy()
+            P1ERR = self.__dataframe['P1_ERR']
+            P0ERR = self.__dataframe['P0_ERR']
+            F1ERRnew[idxf1] = np.sqrt((F0[idxf1]**2*P1ERR[idxf1])**2 +
+						          (2.0*F0[idxf1]**3*P1[idxf1]*P0ERR[idxf1])**2)
+            self.__dataframe.update(F1ERRnew)
+
+    def derived_pb(self):
+        """
+        Calculate binary orbital period from orbital frequency.
+        """
+
+        if not np.all([p in self.__dataframe.columns for p in ['PB', 'FB0']]):
+            warnings.warn("Could not set orbital period.",
+                          UserWarning)
+            return
+
+        FB0 = self.__dataframe['FB0']
+        PBnew = self.__dataframe['PB'].copy()
+
+        idxpb = ~np.isfinite(PBnew) & np.isfinite(FB0)
+        PBnew[idxpb] = 1./(FB0[idxpb]*86400.)
+        self.__dataframe.update(PBnew)
+
+        # set the references
+        if np.all([p in self.__dataframe.columns for p in ['PB_REF', 'FB0_REF']]):
+            PBREFnew = self.__dataframe['PB_REF'].copy()
+            FB0REF = self.__dataframe['FB0_REF']
+            PBREFnew[idxpb] = FB0REF[idxpb]
+            self.__dataframe.update(PBREFnew)
+
+        # set the errors
+        if np.all([p in self.__dataframe.columns for p in ['PB_ERR', 'FB0_ERR']]):
+            PBERRnew = self.__dataframe['PB_ERR'].copy()
+            FB0ERR = self.__dataframe['FB0_ERR']
+            PBERRnew[idxpb] = FB0ERR[idxpb]*PBnew[idxpb]**2*86400.
+            self.__dataframe.update(PBERRnew)
+
+    def derived_pbdot(self):
+        """
+        Calculate binary orbital period derivative from orbital frequency
+        derivative.
+        """
+
+        if not np.all([p in self.__dataframe.columns for p in ['PBDOT', 'FB1', 'PB']]):
+            warnings.warn("Could not set orbital period derivative.",
+                          UserWarning)
+            return
+
+        FB1 = self.__dataframe['FB1']
+        PB = self.__dataframe['PB']
+        PBDOTnew = self.__dataframe['PBDOT'].copy()
+
+        idxpbdot = ~np.isfinite(PBDOTnew) & np.isfinite(FB1)
+        PBDOTnew[idxpbdot] = -(PB[idxpbdot]**2*FB1[idxpbdot])
+        self.__dataframe.update(PBDOTnew)
+
+        # set the references
+        if np.all([p in self.__dataframe.columns for p in ['PBDOT_REF', 'FB1_REF']]):
+            PBDOTREFnew = self.__dataframe['PBDOT_REF'].copy()
+            FB1REF = self.__dataframe['FB1_REF']
+            PBDOTREFnew[idxpbdot] = FB1REF[idxpbdot]
+            self.__dataframe.update(PBDOTREFnew)
+
+        # set the errors
+        if np.all([p in self.__dataframe.columns for p in ['PBDOT_ERR', 'FB1_ERR', 'FB0_ERR']]):
+            PBDOTERRnew = self.__dataframe['PBDOT_ERR'].copy()
+            FB1ERR = self.__dataframe['FB1_ERR']
+            FB0ERR = self.__dataframe['FB0_ERR']
+            PBDOTERRnew[idxpbdot] = np.sqrt((PB[idxpbdot]**2*FB1ERR[idxpbdot])**2 +
+						          (2.0*PB[idxpbdot]**3*FB1[idxpbdot]*FB0ERR[idxpbdot])**2)
+            self.__dataframe.update(PBDOTERRnew)
+
+    def derived_fb0(self):
+        """
+        Calculate orbital frequency from orbital period.
+        """
+
+        if not np.all([p in self.__dataframe.columns for p in ['PB', 'FB0']]):
+            warnings.warn("Could not set orbital frequency.",
+                          UserWarning)
+            return
+
+        PB = self.__dataframe['PB']
+        FB0new = self.__dataframe['FB0'].copy()
+
+        idxfb0 = ~np.isfinite(FB0new) & np.isfinite(PB)
+        FB0new[idxfb0] = 1./(PB[idxfb0]*86400.)
+        self.__dataframe.update(FB0new)
+
+        # set the references
+        if np.all([p in self.__dataframe.columns for p in ['PB_REF', 'FB0_REF']]):
+            FB0REFnew = self.__dataframe['FB0_REF'].copy()
+            PBREF = self.__dataframe['PB_REF']
+            FB0REFnew[idxfb0] = PBREF[idxfb0]
+            self.__dataframe.update(FB0REFnew)
+
+        # set the errors
+        if np.all([p in self.__dataframe.columns for p in ['PB_ERR', 'FB0_ERR']]):
+            FB0ERRnew = self.__dataframe['FB0_ERR'].copy()
+            PBERR = self.__dataframe['PB_ERR']
+            FB0ERRnew[idxfb0] = PBERR[idxfb0]*(FB0new[idxfb0]**2)*86400.
+            self.__dataframe.update(FB0ERRnew)
+
+    def derived_fb1(self):
+        """
+        Calculate theorbital frequency derivative from the binary orbital
+        period derivative.
+        """
+
+        if not np.all([p in self.__dataframe.columns for p in ['PBDOT', 'FB1', 'FB0']]):
+            warnings.warn("Could not set orbital period derivative.",
+                          UserWarning)
+            return
+
+        PBDOT = self.__dataframe['PBDOT']
+        FB0 = self.__dataframe['FB0']
+        FB1new = self.__dataframe['FB1'].copy()
+
+        idxfb1 = ~np.isfinite(FB1new) & np.isfinite(PBDOT)
+        FB1new[idxfb1] = -(FB0[idxfb1]**2*PBDOT[idxfb1])
+        self.__dataframe.update(FB1new)
+
+        # set the references
+        if np.all([p in self.__dataframe.columns for p in ['PBDOT_REF', 'FB1_REF']]):
+            FB1REFnew = self.__dataframe['FB1_REF'].copy()
+            PBDOTREF = self.__dataframe['PBDOT_REF']
+            FB1REFnew[idxfb1] = PBDOTREF[idxfb1]
+            self.__dataframe.update(FB1REFnew)
+
+        # set the errors
+        if np.all([p in self.__dataframe.columns for p in ['PBDOT_ERR', 'FB1_ERR', 'PB_ERR']]):
+            FB1ERRnew = self.__dataframe['FB1_ERR'].copy()
+            PBDOTERR = self.__dataframe['PBDOT_ERR']
+            PBERR = self.__dataframe['PB_ERR']
+            FB1ERRnew[idxfb1] = np.sqrt((FB0[idxfb1]**2*PBDOTERR[idxfb1])**2 +
+						          (2.0*FB0[idxfb1]**3*PBDOT[idxfb1]*PBERR[idxfb1]*86400.)**2)
+            self.__dataframe.update(FB1ERRnew)
+
+    def derived_p1_i(self):
+        """
+        Calculate the intrinsic period derivative.
+        """
+
+        if 'P1_I' in self.__dataframe.columns:
+            return
+
+        if 'VTRANS' not in self.__dataframe.columns:
+            self.derived_vtrans()
+
+        if not np.all([p in self.__dataframe.columns for p in ['VTRANS', 'P0', 'P1', 'DIST']]):
+            warnings.warn("Could not set intrinsic period derivative.",
+                          UserWarning)
+            return
+
+        # get required parameters
+        VTRANS = self.__dataframe['VTRANS']
+        P0 = self.__dataframe['P0']
+        P1 = self.__dataframe['P1']
+        DIST = self.__dataframe['DIST']
+
+        p1i = ((P1/1.0e-15) - VTRANS**2*1.0e10*P0/(DIST*3.086e6)/2.9979e10)*1.0e-15
+        p1i[~np.isfinite(P1) | ~np.isfinite(P0) | ~np.isfinite(VTRANS) | ~np.isfinite(DIST)] = np.nan
+        self.__dataframe['P1_I'] = p1i
+
+    def derived_age(self):
+        """
+        Calculate the characteristic age.
+        """
+
+        # check if AGE is already defined
+        if 'AGE' in self.__dataframe.columns:
+            return
+
+        if not np.all([p in self.__dataframe.columns for p in ['P0', 'P1']]):
+            warnings.warn("Could not set characteristic age.",
+                          UserWarning)
+            return
+
+        # get period and period derivative
+        P0 = self.__dataframe['P0']
+        P1 = self.__dataframe['P1']
+
+        age = 0.5 * P0 / P1 / (60.0 * 60.0 * 24.0 * 365.25)
+        age[(P1 < 0) | ~np.isfinite(P1) | ~np.isfinite(P0)] = np.nan
+        self.__dataframe['AGE'] = age
+
+    def derived_age_i(self):
+        """
+        Calculate the characteristic age, dervied from period and intrinsic
+        period derivative.
+        """
+
+        if 'AGE_I' in self.__dataframe.columns:
+            return
+
+        if 'P1_I' not in self.__dataframe.columns:
+            self.derived_p1_i()
+
+        if not np.all([p in self.__dataframe.columns for p in ['P0', 'P1_I']]):
+            warnings.warn("Could not set characteristic age.",
+                          UserWarning)
+            return
+
+        # get period and period derivative
+        P0 = self.__dataframe['P0']
+        P1_I = self.__dataframe['P1_I']
+
+        age_i = 0.5 * (P0 / P1_I) / (60.0 * 60.0 * 24.0 * 365.25)
+        age_i[(P1_I < 0) | ~np.isfinite(P1_I) | ~np.isfinite(P0)] = np.nan
+        self.__dataframe['AGE_I'] = age_i
+
+    def derived_bsurf(self):
+        """
+        Calculate the surface magnetic field strength.
+        """
+
+        if 'BSURF' in self.__dataframe.columns:
+            return
+        
+        if not np.all([p in self.__dataframe.columns for p in ['P0', 'P1']]):
+            warnings.warn("Could not set surface magnetic field.",
+                          UserWarning)
+            return
+
+        # get period and period derivative
+        P0 = self.__dataframe['P0']
+        P1 = self.__dataframe['P1']
+
+        bsurf = 3.2e19 * np.sqrt(np.abs(P0 * P1))
+        bsurf[(P1 < 0) | ~np.isfinite(P1) | ~np.isfinite(P0)] = np.nan
+        self.__dataframe['BSURF'] = bsurf
+
+    def derived_bsurf_i(self):
+        """
+        Calculate the surface magnetic field strength, dervied from period and
+        intrinsic period derivative.
+        """
+
+        if 'BSURF_I' in self.__dataframe.columns:
+            return
+
+        if 'P1_I' not in self.__dataframe.columns:
+            self.derived_p1_i()
+
+        if not np.all([p in self.__dataframe.columns for p in ['P0', 'P1_I']]):
+            warnings.warn("Could not set surface magnetic field.",
+                          UserWarning)
+            return
+
+        # get period and period derivative
+        P0 = self.__dataframe['P0']
+        P1_I = self.__dataframe['P1_I']
+
+        bsurf_i = 3.2e19 * np.sqrt(np.abs(P0 * P1_I))
+        bsurf_i[(P1_I < 0) | ~np.isfinite(P1_I) | ~np.isfinite(P0)] = np.nan
+        self.__dataframe['BSURF_I'] = bsurf_i
+
+    def derived_b_lc(self):
+        """
+        Calculate the magnetic field strength at the light cylinder.
+        """
+
+        if 'B_LC' in self.__dataframe.columns:
+            return
+
+        if not np.all([p in self.__dataframe.columns for p in ['P0', 'P1']]):
+            warnings.warn("Could not set light cylinder magnetic field.",
+                          UserWarning)
+            return
+
+        # get period and period derivative
+        P0 = self.__dataframe['P0']
+        P1 = self.__dataframe['P1']
+
+        blc = 3.0e8*np.sqrt(np.abs(P1))*np.abs(P0)**(-5./2.)
+        blc[(P1 < 0) | ~np.isfinite(P1) | ~np.isfinite(P0)] = np.nan
+        self.__dataframe['B_LC'] = blc
+
+    def derived_edot(self):
+        """
+        Calculate the spin-down luminosity.
+        """
+
+        if 'EDOT' in self.__dataframe.columns:
+            return
+
+        if not np.all([p in self.__dataframe.columns for p in ['P0', 'P1']]):
+            warnings.warn("Could not set spin-down luminosity.",
+                          UserWarning)
+            return
+
+        # get period and period derivative
+        P0 = self.__dataframe['P0']
+        P1 = self.__dataframe['P1']
+
+        edot = 4.0 * np.pi**2 * 1e45 * P1 / P0**3
+        edot[(P1 < 0) | ~np.isfinite(P1) | ~np.isfinite(P0)] = np.nan
+        self.__dataframe['EDOT'] = edot
+
+    def derived_edot_i(self):
+        """
+        Calculate the spin-down luminosity, dervied from period and intrinsic
+        period derivative.
+        """
+
+        if 'EDOT_I' in self.__dataframe.columns:
+            return
+
+        if 'P1_I' not in self.__dataframe.columns:
+            self.derived_p1_i()
+
+        if not np.all([p in self.__dataframe.columns for p in ['P0', 'P1_I']]):
+            warnings.warn("Could not set spin-down luminosity.",
+                          UserWarning)
+            return
+
+        # get period and period derivative
+        P0 = self.__dataframe['P0']
+        P1_I = self.__dataframe['P1_I']
+
+        edot_i = 4.0 * np.pi**2 * 1e45 * P1_I / P0**3
+        edot_i[(P1_I < 0) | ~np.isfinite(P1_I) | ~np.isfinite(P0)] = np.nan
+        self.__dataframe['EDOT_I'] = edot_i
+
+    def derived_edotd2(self):
+        """
+        Calculate the spin-down luminosity flux at the Sun.
+        """
+
+        if 'EDOTD2' in self.__dataframe.columns:
+            return
+
+        if not np.all([p in self.__dataframe.columns for p in ['P0', 'P1', 'DIST']]):
+            warnings.warn("Could not set spin-down luminosity flux.",
+                          UserWarning)
+            return
+
+        # get period, period derivative and distance
+        P0 = self.__dataframe['P0']
+        P1 = self.__dataframe['P1']
+        DIST = self.__dataframe['DIST']
+
+        edotd2 = 4.0 * np.pi**2 * 1e45 * (P1 / P0**3) / DIST**2
+        edotd2[(P1 < 0) | ~np.isfinite(P1) | ~np.isfinite(P0) | ~np.isfinite(DIST)] = np.nan
+        self.__dataframe['EDOTD2'] = edotd2
+
+    def derived_pmtot(self):
+        """
+        Calculate the total proper motion and error.
+        """
+        
+        if 'PMTOT' in self.__dataframe.columns:
+            return
+
+        if not np.all([p in self.__dataframe.columns for p in ['PMRA', 'PMDEC', 'PMELONG', 'PMELAT']]):
+            warnings.warn("Could not set total proper motion.",
+                          UserWarning)
+            return
+
+        # get PMRA and PMDEC
+        PMRA = self.__dataframe['PMRA'].copy()
+        PMDEC = self.__dataframe['PMDEC'].copy()
+        PMELONG = self.__dataframe['PMELONG']
+        PMELAT = self.__dataframe['PMELAT']
+
+        # use PM ELONG or ELAT if no RA and DEC
+        useelong = ~np.isfinite(PMRA) & np.isfinite(PMELONG)
+        useelat = ~np.isfinite(PMDEC) & np.isfinite(PMELAT)
+        PMRA[useelong] = PMELONG[useelong]
+        PMDEC[useelat] = PMELAT[useelat]
+
+        pmtot = np.sqrt(PMRA**2+PMDEC**2)
+        self.__dataframe['PMTOT'] = pmtot
+
+        # get the error
+        if not np.all([p in self.__dataframe.columns for p in ['PMRA_ERR', 'PMDEC_ERR', 'PMELONG_ERR', 'PMELAT_ERR']]):
+            return
+
+        PMRA_ERR = self.__dataframe['PMRA_ERR'].copy()
+        PMDEC_ERR = self.__dataframe['PMDEC_ERR'].copy()
+        PMELONG_ERR = self.__dataframe['PMELONG_ERR']
+        PMELAT_ERR = self.__dataframe['PMELAT_ERR']
+        PMDEC_ERR[useelong] = PMELONG_ERR[useelong]
+        PMRA_ERR[useelat] = PMELAT_ERR[useelat]
+
+        pmtoterr = np.sqrt(((PMRA*PMRA_ERR)**2+(PMDEC*PMDEC_ERR)**2)/(PMRA**2 + PMDEC**2))
+        self.__dataframe['PMTOT_ERR'] = pmtoterr
+
+    def derived_vtrans(self):
+        """
+        Calculate the transverse velocity.
+        """
+
+        if 'VTRANS' in self.__dataframe.columns:
+            return
+
+        if 'PMTOT' not in self.__dataframe.columns:
+            self.derived_pmtot()
+
+        if not np.all([p in self.__dataframe.columns for p in ['PMTOT', 'DIST']]):
+            warnings.warn("Could not set transverse velocity.",
+                          UserWarning)
+            return
+
+        PMTOT = self.__dataframe['PMTOT']
+        DIST = self.__dataframe['DIST']
+
+        vtrans = (PMTOT/(1000.0*3600.0*180.0*np.pi*365.25*86400.0))*3.086e16*DIST
+        vtrans[~np.isfinite(PMTOT) | ~np.isfinite(DIST)] = np.nan
+        self.__dataframe['VTRANS'] = vtrans
+
+    def derived_flux(self):
+        """
+        Calculate spectral index between 400 and 1400 MHz and radio
+        flux at 400 and 1400 MHz.
+        """
+
+        if 'SI414' in self.__dataframe.columns:
+            return
+
+        if not np.all([p in self.__dataframe.columns for p in ['S1400', 'S400']]):
+            warnings.warn("Could not set spectral index.",
+                          UserWarning)
+            return
+
+        S1400 = self.__dataframe['S1400']
+        S400 = self.__dataframe['S400']
+
+        SI414 = -np.log10(S400/S1400)/(np.log10(400.0/1400.0))
+        SI414[~np.isfinite(S1400) | ~np.isfinite(S400)] = np.nan
+        self.__dataframe['SI414'] = SI414
+
+        # need distance for flux
+        if 'DIST' not in self.__dataframe.columns:
+            self.define_dist()
+
+        if 'DIST' not in self.__dataframe.columns:
+            return
+
+        DIST = self.__dataframe['DIST']
+
+        R_LUM = S400 * DIST**2
+        R_LUM[~np.isfinite(S400) | ~np.isfinite(DIST)] = np.nan
+        self.__dataframe['R_LUM'] = R_LUM
+
+        R_LUM14 = S1400 * DIST**2
+        R_LUM14[~np.isfinite(S1400) | ~np.isfinite(DIST)] = np.nan
+        self.__dataframe['R_LUM14'] = R_LUM14
 
     def get_pulsars(self):
         """
@@ -985,7 +1484,7 @@ class QueryATNF(object):
                 for key in psrtable.colnames:
                     attrs[key] = row[key]
 
-                P = Pulsar(attrs[nameattr], version=self.get_version, **attrs)
+                P = Pulsar(attrs['JNAME'], **attrs)
                 self._pulsars.add_pulsar(P)
 
         return self._pulsars
@@ -1122,7 +1621,7 @@ class QueryATNF(object):
             int: :func:`len` method returns the number of pulsars
         """
 
-        return len(self.as_table)
+        return len(self.pandas)
 
     def __str__(self):
         """
@@ -1130,7 +1629,7 @@ class QueryATNF(object):
             str: :func:`str` method returns the str method of an :class:`astropy.table.Table`.
         """
 
-        return str(self.as_table)
+        return str(self.table)
 
     def __repr__(self):
         """
@@ -1138,7 +1637,7 @@ class QueryATNF(object):
             str: :func:`repr` method returns the repr method of an :class:`astropy.table.Table`.
         """
 
-        return repr(self.as_table)
+        return repr(self.table)
 
     def ppdot(self, intrinsicpdot=False, excludeGCs=False, showtypes=[],
               showGCs=False, showSNRs=False, markertypes={}, deathline=True,
@@ -1206,13 +1705,10 @@ class QueryATNF(object):
 
         from .utils import death_line, label_line
 
-        if self._webform:
-            raise Exception("Please repeat query with 'webform=False'")
-
         # get table containing all required parameters
-        table = self.table(condition=usecondition,
-                           query_params=['P0', 'P1', 'P1_I', 'ASSOC',
-                                         'BINARY', 'TYPE'])
+        table = self.query_table(condition=usecondition,
+                                 query_params=['P0', 'P1', 'P1_I', 'ASSOC',
+                                               'BINARY', 'TYPE'])
 
         if len(table) == 0:
             print("No pulsars found, so no P-Pdot plot has been produced")
