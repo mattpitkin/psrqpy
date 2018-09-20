@@ -1556,7 +1556,7 @@ class QueryATNF(object):
                     raise Exception("'psrtype' must be a list or string")
 
             for p in list(self._query_psr_types):
-                if p.upper() not in PSR_TYPES:
+                if p.upper() not in PSR_TYPE:
                     warnings.warn("Pulsar type '{}' is not recognised, no type will be required".format(p))
                     self._query_psr_types.remove(p)
                 else:
@@ -1725,11 +1725,11 @@ class QueryATNF(object):
 
         for stype in list(nshowtypes):
             if 'ALL' == stype.upper():
-                nshowtypes = list(PSR_TYPES)
+                nshowtypes = list(PSR_TYPE)
                 # remove radio as none are returned as this
                 del nshowtypes[nshowtypes.index('RADIO')]
                 break
-            elif stype.upper() not in list(PSR_TYPES):
+            elif stype.upper() not in list(PSR_TYPE):
                 warnings.warn('"TYPE" {} is not recognised, so will not be '
                               'included'.format(stype))
                 del nshowtypes[nshowtypes.index(stype)]
@@ -1859,7 +1859,7 @@ class QueryATNF(object):
         handles = OrderedDict()
 
         for stype in nshowtypes:
-            if stype.upper() in PSR_TYPES + ['GC', 'SNR']:
+            if stype.upper() in PSR_TYPE + ['GC', 'SNR']:
                 thistype = stype.upper()
                 if thistype == 'BINARY':
                     # for binaries used the 'BINARY' column in the table
