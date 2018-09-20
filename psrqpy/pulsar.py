@@ -12,6 +12,7 @@ from six import string_types, iteritems
 from .config import PSR_ALL_PARS, PSR_ALL
 from .utils import get_version
 
+
 class Pulsar(object):
     """
     An object to hold a single pulsar. The class requires a pulsar name. The
@@ -43,13 +44,17 @@ class Pulsar(object):
         Return a list of the class attribute names for allowed pulsar
         parameters.
         """
-        return [key for key in self.__dict__ if key in PSR_ALL_PARS+[par+'_ERR' for par in PSR_ALL_PARS]]
+
+        keys = PSR_ALL_PARS+[par+'_ERR' for par in PSR_ALL_PARS]
+        return [key for key in self.__dict__ if key in keys]
 
     def items(self):
         """
         Return a list of the class attribute values.
         """
-        return [value for key, value in iteritems(self.__dict__) if key in PSR_ALL_PARS+[par+'_ERR' for par in PSR_ALL_PARS]]
+
+        keys = PSR_ALL_PARS+[par+'_ERR' for par in PSR_ALL_PARS]
+        return [value for key, value in iteritems(self.__dict__) if key in keys]
 
     @property
     def name(self):
@@ -61,9 +66,9 @@ class Pulsar(object):
 
     def __getitem__(self, key):
         """
-        If the class has a attribute given by the key then return it, otherwise generate a
-        query for that key to set it.
-        
+        If the class has a attribute given by the key then return it, otherwise
+        generate a query for that key to set it.
+
         Args:
             key (str): an item to get
         """
@@ -77,8 +82,8 @@ class Pulsar(object):
         elif ukey in self.__dict__:
             return self.__dict__[ukey]
         else:
-            if ukey[-4:] == '_ERR': # an error parameter
-                tkey = ukey[:-4] # parameter name without error
+            if ukey[-4:] == '_ERR':  # an error parameter
+                tkey = ukey[:-4]  # parameter name without error
             else:
                 tkey = ukey
 
@@ -233,13 +238,13 @@ class Pulsars(object):
 
         if isinstance(psr, Pulsar):
             if psr.name not in self._psrs:
-                self._num_pulsars += 1 # add one pulsar
+                self._num_pulsars += 1  # add one pulsar
                 self._psrs[psr.name] = psr
 
         else:
             # check for duplicates
             for psrname in psrs:
-                if psrname not in self._psrs.keys(): # don't add duplicates
+                if psrname not in self._psrs.keys():  # don't add duplicates
                     self._psrs[psrname] = psrs[psrname]
                     self._num_pulsars += 1
 

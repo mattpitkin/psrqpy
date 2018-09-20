@@ -10,7 +10,7 @@ ATNF_BASE_URL = r'http://www.atnf.csiro.au/people/pulsar/psrcat/'  #: the ATNF p
 ATNF_URL = ATNF_BASE_URL + r'proc_form.php?version={version}'  #: the ATNF pulsar catalogue base URL for queries
 ATNF_TARBALL = ATNF_BASE_URL + r'downloads/psrcat_pkg.tar.gz'  #: name of the tarball containing the entire catalogue database
 
-GLITCH_URL = r'http://www.jb.man.ac.uk/pulsar/glitches/gTable.html'  #: Jodrell Bank glitch catalogue table URL 
+GLITCH_URL = r'http://www.jb.man.ac.uk/pulsar/glitches/gTable.html'  #: Jodrell Bank glitch catalogue table URL
 
 PARAMS_QUERY = r'{params}'
 USERDEFINED_QUERY = r'&startUserDefined=true&c1_val=&c2_val=&c3_val=&c4_val='
@@ -96,7 +96,7 @@ PSR_TIMING = {'P0':      {'ref': True,  'err': True,  'units': 's'},      # Bary
               'PEPOCH':  {'ref': True,  'err': False, 'units': 'd'},      # Epoch of period or frequency (MJD)
               'DM':      {'ref': True,  'err': True,  'units': 'cm^-3 pc'},        # Dispersion measure (cm-3 pc)
               'DM1':     {'ref': True,  'err': True,  'units': 'cm^-3 pc/yr'},     # First time derivative of dispersion measure (cm-3 pc yr-1)
-              'DMEPOCH': {'ref': True,  'err': False, 'units': 'd'}, # Reference epoch for DM, defaults to PEpoch (MJD)
+              'DMEPOCH': {'ref': True,  'err': False, 'units': 'd'},  # Reference epoch for DM, defaults to PEpoch (MJD)
               'DM2':     {'ref': True,  'err': True,  'units': 'cm^-3 pc yr^-2'},  # Second time derivative of dispersion measure (cm-3pc yr-2)
               'DM3':     {'ref': True,  'err': True,  'units': 'cm^-3 pc yr^-3'},  # Third time derivative of dispersion measure (cm-3pc yr-3)
               'DM4':     {'ref': False, 'err': False, 'units': 'cm^-3 pc yr^-4'},  # Fourth time derivative of dispersion measure (cm-3pc yr-4)
@@ -175,7 +175,7 @@ PSR_BINARY = {'BINARY':   {'ref': True,  'err': False, 'units': None},       # B
               'PBDOT_2':  {'ref': False, 'err': False, 'units': None},        # 1st time derivative of binary period [2nd orbit]
               'EPS1_2':   {'ref': True,  'err': True,  'units': None},        # ECC_2 x sin(OM_2) [2nd orbit]
               'EPS2_2':   {'ref': True,  'err': True,  'units': None},        # ECC_2 x cos(OM_2) [2nd orbit]
-              'TASC_2':   {'ref': True,  'err': True,  'units': 'd'},         # Epoch of ascending node (MJD) [2nd orbit] 
+              'TASC_2':   {'ref': True,  'err': True,  'units': 'd'},         # Epoch of ascending node (MJD) [2nd orbit]
               'T0_3':     {'ref': True,  'err': True,  'units': 'd'},         # Epoch of periastron [3rd orbit] (MJD)
               'PB_3':     {'ref': True,  'err': True,  'units': 'd'},         # Binary period of pulsar [3rd orbit] (days)
               'A1_3':     {'ref': True,  'err': True,  'units': 's'},         # Projected semi-major axis of orbit [3rd orbit] (s)
@@ -270,4 +270,3 @@ PSR_ASSOC_TYPE = ['GC',   # globular cluster
 
 #: URL for the NASA ADS
 ADS_URL = 'https://ui.adsabs.harvard.edu/#abs/{}/'
-

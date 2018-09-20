@@ -179,7 +179,7 @@ class QueryATNF(object):
         if self._coord1 and self._coord2 and self._radius != 0.:
             if params is None:
                 params = []
-            
+
             # set centre coordinate as an astropy SkyCoord
             coord = SkyCoord(self._coord1, self._coord2,
                              unit=(aunits.hourangle, aunits.deg))
@@ -460,7 +460,7 @@ class QueryATNF(object):
                                unit=(aunits.hourangle, aunits.deg))
 
             # get seperations
-            d2d = self._coord.separation(catalog)  
+            d2d = self._coord.separation(catalog)
 
             # find seperations within required radius
             catalogmsk = d2d < self._radius*aunits.deg
@@ -473,7 +473,7 @@ class QueryATNF(object):
                 if PSR_ALL[key]['units']:
                     thistable.columns[key].unit = PSR_ALL[key]['units']
 
-                    if (PSR_ALL[key]['err'] and 
+                    if (PSR_ALL[key]['err'] and
                             key+'_ERR' in thistable.colnames):
                         thistable.columns[key+'_ERR'].unit = PSR_ALL[key]['units']
 
@@ -677,7 +677,7 @@ class QueryATNF(object):
         # remove any duplicate
         if self._query_params is not None:
             self._query_params = list(set(self._query_params))
- 
+
             for p in list(self._query_params):
                 if p not in PSR_ALL_PARS:
                     warnings.warn("Parameter '{}' not recognised.".format(p),
@@ -687,7 +687,7 @@ class QueryATNF(object):
     def catalogue(self):
         """
         Return a copy of the entire stored :class:`~pandas.DataFrame` catalogue
-        without any sorting or conditions applied.  
+        without any sorting or conditions applied.
         """
 
         return self.__dataframe.copy()
@@ -711,7 +711,7 @@ class QueryATNF(object):
 
         if self._condition is not None:
             # apply condition
-            dftable = condition(dftable, self._condition, self._exactmatch) 
+            dftable = condition(dftable, self._condition, self._exactmatch)
 
         # return only requested pulsars
         if self.psrs is not None:
@@ -740,7 +740,7 @@ class QueryATNF(object):
         # return only the required query parameters
         if isinstance(self.query_params, list):
             retpars = list(self.query_params)  # return parameters
-            
+
             for par in self.query_params:
                 if par in PSR_ALL_PARS:
                     if PSR_ALL[par]['err'] and self._include_errs:
@@ -807,7 +807,9 @@ class QueryATNF(object):
         Set the `DIST` and `DIST1` parameters using other values.
         """
 
-        if not np.all([p in self.__dataframe.columns for p in ['PX', 'PX_ERR', 'DIST_A', 'DIST_AMN', 'DIST_AMX', 'DIST_DM', 'DIST_DM1']]):
+        reqpars = ['PX', 'PX_ERR', 'DIST_A', 'DIST_AMN', 'DIST_AMX', 'DIST_DM',
+                   'DIST_DM1']
+        if not np.all([p in self.__dataframe.columns for p in reqpars]):
             warnings.warn("Could not set distances.",
                           UserWarning)
             return
@@ -845,7 +847,7 @@ class QueryATNF(object):
         idxpxgt3 = (pxsigma > 3.) & ~np.isfinite(DIST_A)
 
         DIST[idxpxgt3] = (ONEAU/ONEPC)*(60.*60.*180)/(PX[idxpxgt3]*np.pi)
-        DIST1[idxpxgt3] = (ONEAU/ONEPC)*(60.*60.*180)/(PX[idxpxgt3]*np.pi) 
+        DIST1[idxpxgt3] = (ONEAU/ONEPC)*(60.*60.*180)/(PX[idxpxgt3]*np.pi)
 
         # if dist_amn and dist_amx exist and dist_dm lies within boundary
         # then use dist_dm else use the closest limit to dist_dm
@@ -853,7 +855,7 @@ class QueryATNF(object):
         idxdist = np.isfinite(DIST) & ~idxpxgt3
         idxdist1 = np.isfinite(DIST1) & ~idxpxgt3
 
-        idxa = ~((DIST <= DIST_AMX) & (DIST >= DIST_AMN)) 
+        idxa = ~((DIST <= DIST_AMX) & (DIST >= DIST_AMN))
         idxa1 = ~((DIST1 <= DIST_AMX) & (DIST1 >= DIST_AMN))
 
         DIST[idxa & idxdist & (DIST >= DIST_AMX)] = DIST_AMX[idxa & idxdist & (DIST >= DIST_AMX)]
@@ -869,7 +871,7 @@ class QueryATNF(object):
         DIST1[idxdist1] = 0.5*(DIST_AMN[idxdist1] + DIST_AMX[idxdist1])
 
         self.__dataframe['DIST'] = DIST
-        self.__dataframe['DIST1'] = DIST1 
+        self.__dataframe['DIST1'] = DIST1
 
     def derived_p0(self):
         """
@@ -980,7 +982,7 @@ class QueryATNF(object):
             F1ERR = self.__dataframe['F1_ERR']
             F0ERR = self.__dataframe['F0_ERR']
             P1ERRnew[idxp1] = np.sqrt((P0[idxp1]**2*F1ERR[idxp1])**2 +
-						          (2.0*P0[idxp1]**3*F1[idxp1]*F0ERR[idxp1])**2)
+                (2.0*P0[idxp1]**3*F1[idxp1]*F0ERR[idxp1])**2)
             self.__dataframe.update(P1ERRnew)
 
     def derived_f1(self):
@@ -1018,7 +1020,7 @@ class QueryATNF(object):
             P1ERR = self.__dataframe['P1_ERR']
             P0ERR = self.__dataframe['P0_ERR']
             F1ERRnew[idxf1] = np.sqrt((F0[idxf1]**2*P1ERR[idxf1])**2 +
-						          (2.0*F0[idxf1]**3*P1[idxf1]*P0ERR[idxf1])**2)
+                (2.0*F0[idxf1]**3*P1[idxf1]*P0ERR[idxf1])**2)
             self.__dataframe.update(F1ERRnew)
 
     def derived_pb(self):
@@ -1084,7 +1086,7 @@ class QueryATNF(object):
             FB1ERR = self.__dataframe['FB1_ERR']
             FB0ERR = self.__dataframe['FB0_ERR']
             PBDOTERRnew[idxpbdot] = np.sqrt((PB[idxpbdot]**2*FB1ERR[idxpbdot])**2 +
-						          (2.0*PB[idxpbdot]**3*FB1[idxpbdot]*FB0ERR[idxpbdot])**2)
+                (2.0*PB[idxpbdot]**3*FB1[idxpbdot]*FB0ERR[idxpbdot])**2)
             self.__dataframe.update(PBDOTERRnew)
 
     def derived_fb0(self):
@@ -1150,7 +1152,7 @@ class QueryATNF(object):
             PBDOTERR = self.__dataframe['PBDOT_ERR']
             PBERR = self.__dataframe['PB_ERR']
             FB1ERRnew[idxfb1] = np.sqrt((FB0[idxfb1]**2*PBDOTERR[idxfb1])**2 +
-						          (2.0*FB0[idxfb1]**3*PBDOT[idxfb1]*PBERR[idxfb1]*86400.)**2)
+                (2.0*FB0[idxfb1]**3*PBDOT[idxfb1]*PBERR[idxfb1]*86400.)**2)
             self.__dataframe.update(FB1ERRnew)
 
     def derived_p1_i(self):
@@ -1233,7 +1235,7 @@ class QueryATNF(object):
 
         if 'BSURF' in self.__dataframe.columns:
             return
-        
+
         if not np.all([p in self.__dataframe.columns for p in ['P0', 'P1']]):
             warnings.warn("Could not set surface magnetic field.",
                           UserWarning)
@@ -1365,11 +1367,12 @@ class QueryATNF(object):
         """
         Calculate the total proper motion and error.
         """
-        
+
         if 'PMTOT' in self.__dataframe.columns:
             return
 
-        if not np.all([p in self.__dataframe.columns for p in ['PMRA', 'PMDEC', 'PMELONG', 'PMELAT']]):
+        reqpars = ['PMRA', 'PMDEC', 'PMELONG', 'PMELAT']
+        if not np.all([p in self.__dataframe.columns for p in reqpars]):
             warnings.warn("Could not set total proper motion.",
                           UserWarning)
             return
@@ -1390,7 +1393,8 @@ class QueryATNF(object):
         self.__dataframe['PMTOT'] = pmtot
 
         # get the error
-        if not np.all([p in self.__dataframe.columns for p in ['PMRA_ERR', 'PMDEC_ERR', 'PMELONG_ERR', 'PMELAT_ERR']]):
+        reqpars = ['PMRA_ERR', 'PMDEC_ERR', 'PMELONG_ERR', 'PMELAT_ERR']
+        if not np.all([p in self.__dataframe.columns for p in reqpars]):
             return
 
         PMRA_ERR = self.__dataframe['PMRA_ERR'].copy()
