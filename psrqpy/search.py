@@ -781,6 +781,7 @@ class QueryATNF(object):
         """
 
         self.define_dist()      # define the DIST and DIST1 parameters
+        self.define_galactic()  # define the galactic coordinates
         self.derived_p0()       # derive P0 from F0 if not given
         self.derived_f0()       # derive F0 from P0 if not given
         self.derived_p1()       # derive P1 from F1 if not given
@@ -796,6 +797,7 @@ class QueryATNF(object):
         self.derived_edotd2()   # spin-down flux at Sun
         self.derived_pmtot()    # total proper motion
         self.derived_vtrans()   # transverse velocity
+        self.derived_pmgal()    # proper motion in galactic coordinates
         self.derived_p1_i()     # instrinsic period derivative
         self.derived_age_i()    # intrinsic age
         self.derived_bsurf_i()  # intrinsic Bsurf
@@ -872,6 +874,76 @@ class QueryATNF(object):
 
         self.__dataframe['DIST'] = DIST
         self.__dataframe['DIST1'] = DIST1
+
+    def define_galactic(self):
+        """
+        Calculate the galactic longitude, latitude and position.
+        """
+
+        galpars = ['GL', 'GB', 'ZZ', 'XX', 'YY', 'DMSINB']
+        if np.all([p in self.__dataframe.columns for p in galpars]):
+            return
+
+        reqpars = ['RAJD', 'DECJD']
+        if not np.all([p in self.__dataframe.columns for p in reqpars]):
+            warnings.warn("Could not set galactic coordinates.",
+                          UserWarning)
+            return
+
+        # get distance if required
+        if 'DIST' not in self.__dataframe.columns:
+            self.define_dist()
+
+            if 'DIST' not in self.__dataframe.columns:
+                warnings.warn("Could not set galactic coordinates.",
+                          UserWarning)
+                return
+
+        RAJD = self.__dataframe['RAJD'].values.copy()
+        DECJD = self.__dataframe['DECJD'].values.copy()
+        DIST = self.__dataframe['DIST'].values.copy()
+
+        GL = np.ones(len(RAJD))*np.nan
+        GB = np.ones(len(RAJD))*np.nan
+
+        idxreal = np.isfinite(RAJD) & np.isfinite(DECJD)
+
+        # get sky 
+        sc = SkyCoord(RAJD[idxreal]*aunits.deg, DECJD[idxreal]*aunits.deg,
+                      DIST[idxreal]*aunits.kpc)
+
+        GL[idxreal] = sc.galactic.l.value
+        GB[idxreal] = sc.galactic.b.value
+
+        # set galactic longitude and latitude
+        self.__dataframe['GL'] = GL
+        self.__dataframe['GB'] = GB
+
+        XX = np.ones(len(RAJD))*np.nan
+        YY = np.ones(len(RAJD))*np.nan
+        ZZ = np.ones(len(RAJD))*np.nan
+
+        idxreal = idxreal & np.isfinite(DIST)
+        XX[idxreal] = sc.galactic.cartesian.x.value
+        YY[idxreal] = sc.galactic.cartesian.y.value
+        ZZ[idxreal] = sc.galactic.cartesian.z.value
+
+        # set galactic cartesian position
+        self.__dataframe['XX'] = XX
+        self.__dataframe['YY'] = YY
+        self.__dataframe['ZZ'] = ZZ
+
+        # set DMSINB
+        if 'DM' in self.__dataframe.columns:
+            DM = self.__dataframe['DM']
+            GB = self.__dataframe['GB']
+
+            DMSINB = np.ones(len(RAJD))*np.nan
+
+            idxreal = np.isfinite(GB) & np.isfinite(DM)
+            DMSINB[idxreal] = DM[idxreal]*np.sin(np.deg2rad(GB[idxreal]))
+
+            self.__dataframe['DMSINB'] = DMSINB
 
     def derived_p0(self):
         """
@@ -1406,6 +1478,23 @@ class QueryATNF(object):
 
         pmtoterr = np.sqrt(((PMRA*PMRA_ERR)**2+(PMDEC*PMDEC_ERR)**2)/(PMRA**2 + PMDEC**2))
         self.__dataframe['PMTOT_ERR'] = pmtoterr
+
+    #def derived_pmgal(self):
+    #    """
+    #    Calculate the proper motion in galactic coordinates.
+    #    """
+
+    #    if np.all([p in self.__dataframe.columns for p in ['PML', 'PMB']):
+    #        return
+
+    #    reqpars = ['PMRA', 'PMDEC', 'RAJD', 'DECJ', 'PMELONG', 'PMELAT',
+    #               'DIST']
+    #    if not np.all([p in self.__dataframe.columns for p in reqpars]):
+    #        warnings.warn("Could not set proper motion in galactic "
+    #                      "coordinates.", UserWarning)
+    #        return
+
+        
 
     def derived_vtrans(self):
         """
