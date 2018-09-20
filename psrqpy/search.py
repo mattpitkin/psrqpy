@@ -541,7 +541,7 @@ class QueryATNF(object):
 
             # return given the condition
             expression = None
-            if usecondition == True and isinstance(self._condition, string_types):
+            if usecondition is True and isinstance(self._condition, string_types):
                 expression = self._condition
             elif isinstance(usecondition, string_types):
                 expression = usecondition
@@ -551,7 +551,7 @@ class QueryATNF(object):
             if expression is not None:
                 # apply conditions
                 dftable = condition(dftable, expression, self._exactmatch)
-            
+
             # return only requested parameters and convert to table
             table = Table.from_pandas(dftable[query_params[intab].tolist()])
 
@@ -575,7 +575,7 @@ class QueryATNF(object):
                                    unit=(aunits.hourangle, aunits.deg))
 
                 # get seperations
-                d2d = self._coord.separation(catalog)  
+                d2d = self._coord.separation(catalog)
 
                 # find seperations within required radius
                 catalogmsk = d2d < self._radius*aunits.deg
@@ -982,7 +982,7 @@ class QueryATNF(object):
             F1ERR = self.__dataframe['F1_ERR']
             F0ERR = self.__dataframe['F0_ERR']
             P1ERRnew[idxp1] = np.sqrt((P0[idxp1]**2*F1ERR[idxp1])**2 +
-                (2.0*P0[idxp1]**3*F1[idxp1]*F0ERR[idxp1])**2)
+                                      (2.0*P0[idxp1]**3*F1[idxp1]*F0ERR[idxp1])**2)
             self.__dataframe.update(P1ERRnew)
 
     def derived_f1(self):
@@ -1020,7 +1020,7 @@ class QueryATNF(object):
             P1ERR = self.__dataframe['P1_ERR']
             P0ERR = self.__dataframe['P0_ERR']
             F1ERRnew[idxf1] = np.sqrt((F0[idxf1]**2*P1ERR[idxf1])**2 +
-                (2.0*F0[idxf1]**3*P1[idxf1]*P0ERR[idxf1])**2)
+                                      (2.0*F0[idxf1]**3*P1[idxf1]*P0ERR[idxf1])**2)
             self.__dataframe.update(F1ERRnew)
 
     def derived_pb(self):
@@ -1086,7 +1086,7 @@ class QueryATNF(object):
             FB1ERR = self.__dataframe['FB1_ERR']
             FB0ERR = self.__dataframe['FB0_ERR']
             PBDOTERRnew[idxpbdot] = np.sqrt((PB[idxpbdot]**2*FB1ERR[idxpbdot])**2 +
-                (2.0*PB[idxpbdot]**3*FB1[idxpbdot]*FB0ERR[idxpbdot])**2)
+                                            (2.0*PB[idxpbdot]**3*FB1[idxpbdot]*FB0ERR[idxpbdot])**2)
             self.__dataframe.update(PBDOTERRnew)
 
     def derived_fb0(self):
@@ -1152,7 +1152,7 @@ class QueryATNF(object):
             PBDOTERR = self.__dataframe['PBDOT_ERR']
             PBERR = self.__dataframe['PB_ERR']
             FB1ERRnew[idxfb1] = np.sqrt((FB0[idxfb1]**2*PBDOTERR[idxfb1])**2 +
-                (2.0*FB0[idxfb1]**3*PBDOT[idxfb1]*PBERR[idxfb1]*86400.)**2)
+                                        (2.0*FB0[idxfb1]**3*PBDOT[idxfb1]*PBERR[idxfb1]*86400.)**2)
             self.__dataframe.update(FB1ERRnew)
 
     def derived_p1_i(self):

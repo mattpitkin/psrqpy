@@ -13,7 +13,7 @@ t = query.table
 
 for i, p in enumerate(PSR_ALL_PARS):
     print('Parameter {}'.format(p))
- 
+
     # check error and reference exist if expected
     if PSR_ALL[p]['err']:
         try:
