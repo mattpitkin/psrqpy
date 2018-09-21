@@ -926,9 +926,10 @@ class QueryATNF(object):
         ZZ = np.ones(len(RAJD))*np.nan
 
         idxreal = idxreal & (DIST != 0.)
-        XX[idxreal] = sc.galactic.cartesian.x.value
-        YY[idxreal] = sc.galactic.cartesian.y.value
-        ZZ[idxreal] = sc.galactic.cartesian.z.value
+        idxdist = sc.distance.value != 0.
+        XX[idxreal] = sc.galactic.cartesian.x.value[idxdist]
+        YY[idxreal] = sc.galactic.cartesian.y.value[idxdist]
+        ZZ[idxreal] = sc.galactic.cartesian.z.value[idxdist]
 
         # set galactic cartesian position
         self.__dataframe['XX'] = XX
@@ -963,56 +964,69 @@ class QueryATNF(object):
 
         RAJD = self.__dataframe['RAJD']
         DECJD = self.__dataframe['DECJD']
-        ELONG = self.__dataframe['ELONG']
-        ELAT = self.__dataframe['ELAT']
+        ELONGnew = self.__dataframe['ELONG'].copy()
+        ELATnew = self.__dataframe['ELAT'].copy()
 
-        idxreal = np.isfinite(RAJD) & isfinite(DECJD) & (~isfinite(ELONG) & ~isfinite(ELAT))
+        idxreal = np.isfinite(RAJD) & np.isfinite(DECJD) & (~np.isfinite(ELONGnew) & ~np.isfinite(ELATnew))
 
         # get sky coordinates 
-        sc = SkyCoord(RAJD[idxreal]*aunits.deg, DECJD[idxreal]*aunits.deg)
+        sc = SkyCoord(RAJD[idxreal].values*aunits.deg,
+                      DECJD[idxreal].values*aunits.deg)
 
-        ELONG[idxreal] = sc.barycentrictrueecliptic.lon.value
-        ELAT[idxreal] = sc.barycentrictrueecliptic.lat.value
+        ELONGnew[idxreal] = sc.barycentrictrueecliptic.lon.value
+        ELATnew[idxreal] = sc.barycentrictrueecliptic.lat.value
+
+        self.__dataframe.update(ELONGnew)
+        self.__dataframe.update(ELATnew)
 
         # get references
         refpar = ['RAJ_REF', 'DECJ_REF', 'ELONG_REF', 'ELAT_REF']
         if np.all([p in self.__dataframe.columns for p in refpar]):
-            RAJREF = self.__dataframe['RAJ_REF'].values.copy()
-            DECJREF = self.__dataframe['DECJ_REF'].values.copy()
-            ELONGREF = self.__dataframe['ELONG_REF']
-            ELATREF = self.__dataframe['ELAT_REF']
+            RAJREF = self.__dataframe['RAJ_REF']
+            DECJREF = self.__dataframe['DECJ_REF']
+            ELONGREFnew = self.__dataframe['ELONG_REF'].copy()
+            ELATREFnew = self.__dataframe['ELAT_REF'].copy()
 
-            ELONGREF[idxreal] = RAJREF[idxreal]
-            ELATREF[idxreal] = DECJREF[idxreal]
+            ELONGREFnew[idxreal] = RAJREF[idxreal]
+            ELATREFnew[idxreal] = DECJREF[idxreal]
+
+            self.__dataframe.update(ELONGREFnew)
+            self.__dataframe.update(ELATREFnew)
 
         # get PMELONG and PMELAT if not given
         reqpar = ['PMELONG', 'PMELAT', 'PMRA', 'PMDEC']
         if np.all([p in self.__dataframe.columns for p in reqpar]):
-            PMELONG = self.__dataframe['PMELONG']
-            PMELAT = self.__dataframe['PMELAT']
-            PMRA = self.__dataframe['PMRA']
-            PMDEC = self.__dataframe['PMDEC']
+            PMELONGnew = self.__dataframe['PMELONG'].copy()
+            PMELATnew = self.__dataframe['PMELAT'].copy()
+            PMRAnew = self.__dataframe['PMRA'].copy()
+            PMDECnew = self.__dataframe['PMDEC'].copy()
 
-            idxrd = np.isfinite(PMRA) & np.isfinite(PMDEC) & (~np.isfinite(PMELONG) & ~np.isfinite(PMELAT)
-            idxec = np.isfinite(PMELONG) & np.isfinite(PMELAT) & (~np.isfinite(PMRA) & ~np.isfinite(PMDEC)
+            idxrd = np.isfinite(PMRAnew) & np.isfinite(PMDECnew) & (~np.isfinite(PMELONGnew) & ~np.isfinite(PMELATnew))
+            idxec = np.isfinite(PMELONGnew) & np.isfinite(PMELATnew) & (~np.isfinite(PMRAnew) & ~np.isfinite(PMDECnew))
 
             sc = SkyCoord(RAJD[idxrd].values*aunits.deg,
                           DECJD[idxrd].values*aunits.deg,
-                          pm_ra_cosdec=PMRA[idxrd].values*auints.mas/aunits.yr,
-                          pm_dec=PMDEC[idxrd].values*aunits.mas/aunits.yr)
+                          pm_ra_cosdec=PMRAnew[idxrd].values*aunits.mas/aunits.yr,
+                          pm_dec=PMDECnew[idxrd].values*aunits.mas/aunits.yr)
 
-            PMELONG[idxrd] = sc.barycentrictrueecliptic.pm_lon_coslat.value
-            PMELAT[idxrd] = sc.barycentrictrueecliptic.pm_lat.value
+            PMELONGnew[idxrd] = sc.barycentrictrueecliptic.pm_lon_coslat.value
+            PMELATnew[idxrd] = sc.barycentrictrueecliptic.pm_lat.value
+
+            self.__dataframe.update(PMELONGnew)
+            self.__dataframe.update(PMELATnew)
 
             if np.any(idxec):
-                sc = SkyCoord(ELONG[idxec].values*aunits.deg,
-                              ELAT[idxec].values*aunits.deg,
-                              pm_lon_coslat=PMELONG[idxec]*auints.mas/aunits.yr,
-                              pm_lat=PMELAT[idxec]*auints.mas/aunits.yr,
+                sc = SkyCoord(ELONGnew[idxec].values*aunits.deg,
+                              ELATnew[idxec].values*aunits.deg,
+                              pm_lon_coslat=PMELONGnew[idxec].values*aunits.mas/aunits.yr,
+                              pm_lat=PMELATnew[idxec].values*aunits.mas/aunits.yr,
                               frame='barycentrictrueecliptic')
                 
-                PMRA[idxec] = sc.icrs.pm_ra_cosdec.value
-                PMDEC[idxec] = sc.icrs.pm_dec
+                PMRAnew[idxec] = sc.icrs.pm_ra_cosdec.value
+                PMDECnew[idxec] = sc.icrs.pm_dec
+
+                self.__dataframe.update(PMRAnew)
+                self.__dataframe.update(PMDECnew)
 
     def derived_p0(self):
         """
