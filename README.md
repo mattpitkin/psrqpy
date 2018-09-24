@@ -46,8 +46,7 @@ The `ads` module is an optional requirement that is needed to get ADS URLs for r
 
 ## Examples
 
-A simple query of the catalogue to, e.g., just return all pulsar frequencies (noting that the
-pulsar ['JNAME'](http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=normal&highlight=jname#jname) is also always returned by default), would be:
+A simple query of the catalogue to, e.g., just return all pulsar frequencies, would be:
 
 ```python
 import psrqpy
@@ -102,13 +101,33 @@ q = psrqpy.QueryATNF(params=['Jname', 'f0'], condition='f0 > 100 && f0 < 200', a
 
 where `assoc=GC` looks for all pulsars in globular clusters.
 
-If you really want to query the catalogue many times in quick succession it is probably preferable to [download
-the catalogue](http://www.atnf.csiro.au/research/pulsar/psrcat/download.html) and query it with the software
-provided. The enitre catalogue can be downloaded using:
+When a query is generated the entire catalogue is downloaded and stored in the `QueryATNF` object as
+a pandas [`DataFrame`](https://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.html).
+The query can therefore be re-used to access data on different parameters, different pulsars, or
+using different conditions, without the need to re-download the catalogue. We may originally want
+to query pulsar frequencies using only frequencies greater than 10 Hz, with
 
 ```python
 import psrqpy
-catalogue = psrqpy.get_catalogue()
+q = psrqpy.QueryATNF(params=['F0'], condition='F0 > 10')
+freqs = q.table['F0']
+```
+
+Using the same `QueryATNF` object we could change to get frequency derivatives for pulsars
+with frequencies less than 10 Hz, with
+
+```python
+q.condition = 'F0 < 10'
+q.query_params = 'F1'
+
+fdot = q.table['F1']
+```
+
+In these cases the whole catalogue (with no conditions applied and all available parameters) stored as a pandas [`DataFrame`](https://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.html)
+is accessible with
+
+```python
+catalogue = q.catalogue
 ```
 
 You can also [generate](http://psrqpy.readthedocs.io/en/latest/query.html#psrqpy.search.QueryATNF.ppdot) a

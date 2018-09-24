@@ -5,31 +5,23 @@ URLs used for queries.
 
 import itertools
 
-ATNF_VERSION = '1.59'  #: the default ATNF catalogue version
-ATNF_BASE_URL = r'http://www.atnf.csiro.au/people/pulsar/psrcat/'  #: the ATNF pulsar catalogue base URL
-ATNF_URL = ATNF_BASE_URL + r'proc_form.php?version={version}'  #: the ATNF pulsar catalogue base URL for queries
-ATNF_TARBALL = ATNF_BASE_URL + r'downloads/psrcat_pkg.tar.gz'  #: name of the tarball containing the entire catalogue database
+#: The default ATNF catalogue version.
+ATNF_VERSION = '1.59'
 
-GLITCH_URL = r'http://www.jb.man.ac.uk/pulsar/glitches/gTable.html'  #: Jodrell Bank glitch catalogue table URL 
+#: The ATNF pulsar catalogue base URL.
+ATNF_BASE_URL = r'http://www.atnf.csiro.au/people/pulsar/psrcat/'
 
-PARAMS_QUERY = r'{params}'
-USERDEFINED_QUERY = r'&startUserDefined=true&c1_val=&c2_val=&c3_val=&c4_val='
-PSRNAMES_QUERY = r'&pulsar_names={psrnames}'
-EPHEMERIS_QUERY = r'&submit_ephemeris={getephemeris}'
-QUERY_FLUFF = (r'&ephemeris=long&coords_unit=raj%2Fdecj&style=Long+with+errors'
-               r'&no_value=*&nohead=nohead&state=query&table_bottom.x=30&table'
-               r'_bottom.y=22')
+#: The name of the tarball containing the entire catalogue database.
+ATNF_TARBALL = ATNF_BASE_URL + r'downloads/psrcat_pkg.tar.gz'
 
-#: the full ATNF catalogue query URL
-QUERY_URL = (ATNF_URL + PARAMS_QUERY + USERDEFINED_QUERY +
-             PSRNAMES_QUERY + EPHEMERIS_QUERY + QUERY_FLUFF)
+#: The Jodrell Bank glitch catalogue table URL.
+GLITCH_URL = r'http://www.jb.man.ac.uk/pulsar/glitches/gTable.html'
 
 # pulsar parameters (http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html) that can be
 # queried. For each parameter there is a dictionary giving:
 #  - 'ref': True if the parameter can have an associated reference in the ATNF catalogue
 #  - 'err': True if the parameter can have an associated error value
 #  - 'unit': a string giving the units for the parameter (to be used if generating an astropy table)
-#  - 'format': a string giving the parameter format (to be used if generating an astropy table)
 PSR_GENERAL = {'NAME':     {'ref': True,  'err': False, 'units': None},  # Pulsar name.  The B name if exists, otherwise the J name.
                'JNAME':    {'ref': True,  'err': False, 'units': None},  # Pulsar name based on J2000 coordinates
                'BNAME':    {'ref': True,  'err': False, 'units': None},  # Pulsar Besselian name
@@ -96,7 +88,7 @@ PSR_TIMING = {'P0':      {'ref': True,  'err': True,  'units': 's'},      # Bary
               'PEPOCH':  {'ref': True,  'err': False, 'units': 'd'},      # Epoch of period or frequency (MJD)
               'DM':      {'ref': True,  'err': True,  'units': 'cm^-3 pc'},        # Dispersion measure (cm-3 pc)
               'DM1':     {'ref': True,  'err': True,  'units': 'cm^-3 pc/yr'},     # First time derivative of dispersion measure (cm-3 pc yr-1)
-              'DMEPOCH': {'ref': True,  'err': False, 'units': 'd'}, # Reference epoch for DM, defaults to PEpoch (MJD)
+              'DMEPOCH': {'ref': True,  'err': False, 'units': 'd'},  # Reference epoch for DM, defaults to PEpoch (MJD)
               'DM2':     {'ref': True,  'err': True,  'units': 'cm^-3 pc yr^-2'},  # Second time derivative of dispersion measure (cm-3pc yr-2)
               'DM3':     {'ref': True,  'err': True,  'units': 'cm^-3 pc yr^-3'},  # Third time derivative of dispersion measure (cm-3pc yr-3)
               'DM4':     {'ref': False, 'err': False, 'units': 'cm^-3 pc yr^-4'},  # Fourth time derivative of dispersion measure (cm-3pc yr-4)
@@ -175,7 +167,7 @@ PSR_BINARY = {'BINARY':   {'ref': True,  'err': False, 'units': None},       # B
               'PBDOT_2':  {'ref': False, 'err': False, 'units': None},        # 1st time derivative of binary period [2nd orbit]
               'EPS1_2':   {'ref': True,  'err': True,  'units': None},        # ECC_2 x sin(OM_2) [2nd orbit]
               'EPS2_2':   {'ref': True,  'err': True,  'units': None},        # ECC_2 x cos(OM_2) [2nd orbit]
-              'TASC_2':   {'ref': True,  'err': True,  'units': 'd'},         # Epoch of ascending node (MJD) [2nd orbit] 
+              'TASC_2':   {'ref': True,  'err': True,  'units': 'd'},         # Epoch of ascending node (MJD) [2nd orbit]
               'T0_3':     {'ref': True,  'err': True,  'units': 'd'},         # Epoch of periastron [3rd orbit] (MJD)
               'PB_3':     {'ref': True,  'err': True,  'units': 'd'},         # Binary period of pulsar [3rd orbit] (days)
               'A1_3':     {'ref': True,  'err': True,  'units': 's'},         # Projected semi-major axis of orbit [3rd orbit] (s)
@@ -226,7 +218,8 @@ PSR_DERIVED_PARS = list(PSR_DERIVED.keys())
 
 # a list of all allowed parameters for querying
 PSR_ALL = dict(itertools.chain(PSR_GENERAL.items(), PSR_TIMING.items(), PSR_BINARY.items(), PSR_DERIVED.items()))
-""": a dict of allowed pulsars parameters (e.g., name, position, distance...)
+""": A dictionary of allowed pulsars parameters (e.g., name, position,
+distance...)
 
 Each parameter name key gives a dictionary containing the keys:
 
@@ -234,8 +227,6 @@ Each parameter name key gives a dictionary containing the keys:
 * ``err`` (bool) - True if the parameter has an associated error value
 * ``units`` (str) - a string with the parameters units that can be parsed by
   :class:`~astropy.units.core.Unit`
-* ``format`` (str) - a string with a :class:`numpy.dtype` for storing the parameter in an
-  :class:`~astropy.table.Table`
 
 The allowed parameters and their units are given
 `here <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=normal#par_list>`_.
@@ -243,15 +234,16 @@ The allowed parameters and their units are given
 
 PSR_ALL_PARS = PSR_GENERAL_PARS + PSR_TIMING_PARS + PSR_BINARY_PARS + PSR_DERIVED_PARS
 
-PSR_TYPES = ['AXP',           # Anomalous X-ray Pulsar or Soft Gamma-ray Repeater with detected pulsations
+PSR_TYPE = ['AXP',           # Anomalous X-ray Pulsar or Soft Gamma-ray Repeater with detected pulsations
              'BINARY',        # Pulsar has one or more stellar companion(s)
              'HE',            # Spin-powered pulsar with pulsed emission from radio to infrared or higher frequencies
              'NRAD',          # Spin-powered pulsar with pulsed emission only at infrared or higher frequencies
              'RADIO',         # Pulsars with pulsed emission in the radio band
              'RRAT',          # Pulsars with intermittently pulsed radio emission
              'XINS']          # Isolated neutron stars with pulsed thermal X-ray emission but no detectable radio emission
-""": `types <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#psr_types>`_ of
-pulsar for use in ``type()`` when setting logical conditions.
+""": Allowed pulsar
+`types <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#psr_types>`_
+for use in ``type()`` when setting logical conditions.
 """
 
 PSR_BINARY_TYPE = ['MS',      # Main-sequence star
@@ -259,15 +251,16 @@ PSR_BINARY_TYPE = ['MS',      # Main-sequence star
                    'CO',      # CO or ONeMg White Dwarf
                    'He',      # Helium White Dwarf
                    'UL']      # Ultra-light companion or planet (mass < 0.08 solar masses)
-""": binary companion
+""": Binary companion
 `types <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=normal#bincomp_type>`_
 for use in ``bincomp()`` when setting logical conditions.
 """
 
-#: other objects associated with the pulsar (this is not an exhaustive list for use in ``assoc()`` when setting logical conditions)
 PSR_ASSOC_TYPE = ['GC',   # globular cluster
                   'SNR']  # supernova remnant
+""": Other objects associated with the pulsar (this is not an exhaustive list
+for use in ``assoc()`` when setting logical conditions).
+"""
 
-#: URL for the NASA ADS
+#: The URL for the NASA ADS.
 ADS_URL = 'https://ui.adsabs.harvard.edu/#abs/{}/'
-

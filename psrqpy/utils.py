@@ -200,7 +200,6 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
                 if 'PSRB_REF' in psr.keys():
                     psrlist[i]['NAME_REF'] = psr['PSRB_REF']
 
-
     # convert to a pandas DataFrame - this will fill in empty spaces
     dftable = DataFrame(psrlist)
 
