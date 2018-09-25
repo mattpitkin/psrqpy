@@ -12,7 +12,10 @@ query = QueryATNF(psrs=['J0534+2200'], include_refs=True)
 t = query.table
 
 for i, p in enumerate(PSR_ALL_PARS):
-    print('Parameter {}'.format(p))
+    try:
+        print('Parameter {}: {}'.format(p, t[p][0]))
+    except KeyError:
+        print('Parameter not in table: {}'.format(p))
 
     # check error and reference exist if expected
     if PSR_ALL[p]['err']:
