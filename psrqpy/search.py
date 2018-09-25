@@ -1413,9 +1413,16 @@ class QueryATNF(object):
         P0 = self.__dataframe['P0']
         P1 = self.__dataframe['P1']
 
-        age = 0.5 * P0 / P1 / (60.0 * 60.0 * 24.0 * 365.25)
-        age[(P1 < 0) | ~np.isfinite(P1) | ~np.isfinite(P0)] = np.nan
-        self.__dataframe['AGE'] = age
+        idxfinite = np.isfinite(P1) & np.isfinite(P1)
+        P0finite = np.zeros(len(P0))
+        P1finite = np.zeros(len(P1))
+        P0finite[idxfinite] = P0[idxfinite]
+        P1finite[idxfinite] = P1[idxfinite]
+
+        idxpos = (P1finite > 0.) & (P0finite != 0.)
+        AGE = np.ones(len(P1))*np.nan
+        AGE[idxpos] = 0.5 * (P0[idxpos] / P1[idxpos]) / (60.0 * 60.0 * 24.0 * 365.25)
+        self.__dataframe['AGE'] = AGE
 
     def derived_age_i(self):
         """
