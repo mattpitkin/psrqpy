@@ -18,7 +18,7 @@ import numpy as np
 import requests
 from bs4 import BeautifulSoup
 
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import SkyCoord, ICRS, BarycentricTrueEcliptic, Galactic
 import astropy.units as aunits
 from astropy.table import Table
 
@@ -780,27 +780,29 @@ class QueryATNF(object):
         `code <http://www.atnf.csiro.au/research/pulsar/psrcat/download.html>`_.
         """
 
-        self.define_dist()      # define the DIST and DIST1 parameters
-        self.derived_p0()       # derive P0 from F0 if not given
-        self.derived_f0()       # derive F0 from P0 if not given
-        self.derived_p1()       # derive P1 from F1 if not given
-        self.derived_f1()       # derive F1 from P1 if not given
-        self.derived_pb()       # derive binary period from FB0
-        self.derived_pbdot()    # derive Pbdot from FB1
-        self.derived_fb0()      # derive orbital frequency from period
-        self.derived_fb1()      # derive FB1 from PBDOT
-        self.derived_age()      # characteristic age
-        self.derived_bsurf()    # surace magnetic field
-        self.derived_b_lc()     # magnetic field at light cylinder
-        self.derived_edot()     # spin-down luminosity
-        self.derived_edotd2()   # spin-down flux at Sun
-        self.derived_pmtot()    # total proper motion
-        self.derived_vtrans()   # transverse velocity
-        self.derived_p1_i()     # instrinsic period derivative
-        self.derived_age_i()    # intrinsic age
-        self.derived_bsurf_i()  # intrinsic Bsurf
-        self.derived_edot_i()   # intrinsic luminosity
-        self.derived_flux()     # radio flux
+        self.define_dist()       # define the DIST and DIST1 parameters
+        self.derived_ecliptic()  # derive the ecliptic coordinates if not given
+        self.define_galactic()   # define the galactic coordinates
+        self.derived_p0()        # derive P0 from F0 if not given
+        self.derived_f0()        # derive F0 from P0 if not given
+        self.derived_p1()        # derive P1 from F1 if not given
+        self.derived_f1()        # derive F1 from P1 if not given
+        self.derived_pb()        # derive binary period from FB0
+        self.derived_pbdot()     # derive Pbdot from FB1
+        self.derived_fb0()       # derive orbital frequency from period
+        self.derived_fb1()       # derive FB1 from PBDOT
+        self.derived_age()       # characteristic age
+        self.derived_bsurf()     # surface magnetic field
+        self.derived_b_lc()      # magnetic field at light cylinder
+        self.derived_edot()      # spin-down luminosity
+        self.derived_edotd2()    # spin-down flux at Sun
+        self.derived_pmtot()     # total proper motion
+        self.derived_vtrans()    # transverse velocity
+        self.derived_p1_i()      # instrinsic period derivative
+        self.derived_age_i()     # intrinsic age
+        self.derived_bsurf_i()   # intrinsic Bsurf
+        self.derived_edot_i()    # intrinsic luminosity
+        self.derived_flux()      # radio flux
 
     def define_dist(self):
         """
@@ -872,6 +874,160 @@ class QueryATNF(object):
 
         self.__dataframe['DIST'] = DIST
         self.__dataframe['DIST1'] = DIST1
+
+    def derived_ecliptic(self):
+        """
+        Calculate the ecliptic coordinates, and proper motions, from the
+        right ascension and declination if they are not already given.
+        The ecliptic used here is the astropy's `BarycentricTrueEcliptic
+        <http://docs.astropy.org/en/stable/api/astropy.coordinates.BarycentricTrueEcliptic.html>`_,
+        which may not exactly match that used in `psrcat`.
+        """
+
+        reqpar = ['RAJD', 'DECJD', 'ELONG', 'ELAT']
+        if not np.all([p in self.__dataframe.columns for p in reqpar]):
+            warnings.warn("Could not set ecliptic coordinates.",
+                          UserWarning)
+
+        RAJD = self.__dataframe['RAJD']
+        DECJD = self.__dataframe['DECJD']
+        ELONGnew = self.__dataframe['ELONG'].copy()
+        ELATnew = self.__dataframe['ELAT'].copy()
+
+        idxreal = np.isfinite(RAJD) & np.isfinite(DECJD) & (~np.isfinite(ELONGnew) & ~np.isfinite(ELATnew))
+
+        # get sky coordinates 
+        sc = SkyCoord(RAJD[idxreal].values*aunits.deg,
+                      DECJD[idxreal].values*aunits.deg)
+
+        ELONGnew[idxreal] = sc.barycentrictrueecliptic.lon.value
+        ELATnew[idxreal] = sc.barycentrictrueecliptic.lat.value
+
+        self.__dataframe.update(ELONGnew)
+        self.__dataframe.update(ELATnew)
+
+        # get references
+        refpar = ['RAJ_REF', 'DECJ_REF', 'ELONG_REF', 'ELAT_REF']
+        if np.all([p in self.__dataframe.columns for p in refpar]):
+            RAJREF = self.__dataframe['RAJ_REF']
+            DECJREF = self.__dataframe['DECJ_REF']
+            ELONGREFnew = self.__dataframe['ELONG_REF'].copy()
+            ELATREFnew = self.__dataframe['ELAT_REF'].copy()
+
+            ELONGREFnew[idxreal] = RAJREF[idxreal]
+            ELATREFnew[idxreal] = DECJREF[idxreal]
+
+            self.__dataframe.update(ELONGREFnew)
+            self.__dataframe.update(ELATREFnew)
+
+        # get PMELONG and PMELAT if not given
+        reqpar = ['PMELONG', 'PMELAT', 'PMRA', 'PMDEC']
+        if np.all([p in self.__dataframe.columns for p in reqpar]):
+            PMELONGnew = self.__dataframe['PMELONG'].copy()
+            PMELATnew = self.__dataframe['PMELAT'].copy()
+            PMRAnew = self.__dataframe['PMRA'].copy()
+            PMDECnew = self.__dataframe['PMDEC'].copy()
+
+            idxrd = np.isfinite(PMRAnew) & np.isfinite(PMDECnew) & (~np.isfinite(PMELONGnew) & ~np.isfinite(PMELATnew))
+            idxec = np.isfinite(PMELONGnew) & np.isfinite(PMELATnew) & (~np.isfinite(PMRAnew) & ~np.isfinite(PMDECnew))
+
+            sc = ICRS(RAJD[idxrd].values*aunits.deg,
+                      DECJD[idxrd].values*aunits.deg,
+                      pm_ra_cosdec=PMRAnew[idxrd].values*aunits.mas/aunits.yr,
+                      pm_dec=PMDECnew[idxrd].values*aunits.mas/aunits.yr).transform_to(BarycentricTrueEcliptic())
+
+            PMELONGnew[idxrd] = sc.pm_lon_coslat.value
+            PMELATnew[idxrd] = sc.pm_lat.value
+
+            self.__dataframe.update(PMELONGnew)
+            self.__dataframe.update(PMELATnew)
+
+            if np.any(idxec):
+                sc = BarycentricTrueEcliptic(ELONGnew[idxec].values*aunits.deg,
+                                             ELATnew[idxec].values*aunits.deg,
+                                             pm_lon_coslat=PMELONGnew[idxec].values*aunits.mas/aunits.yr,
+                                             pm_lat=PMELATnew[idxec].values*aunits.mas/aunits.yr).transform_to(ICRS())
+                
+                PMRAnew[idxec] = sc.pm_ra_cosdec.value
+                PMDECnew[idxec] = sc.pm_dec.value
+
+                self.__dataframe.update(PMRAnew)
+                self.__dataframe.update(PMDECnew)
+
+    def define_galactic(self):
+        """
+        Calculate the galactic longitude, latitude and position.
+        """
+
+        galpars = ['GL', 'GB', 'ZZ', 'XX', 'YY', 'DMSINB']
+        if np.all([p in self.__dataframe.columns for p in galpars]):
+            return
+
+        reqpars = ['RAJD', 'DECJD']
+        if not np.all([p in self.__dataframe.columns for p in reqpars]):
+            warnings.warn("Could not set galactic coordinates.",
+                          UserWarning)
+            return
+
+        # get distance if required
+        if 'DIST' not in self.__dataframe.columns:
+            self.define_dist()
+
+            if 'DIST' not in self.__dataframe.columns:
+                warnings.warn("Could not set galactic coordinates.",
+                          UserWarning)
+                return
+
+        RAJD = self.__dataframe['RAJD'].values.copy()
+        DECJD = self.__dataframe['DECJD'].values.copy()
+        DIST = self.__dataframe['DIST'].values.copy()
+
+        GL = np.ones(len(RAJD))*np.nan
+        GB = np.ones(len(RAJD))*np.nan
+
+        idxreal = np.isfinite(RAJD) & np.isfinite(DECJD)
+        DIST[~np.isfinite(DIST)] = 0.  # zero undefined distances
+
+        # get sky coordinates 
+        sc = SkyCoord(RAJD[idxreal]*aunits.deg,
+                      DECJD[idxreal]*aunits.deg,
+                      DIST[idxreal]*aunits.kpc)
+
+        GL[idxreal] = sc.galactic.l.value
+        GB[idxreal] = sc.galactic.b.value
+
+        # set galactic longitude and latitude
+        self.__dataframe['GL'] = GL
+        self.__dataframe['GB'] = GB
+
+        XX = np.ones(len(RAJD))*np.nan
+        YY = np.ones(len(RAJD))*np.nan
+        ZZ = np.ones(len(RAJD))*np.nan
+
+        idxreal = idxreal & (DIST != 0.)
+        idxdist = sc.distance.value != 0.
+        XX[idxreal] = sc.galactic.cartesian.x.value[idxdist]
+        YY[idxreal] = sc.galactic.cartesian.y.value[idxdist]
+        ZZ[idxreal] = sc.galactic.cartesian.z.value[idxdist]
+
+        # set galactic cartesian position
+        self.__dataframe['XX'] = XX
+        self.__dataframe['YY'] = YY
+        self.__dataframe['ZZ'] = ZZ
+
+        # set DMSINB
+        if 'DM' in self.__dataframe.columns:
+            DM = self.__dataframe['DM']
+            GB = self.__dataframe['GB']
+
+            DMSINB = np.ones(len(RAJD))*np.nan
+
+            idxreal = np.isfinite(GB) & np.isfinite(DM)
+            DMSINB[idxreal] = DM[idxreal]*np.sin(np.deg2rad(GB[idxreal]))
+
+            self.__dataframe['DMSINB'] = DMSINB
+
+        # TODO: set galactic proper motion
 
     def derived_p0(self):
         """
