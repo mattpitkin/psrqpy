@@ -22,7 +22,7 @@ from astropy.coordinates import SkyCoord, ICRS, BarycentricTrueEcliptic, Galacti
 import astropy.units as aunits
 from astropy.table import Table
 
-from pandas import DataFrame
+from pandas import DataFrame, Series
 from copy import deepcopy
 
 from .config import *
@@ -784,57 +784,108 @@ class QueryATNF(object):
 
     def parse_assoc(self):
         """
-        Blah
+        Parse default string representing source associations, extracting (first) value
+        and reference. Multiple values and references currently not supported. 
         """
 
         if 'ASSOC' not in self.__dataframe.columns:
             warnings.warn("Could not parse ASSOC.", UserWarning)
             return
 
-        ASSOCnew = self.__dataframe['ASSOC'].copy()
+        # Save original parameter in new column
+        ASSOCorig = self.__dataframe['ASSOC'].copy()
+        ASSOCorig.name = 'ASSOC_ORIG'
+        self.__dataframe['ASSOC_ORIG'] = ASSOCorig
 
+        ASSOCnew = self.__dataframe['ASSOC'].copy()
         idxassoc = ~ASSOCnew.isna()
-        ASSOCnew[idxassoc] = ASSOCnew[idxassoc].apply(lambda x: re.split('\[|,|\(|:',x)[0])
+
+        # Set references first
+        if 'ASSOC_REF' not in self.__dataframe.columns:
+            ASSOCREFnew = Series(np.asarray([np.nan,]*len(idxassoc)), name='ASSOC_REF')
+            self.__dataframe['ASSOC_REF'] = ASSOCREFnew
+        else:
+            ASSOCREFnew = self.__dataframe['ASSOC_REF'].copy()
+
+        ASSOCREFnew[idxassoc] = ASSOCnew[idxassoc].apply(lambda x: \
+                                                         re.split('\]', re.split('\[', x)[1])[0] \
+                                                         if len(re.split('\[', x)) > 1 else np.nan)
+
+        # Set values
+        ASSOCnew[idxassoc] = ASSOCnew[idxassoc].apply(lambda x: re.split('\[|,|\(|:', x)[0])
 
         self.__dataframe.update(ASSOCnew)
-
-        # TODO: Add references
+        self.__dataframe.update(ASSOCREFnew)
 
     def parse_type(self):
         """
-        Blah
+        Parse default string representing source type, extracting (first) value
+        and reference. Multiple values and references currently not supported. 
         """
 
         if 'TYPE' not in self.__dataframe.columns:
             warnings.warn("Could not parse TYPE.", UserWarning)
             return
 
-        TYPEnew = self.__dataframe['TYPE'].copy()
+        # Save original parameter in new column
+        TYPEorig = self.__dataframe['TYPE'].copy()
+        TYPEorig.name = 'TYPE_ORIG'
+        self.__dataframe['TYPE_ORIG'] = TYPEorig
 
+        TYPEnew = self.__dataframe['TYPE'].copy()
         idxtype = ~TYPEnew.isna()
-        TYPEnew[idxtype] = TYPEnew[idxtype].apply(lambda x: re.split('\[|,|\(|:',x)[0])
+
+        # Set references first
+        if 'TYPE_REF' not in self.__dataframe.columns:
+            TYPEREFnew = Series(np.asarray([np.nan,]*len(idxassoc)), name='TYPE_REF')
+            self.__dataframe['TYPE_REF'] = TYPEREFnew
+        else:
+            TYPEREFnew = self.__dataframe['TYPE_REF'].copy()
+
+        TYPEREFnew[idxtype] = TYPEnew[idxtype].apply(lambda x: \
+                                                     re.split('\]', re.split('\[', x)[1])[0] \
+                                                     if len(re.split('\[', x)) > 1 else np.nan)
+
+        # Set values
+        TYPEnew[idxtype] = TYPEnew[idxtype].apply(lambda x: re.split('\[|,|\(|:', x)[0])
 
         self.__dataframe.update(TYPEnew)
-
-        # TODO: Add references
+        self.__dataframe.update(TYPEREFnew)
 
     def parse_bincomp(self):
         """
-        Blah
+        Parse default string representing source companion type, extracting (first) value
+        and reference. Multiple values and references currently not supported. 
         """
 
         if 'BINCOMP' not in self.__dataframe.columns:
             warnings.warn("Could not parse BINCOMP.", UserWarning)
             return
 
-        BINCOMPnew = self.__dataframe['BINCOMP'].copy()
+        # Save original parameter in new column
+        BINCOMPorig = self.__dataframe['BINCOMP'].copy()
+        BINCOMPorig.name = 'BINCOMP_ORIG'
+        self.__dataframe['BINCOMP_ORIG'] = BINCOMPorig
 
+        BINCOMPnew = self.__dataframe['BINCOMP'].copy()
         idxbincomp = ~BINCOMPnew.isna()
-        BINCOMPnew[idxbincomp] = BINCOMPnew[idxbincomp].apply(lambda x: re.split('\[|,|\(|:',x)[0])
+
+        # Set references first
+        if 'BINCOMP_REF' not in self.__dataframe.columns:
+            BINCOMPREFnew = Series(np.asarray([np.nan,]*len(idxassoc)), name='BINCOMP_REF')
+            self.__dataframe['BINCOMP_REF'] = BINCOMPREFnew
+        else:
+            BINCOMPREFnew = self.__dataframe['BINCOMP_REF'].copy()
+
+        BINCOMPREFnew[idxbincomp] = BINCOMPnew[idxbincomp].apply(lambda x: \
+                                        re.split('\]', re.split('\[', x)[1])[0] \
+                                        if len(re.split('\[', x)) > 1 else np.nan)
+
+        # Set values
+        BINCOMPnew[idxbincomp] = BINCOMPnew[idxbincomp].apply(lambda x: re.split('\[|,|\(|:', x)[0])
 
         self.__dataframe.update(BINCOMPnew)
-
-        # TODO: Add references
+        self.__dataframe.update(BINCOMPREFnew)
 
     def set_derived(self):
         """
