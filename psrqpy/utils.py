@@ -22,7 +22,7 @@ import astropy.units as aunits
 from astropy.utils.data import download_file, clear_download_cache
 from pandas import DataFrame
 
-from .config import (ATNF_BASE_URL, ATNF_VERSION, ADS_URL, ATNF_TARBALL, 
+from .config import (ATNF_BASE_URL, ATNF_VERSION, ADS_URL, ATNF_TARBALL,
                      PSR_ALL, PSR_ALL_PARS, GLITCH_URL)
 
 
@@ -392,7 +392,8 @@ def get_glitch_catalogue(psr=None):
 
         try:
             tabledict['NAME'].append(tds[1].contents[0].string)
-            jname = 'J'+tds[2].contents[0].string if 'J' != tds[2].contents[0].string[0] else tds[2].contents[0].string
+            jname = 'J'+tds[2].contents[0].string if \
+                    'J' != tds[2].contents[0].string[0] else tds[2].contents[0].string
             tabledict['JNAME'].append(jname)
             tabledict['Glitch number'].append(int(tds[3].contents[0].string))
 
@@ -701,7 +702,7 @@ def condition(table, expression, exactMatch=False):
             else:
                 if tokens[i].upper() == 'ASSOC':
                     if 'ASSOC' not in tab.keys():
-                        warnings.warn("'ASSOC' parameter not in table: ignoring in query", 
+                        warnings.warn("'ASSOC' parameter not in table: ignoring in query",
                                       UserWarning)
                     elif exactMatch:
                         newtokens.append(r'(ASSOC == "{}")'.format(tokens[i+2]))
@@ -711,13 +712,13 @@ def condition(table, expression, exactMatch=False):
                 elif tokens[i].upper() == 'TYPE':
                     if tokens[i+2].upper() == 'BINARY':
                         if 'BINARY' not in tab.keys():
-                            warnings.warn("'BINARY' parameter not in table: ignoring in query", 
+                            warnings.warn("'BINARY' parameter not in table: ignoring in query",
                                           UserWarning)
                         else:
                             newtokens.append(r'(BINARY != "None")')
                     else:
                         if 'TYPE' not in tab.keys():
-                            warnings.warn("'TYPE' parameter not in table: ignoring in query", 
+                            warnings.warn("'TYPE' parameter not in table: ignoring in query",
                                           UserWarning)
                         elif exactMatch:
                             newtokens.append(r'(TYPE == "{}")'.format(tokens[i+2]))
@@ -726,7 +727,7 @@ def condition(table, expression, exactMatch=False):
                             newtokens.append(r'(@ttype)')
                 elif tokens[i].upper() == 'BINCOMP':
                     if 'BINCOMP' not in tab.keys():
-                        warnings.warn("'BINCOMP' parameter not in table: ignoring in query", 
+                        warnings.warn("'BINCOMP' parameter not in table: ignoring in query",
                                       UserWarning)
                     elif exactMatch:
                         newtokens.append(r'(BINCOMP == "{}")'.format(tokens[i+2]))
@@ -735,7 +736,7 @@ def condition(table, expression, exactMatch=False):
                         newtokens.append(r'(@bincomp)')
                 elif tokens[i].upper() == 'EXIST':
                     if tokens[i+2] not in tab.keys():
-                        warnings.warn("'{}' does not exist for any pulsar".format(tokens[i+2]), 
+                        warnings.warn("'{}' does not exist for any pulsar".format(tokens[i+2]),
                                       UserWarning)
                         # create an empty DataFrame
                         tab = DataFrame(columns=table.keys())
@@ -792,17 +793,17 @@ def characteristic_age(period, pdot, braking_idx=3.):
 
     # check everything is positive, otherwise return NaN
     if period < 0.:
-        warnings.warn("The period must be positive to define a characteristic age", 
+        warnings.warn("The period must be positive to define a characteristic age",
                       UserWarning)
         return np.nan
 
     if pdot < 0.:
-        warnings.warn("The period derivative must be positive to define a characteristic age", 
+        warnings.warn("The period derivative must be positive to define a characteristic age",
                       UserWarning)
         return np.nan
 
     if braking_idx < 0.:
-        warnings.warn("The braking index must be positive to define a characteristic age", 
+        warnings.warn("The braking index must be positive to define a characteristic age",
                       UserWarning)
         return np.nan
 
@@ -864,12 +865,12 @@ def B_field(period, pdot):
 
     # check everything is positive, otherwise return 0
     if period < 0.:
-        warnings.warn("The period must be positive to define a magnetic field strength", 
+        warnings.warn("The period must be positive to define a magnetic field strength",
                       UserWarning)
         return 0.
 
     if pdot < 0.:
-        warnings.warn("The period derivative must be positive to define a magnetic field streng", 
+        warnings.warn("The period derivative must be positive to define a magnetic field strength",
                       UserWarning)
         return 0.
 
@@ -883,7 +884,7 @@ def B_field_pdot(period, Bfield=1e10):
 
     .. math::
 
-       \\dot{P} = \\frac{1}{P}\left( \\frac{B}{3.2\\!\\times\\!10^{19}} \\right)^2
+       \\dot{P} = \\frac{1}{P}\\left( \\frac{B}{3.2\\!\\times\\!10^{19}} \\right)^2
 
     Args:
         period (list, :class:`~numpy.ndarray`): a list of period values
@@ -937,29 +938,29 @@ def death_line(logP, linemodel='Ip', rho6=1.):
 
     """
 
-    gradvals = {'I': (11./4), 
-                'Ip': (9./4.), 
-                'II': (2./11.), 
-                'IIp': -(2./11.), 
-                'III': (5./2.), 
-                'IIIp': 2., 
-                'IV': -(3./11.), 
+    gradvals = {'I': (11./4),
+                'Ip': (9./4.),
+                'II': (2./11.),
+                'IIp': -(2./11.),
+                'III': (5./2.),
+                'IIIp': 2.,
+                'IV': -(3./11.),
                 'IVp': -(7./11.)}
-    intercept = {'I': 14.62, 
-                 'Ip': 16.58, 
-                 'II': 13.07, 
-                 'IIp': 14.50, 
-                 'III': 14.56, 
-                 'IIIp': 16.52, 
-                 'IV': 15.36, 
+    intercept = {'I': 14.62,
+                 'Ip': 16.58,
+                 'II': 13.07,
+                 'IIp': 14.50,
+                 'III': 14.56,
+                 'IIIp': 16.52,
+                 'IV': 15.36,
                  'IVp': 16.79}
-    rho = {'I': 0., 
-           'Ip': 1., 
-           'II': 0., 
-           'IIp': (8./11.), 
-           'III': 0., 
-           'IIIp': 1., 
-           'IV': 0., 
+    rho = {'I': 0.,
+           'Ip': 1.,
+           'II': 0.,
+           'IIp': (8./11.),
+           'III': 0.,
+           'IIIp': 1.,
+           'IV': 0.,
            'IVp': (8./11.)}
 
     lp = logP

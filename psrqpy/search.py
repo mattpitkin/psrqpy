@@ -785,7 +785,7 @@ class QueryATNF(object):
     def parse_assoc(self):
         """
         Parse default string representing source associations, extracting (first) value
-        and reference. Multiple values and references currently not supported. 
+        and reference. Multiple values and references currently not supported.
         """
 
         if 'ASSOC' not in self.__dataframe.columns:
@@ -802,13 +802,13 @@ class QueryATNF(object):
 
         # Set references first
         if 'ASSOC_REF' not in self.__dataframe.columns:
-            ASSOCREFnew = Series(np.asarray([np.nan,]*len(idxassoc)), name='ASSOC_REF')
+            ASSOCREFnew = Series(np.asarray([np.nan, ]*len(idxassoc)), name='ASSOC_REF')
             self.__dataframe['ASSOC_REF'] = ASSOCREFnew
         else:
             ASSOCREFnew = self.__dataframe['ASSOC_REF'].copy()
 
-        ASSOCREFnew[idxassoc] = ASSOCnew[idxassoc].apply(lambda x: \
-                                                         re.split('\]', re.split('\[', x)[1])[0] \
+        ASSOCREFnew[idxassoc] = ASSOCnew[idxassoc].apply(lambda x: 
+                                                         re.split('\]', re.split('\[', x)[1])[0] 
                                                          if len(re.split('\[', x)) > 1 else np.nan)
 
         # Set values
@@ -820,7 +820,7 @@ class QueryATNF(object):
     def parse_type(self):
         """
         Parse default string representing source type, extracting (first) value
-        and reference. Multiple values and references currently not supported. 
+        and reference. Multiple values and references currently not supported.
         """
 
         if 'TYPE' not in self.__dataframe.columns:
@@ -837,13 +837,13 @@ class QueryATNF(object):
 
         # Set references first
         if 'TYPE_REF' not in self.__dataframe.columns:
-            TYPEREFnew = Series(np.asarray([np.nan,]*len(idxassoc)), name='TYPE_REF')
+            TYPEREFnew = Series(np.asarray([np.nan, ]*len(idxassoc)), name='TYPE_REF')
             self.__dataframe['TYPE_REF'] = TYPEREFnew
         else:
             TYPEREFnew = self.__dataframe['TYPE_REF'].copy()
 
-        TYPEREFnew[idxtype] = TYPEnew[idxtype].apply(lambda x: \
-                                                     re.split('\]', re.split('\[', x)[1])[0] \
+        TYPEREFnew[idxtype] = TYPEnew[idxtype].apply(lambda x: 
+                                                     re.split('\]', re.split('\[', x)[1])[0] 
                                                      if len(re.split('\[', x)) > 1 else np.nan)
 
         # Set values
@@ -855,7 +855,7 @@ class QueryATNF(object):
     def parse_bincomp(self):
         """
         Parse default string representing source companion type, extracting (first) value
-        and reference. Multiple values and references currently not supported. 
+        and reference. Multiple values and references currently not supported.
         """
 
         if 'BINCOMP' not in self.__dataframe.columns:
@@ -872,14 +872,14 @@ class QueryATNF(object):
 
         # Set references first
         if 'BINCOMP_REF' not in self.__dataframe.columns:
-            BINCOMPREFnew = Series(np.asarray([np.nan,]*len(idxassoc)), name='BINCOMP_REF')
+            BINCOMPREFnew = Series(np.asarray([np.nan, ]*len(idxassoc)), name='BINCOMP_REF')
             self.__dataframe['BINCOMP_REF'] = BINCOMPREFnew
         else:
             BINCOMPREFnew = self.__dataframe['BINCOMP_REF'].copy()
 
-        BINCOMPREFnew[idxbincomp] = BINCOMPnew[idxbincomp].apply(lambda x: \
-                                        re.split('\]', re.split('\[', x)[1])[0] \
-                                        if len(re.split('\[', x)) > 1 else np.nan)
+        BINCOMPREFnew[idxbincomp] = BINCOMPnew[idxbincomp]\
+            .apply(lambda x: re.split('\]', re.split('\[', x)[1])[0] 
+                   if len(re.split('\[', x)) > 1 else np.nan)
 
         # Set values
         BINCOMPnew[idxbincomp] = BINCOMPnew[idxbincomp].apply(lambda x: re.split('\[|,|\(|:', x)[0])
@@ -977,11 +977,11 @@ class QueryATNF(object):
         idxa1 = ~((DIST1 <= DIST_AMX) & (DIST1 >= DIST_AMN))
 
         DIST[idxa & idxdist & (DIST >= DIST_AMX)] = DIST_AMX[idxa & idxdist & (DIST >= DIST_AMX)]
-        DIST1[idxa1 & idxdist1 & (DIST1 >= DIST_AMX)] = DIST_AMX[idxa1 & idxdist1 
+        DIST1[idxa1 & idxdist1 & (DIST1 >= DIST_AMX)] = DIST_AMX[idxa1 & idxdist1
                                                                  & (DIST1 >= DIST_AMX)]
 
         DIST[idxa & idxdist & (DIST < DIST_AMX)] = DIST_AMN[idxa & idxdist & (DIST < DIST_AMX)]
-        DIST1[idxa1 & idxdist1 & (DIST1 < DIST_AMX)] = DIST_AMN[idxa1 & idxdist1 
+        DIST1[idxa1 & idxdist1 & (DIST1 < DIST_AMX)] = DIST_AMN[idxa1 & idxdist1
                                                                 & (DIST1 < DIST_AMX)]
 
         idxdist = ~np.isfinite(DIST) & ~idxpxgt3 & np.isfinite(DIST_AMN) & np.isfinite(DIST_AMX)
@@ -1012,10 +1012,10 @@ class QueryATNF(object):
         ELONGnew = self.__dataframe['ELONG'].copy()
         ELATnew = self.__dataframe['ELAT'].copy()
 
-        idxreal = (np.isfinite(RAJD) & np.isfinite(DECJD) 
+        idxreal = (np.isfinite(RAJD) & np.isfinite(DECJD)
                    & (~np.isfinite(ELONGnew) & ~np.isfinite(ELATnew)))
 
-        # get sky coordinates 
+        # get sky coordinates
         sc = SkyCoord(RAJD[idxreal].values*aunits.deg,
                       DECJD[idxreal].values*aunits.deg)
 
@@ -1047,9 +1047,9 @@ class QueryATNF(object):
             PMRAnew = self.__dataframe['PMRA'].copy()
             PMDECnew = self.__dataframe['PMDEC'].copy()
 
-            idxrd = (np.isfinite(PMRAnew) & np.isfinite(PMDECnew) 
+            idxrd = (np.isfinite(PMRAnew) & np.isfinite(PMDECnew)
                      & (~np.isfinite(PMELONGnew) & ~np.isfinite(PMELATnew)))
-            idxec = (np.isfinite(PMELONGnew) & np.isfinite(PMELATnew) 
+            idxec = (np.isfinite(PMELONGnew) & np.isfinite(PMELATnew)
                      & (~np.isfinite(PMRAnew) & ~np.isfinite(PMDECnew)))
 
             sc = ICRS(
@@ -1250,13 +1250,13 @@ class QueryATNF(object):
             self.__dataframe.update(P1REFnew)
 
         # set the errors
-        if np.all([p in self.__dataframe.columns for p in 
+        if np.all([p in self.__dataframe.columns for p in
                    ['P0_ERR', 'F0_ERR', 'F1_ERR', 'P1_ERR']]):
             P1ERRnew = self.__dataframe['P0_ERR'].copy()
             F1ERR = self.__dataframe['F1_ERR']
             F0ERR = self.__dataframe['F0_ERR']
-            P1ERRnew[idxp1] = np.sqrt((P0[idxp1]**2*F1ERR[idxp1])**2 +
-                                      (2.0*P0[idxp1]**3*F1[idxp1]*F0ERR[idxp1])**2)
+            P1ERRnew[idxp1] = np.sqrt((P0[idxp1]**2*F1ERR[idxp1])**2
+                                      + (2.0*P0[idxp1]**3*F1[idxp1]*F0ERR[idxp1])**2)
             self.__dataframe.update(P1ERRnew)
 
     def derived_f1(self):
@@ -1289,12 +1289,12 @@ class QueryATNF(object):
             self.__dataframe.update(F1REFnew)
 
         # set the errors
-        if np.all([p in self.__dataframe.columns for p in 
+        if np.all([p in self.__dataframe.columns for p in
                    ['P0_ERR', 'F0_ERR', 'F1_ERR', 'P1_ERR']]):
             F1ERRnew = self.__dataframe['F0_ERR'].copy()
             P1ERR = self.__dataframe['P1_ERR']
             P0ERR = self.__dataframe['P0_ERR']
-            F1ERRnew[idxf1] = np.sqrt((F0[idxf1]**2*P1ERR[idxf1])**2 
+            F1ERRnew[idxf1] = np.sqrt((F0[idxf1]**2*P1ERR[idxf1])**2
                                       + (2.0*F0[idxf1]**3*P1[idxf1]*P0ERR[idxf1])**2)
             self.__dataframe.update(F1ERRnew)
 
@@ -1360,9 +1360,9 @@ class QueryATNF(object):
             PBDOTERRnew = self.__dataframe['PBDOT_ERR'].copy()
             FB1ERR = self.__dataframe['FB1_ERR']
             FB0ERR = self.__dataframe['FB0_ERR']
-            PBDOTERRnew[idxpbdot] = np.sqrt((PB[idxpbdot]**2*FB1ERR[idxpbdot])**2 
-                                            + (2.0*PB[idxpbdot]**3*FB1[idxpbdot]
-                                               *FB0ERR[idxpbdot])**2)
+            PBDOTERRnew[idxpbdot] = np.sqrt((PB[idxpbdot]**2 * FB1ERR[idxpbdot])**2
+                                            + (2.0 * PB[idxpbdot]**3 * FB1[idxpbdot]
+                                               * FB0ERR[idxpbdot])**2)
             self.__dataframe.update(PBDOTERRnew)
 
     def derived_fb0(self):
@@ -1427,9 +1427,9 @@ class QueryATNF(object):
             FB1ERRnew = self.__dataframe['FB1_ERR'].copy()
             PBDOTERR = self.__dataframe['PBDOT_ERR']
             PBERR = self.__dataframe['PB_ERR']
-            FB1ERRnew[idxfb1] = np.sqrt((FB0[idxfb1]**2*PBDOTERR[idxfb1])**2 
-                                        + (2.0*FB0[idxfb1]**3*PBDOT[idxfb1]
-                                           *PBERR[idxfb1]*86400.)**2)
+            FB1ERRnew[idxfb1] = np.sqrt((FB0[idxfb1]**2 * PBDOTERR[idxfb1])**2
+                                        + (2.0 * FB0[idxfb1]**3 * PBDOT[idxfb1]
+                                           * PBERR[idxfb1] * 86400.)**2)
             self.__dataframe.update(FB1ERRnew)
 
     def derived_p1_i(self):
@@ -1454,8 +1454,8 @@ class QueryATNF(object):
         P1 = self.__dataframe['P1']
         DIST = self.__dataframe['DIST']
 
-        p1i = ((P1/1.0e-15) - VTRANS**2*1.0e10*P0/(DIST*3.086e6)/2.9979e10)*1.0e-15
-        p1i[~np.isfinite(P1) | ~np.isfinite(P0) | ~np.isfinite(VTRANS) 
+        p1i = ((P1/1.0e-15) - VTRANS**2 * 1.0e10 * P0/(DIST * 3.086e6)/2.9979e10) * 1.0e-15
+        p1i[~np.isfinite(P1) | ~np.isfinite(P0) | ~np.isfinite(VTRANS)
             | ~np.isfinite(DIST)] = np.nan
         self.__dataframe['P1_I'] = p1i
 
@@ -2028,17 +2028,27 @@ class QueryATNF(object):
                 nshowtypes[nshowtypes.index(stype)] = 'AXP'
 
         # set plot parameters
-        rcparams['figure.figsize'] = rcparams['figure.figsize'] if 'figure.figsize' in rcparams else (9, 9.5)
-        rcparams['figure.dpi'] = rcparams['figure.dpi'] if 'figure.dpi' in rcparams else 250
-        rcparams['text.usetex'] = rcparams['text.usetex'] if 'text.usetex' in rcparams else True
-        rcparams['axes.linewidth'] = rcparams['axes.linewidth'] if 'axes.linewidth' in rcparams else 0.5
-        rcparams['axes.grid'] = rcparams['axes.grid'] if 'axes.grid' in rcparams else False
-        rcparams['font.family'] = rcparams['font.family'] if 'font.family' in rcparams else 'sans-serif'
-        rcparams['font.sans-serif'] = rcparams['font.sans-serif'] if 'font.sans-serif' in rcparams else 'Avant Garde, Helvetica, Computer Modern Sans serif'
-        rcparams['font.size'] = rcparams['font.size'] if 'font.size' in rcparams else 20
-        rcparams['legend.fontsize'] = rcparams['legend.fontsize'] if 'legend.fontsize' in rcparams else 16
-        rcparams['legend.frameon'] = rcparams['legend.frameon'] if 'legend.frameon' in rcparams else False
-        # TODO: fix PEP-8 issues above
+        rcparams['figure.figsize'] = rcparams['figure.figsize'] if \
+                                     'figure.figsize' in rcparams else (9, 9.5)
+        rcparams['figure.dpi'] = rcparams['figure.dpi'] if \
+                                 'figure.dpi' in rcparams else 250
+        rcparams['text.usetex'] = rcparams['text.usetex'] if \
+                                  'text.usetex' in rcparams else True
+        rcparams['axes.linewidth'] = rcparams['axes.linewidth'] if \
+                                     'axes.linewidth' in rcparams else 0.5
+        rcparams['axes.grid'] = rcparams['axes.grid'] if \
+                                'axes.grid' in rcparams else False
+        rcparams['font.family'] = rcparams['font.family'] if \
+                                  'font.family' in rcparams else 'sans-serif'
+        rcparams['font.sans-serif'] = rcparams['font.sans-serif'] if \
+                                      'font.sans-serif' in rcparams else \
+                                      'Avant Garde, Helvetica, Computer Modern Sans serif'
+        rcparams['font.size'] = rcparams['font.size'] if \
+                                'font.size' in rcparams else 20
+        rcparams['legend.fontsize'] = rcparams['legend.fontsize'] if \
+                                      'legend.fontsize' in rcparams else 16
+        rcparams['legend.frameon'] = rcparams['legend.frameon'] if \
+                                     'legend.frameon' in rcparams else False
 
         mpl.rcParams.update(rcparams)
 
@@ -2095,10 +2105,10 @@ class QueryATNF(object):
 
         # get limits
         if periodlims is None:
-            periodlims = [10**np.floor(np.min(np.log10(periods))), 
+            periodlims = [10**np.floor(np.min(np.log10(periods))),
                           10.*int(np.ceil(np.max(pdots)/10.))]
         if pdotlims is None:
-            pdotlims = [10**np.floor(np.min(np.log10(pdots))), 
+            pdotlims = [10**np.floor(np.min(np.log10(pdots))),
                         10**np.ceil(np.max(np.log10(pdots)))]
         ax.set_xlim(periodlims)
         ax.set_ylim(pdotlims)
@@ -2111,10 +2121,14 @@ class QueryATNF(object):
                 if not filldeathtype:
                     filldeathtype = {}
 
-                filldeathtype['linestyle'] = filldeathtype['linestyle'] if 'linestyle' in filldeathtype else '-'
-                filldeathtype['alpha'] = filldeathtype['alpha'] if 'alpha' in filldeathtype else 0.15
-                filldeathtype['facecolor'] = filldeathtype['facecolor'] if 'facecolor' in filldeathtype else 'darkorange'
-                filldeathtype['hatch'] = filldeathtype['hatch'] if 'hatch' in filldeathtype else ''
+                filldeathtype['linestyle'] = filldeathtype['linestyle'] if \
+                                             'linestyle' in filldeathtype else '-'
+                filldeathtype['alpha'] = filldeathtype['alpha'] if \
+                                         'alpha' in filldeathtype else 0.15
+                filldeathtype['facecolor'] = filldeathtype['facecolor'] if \
+                                             'facecolor' in filldeathtype else 'darkorange'
+                filldeathtype['hatch'] = filldeathtype['hatch'] if \
+                                         'hatch' in filldeathtype else ''
                 ax.fill_between(periodlims, deathpdots, pdotlims[0], **filldeathtype)
 
         # add markers for each pulsar type
@@ -2122,14 +2136,22 @@ class QueryATNF(object):
             markertypes = {}
 
         # check if markers have been defined by the user or not
-        markertypes['AXP'] = {'marker': 's', 'markeredgecolor': 'red'} if 'AXP' not in markertypes else markertypes['AXP']
-        markertypes['BINARY'] = {'marker': 'o', 'markeredgecolor': 'grey'} if 'BINARY' not in markertypes else markertypes['BINARY']
-        markertypes['HE'] = {'marker': 'D', 'markeredgecolor': 'orange'} if 'HE' not in markertypes else markertypes['HE']
-        markertypes['RRAT'] = {'marker': 'h', 'markeredgecolor': 'green'} if 'RRAT' not in markertypes else markertypes['RRAT']
-        markertypes['NRAD'] = {'marker': 'v', 'markeredgecolor': 'blue'} if 'NRAD' not in markertypes else markertypes['NRAD']
-        markertypes['XINS'] = {'marker': '^', 'markeredgecolor': 'magenta'} if 'XINS' not in markertypes else markertypes['XINS']
-        markertypes['GC'] = {'marker': '8', 'markeredgecolor': 'cyan'} if 'GC' not in markertypes else markertypes['GC']
-        markertypes['SNR'] = {'marker': '*', 'markeredgecolor': 'darkorchid'} if 'SNR' not in markertypes else markertypes['SNR']
+        markertypes['AXP'] = {'marker': 's', 'markeredgecolor': 'red'} if \
+                             'AXP' not in markertypes else markertypes['AXP']
+        markertypes['BINARY'] = {'marker': 'o', 'markeredgecolor': 'grey'} if \
+                                'BINARY' not in markertypes else markertypes['BINARY']
+        markertypes['HE'] = {'marker': 'D', 'markeredgecolor': 'orange'} if \
+                            'HE' not in markertypes else markertypes['HE']
+        markertypes['RRAT'] = {'marker': 'h', 'markeredgecolor': 'green'} if \
+                              'RRAT' not in markertypes else markertypes['RRAT']
+        markertypes['NRAD'] = {'marker': 'v', 'markeredgecolor': 'blue'} if \
+                              'NRAD' not in markertypes else markertypes['NRAD']
+        markertypes['XINS'] = {'marker': '^', 'markeredgecolor': 'magenta'} if \
+                              'XINS' not in markertypes else markertypes['XINS']
+        markertypes['GC'] = {'marker': '8', 'markeredgecolor': 'cyan'} if \
+                            'GC' not in markertypes else markertypes['GC']
+        markertypes['SNR'] = {'marker': '*', 'markeredgecolor': 'darkorchid'} if \
+                             'SNR' not in markertypes else markertypes['SNR']
 
         # legend strings for different types
         typelegstring = {}
