@@ -781,21 +781,20 @@ class QueryATNF(object):
         self.parse_assoc()      # parse the association parameter
         self.parse_type()       # parse the type parameter
         self.parse_bincomp()    # parse the binary companion parameter
-        #self.parse_survey()     # parse the survey parameter
 
     def parse_assoc(self):
         """
         Blah
         """
 
-        if not 'ASSOC' in self.__dataframe.columns:
+        if 'ASSOC' not in self.__dataframe.columns:
             warnings.warn("Could not parse ASSOC.", UserWarning)
             return
 
         ASSOCnew = self.__dataframe['ASSOC'].copy()
 
         idxassoc = ~ASSOCnew.isna()
-        ASSOCnew[idxassoc] = ASSOCnew[idxassoc].apply(lambda x: x.split('[')[0].split(',')[0].split('(')[0].split(':')[0])
+        ASSOCnew[idxassoc] = ASSOCnew[idxassoc].apply(lambda x: re.split('\[|,|\(|:',x)[0])
 
         self.__dataframe.update(ASSOCnew)
 
@@ -806,32 +805,32 @@ class QueryATNF(object):
         Blah
         """
 
-        if not 'TYPE' in self.__dataframe.columns:
+        if 'TYPE' not in self.__dataframe.columns:
             warnings.warn("Could not parse TYPE.", UserWarning)
             return
 
         TYPEnew = self.__dataframe['TYPE'].copy()
 
         idxtype = ~TYPEnew.isna()
-        TYPEnew[idxtype] = TYPEnew[idxtype].apply(lambda x: x.split('[')[0].split(',')[0].split('(')[0])
+        TYPEnew[idxtype] = TYPEnew[idxtype].apply(lambda x: re.split('\[|,|\(|:',x)[0])
 
         self.__dataframe.update(TYPEnew)
 
         # TODO: Add references
-    
+
     def parse_bincomp(self):
         """
         Blah
         """
 
-        if not 'BINCOMP' in self.__dataframe.columns:
+        if 'BINCOMP' not in self.__dataframe.columns:
             warnings.warn("Could not parse BINCOMP.", UserWarning)
             return
 
         BINCOMPnew = self.__dataframe['BINCOMP'].copy()
 
         idxbincomp = ~BINCOMPnew.isna()
-        BINCOMPnew[idxbincomp] = BINCOMPnew[idxbincomp].apply(lambda x: x.split('[')[0].split(',')[0].split('(')[0])
+        BINCOMPnew[idxbincomp] = BINCOMPnew[idxbincomp].apply(lambda x: re.split('\[|,|\(|:',x)[0])
 
         self.__dataframe.update(BINCOMPnew)
 
@@ -927,10 +926,12 @@ class QueryATNF(object):
         idxa1 = ~((DIST1 <= DIST_AMX) & (DIST1 >= DIST_AMN))
 
         DIST[idxa & idxdist & (DIST >= DIST_AMX)] = DIST_AMX[idxa & idxdist & (DIST >= DIST_AMX)]
-        DIST1[idxa1 & idxdist1 & (DIST1 >= DIST_AMX)] = DIST_AMX[idxa1 & idxdist1 & (DIST1 >= DIST_AMX)]
+        DIST1[idxa1 & idxdist1 & (DIST1 >= DIST_AMX)] = DIST_AMX[idxa1 & idxdist1 
+                                                                 & (DIST1 >= DIST_AMX)]
 
         DIST[idxa & idxdist & (DIST < DIST_AMX)] = DIST_AMN[idxa & idxdist & (DIST < DIST_AMX)]
-        DIST1[idxa1 & idxdist1 & (DIST1 < DIST_AMX)] = DIST_AMN[idxa1 & idxdist1 & (DIST1 < DIST_AMX)]
+        DIST1[idxa1 & idxdist1 & (DIST1 < DIST_AMX)] = DIST_AMN[idxa1 & idxdist1 
+                                                                & (DIST1 < DIST_AMX)]
 
         idxdist = ~np.isfinite(DIST) & ~idxpxgt3 & np.isfinite(DIST_AMN) & np.isfinite(DIST_AMX)
         idxdist1 = ~np.isfinite(DIST) & ~idxpxgt3 & np.isfinite(DIST_AMN) & np.isfinite(DIST_AMX)
@@ -960,7 +961,8 @@ class QueryATNF(object):
         ELONGnew = self.__dataframe['ELONG'].copy()
         ELATnew = self.__dataframe['ELAT'].copy()
 
-        idxreal = np.isfinite(RAJD) & np.isfinite(DECJD) & (~np.isfinite(ELONGnew) & ~np.isfinite(ELATnew))
+        idxreal = (np.isfinite(RAJD) & np.isfinite(DECJD) 
+                   & (~np.isfinite(ELONGnew) & ~np.isfinite(ELATnew)))
 
         # get sky coordinates 
         sc = SkyCoord(RAJD[idxreal].values*aunits.deg,
@@ -994,13 +996,17 @@ class QueryATNF(object):
             PMRAnew = self.__dataframe['PMRA'].copy()
             PMDECnew = self.__dataframe['PMDEC'].copy()
 
-            idxrd = np.isfinite(PMRAnew) & np.isfinite(PMDECnew) & (~np.isfinite(PMELONGnew) & ~np.isfinite(PMELATnew))
-            idxec = np.isfinite(PMELONGnew) & np.isfinite(PMELATnew) & (~np.isfinite(PMRAnew) & ~np.isfinite(PMDECnew))
+            idxrd = (np.isfinite(PMRAnew) & np.isfinite(PMDECnew) 
+                     & (~np.isfinite(PMELONGnew) & ~np.isfinite(PMELATnew)))
+            idxec = (np.isfinite(PMELONGnew) & np.isfinite(PMELATnew) 
+                     & (~np.isfinite(PMRAnew) & ~np.isfinite(PMDECnew)))
 
-            sc = ICRS(RAJD[idxrd].values*aunits.deg,
-                      DECJD[idxrd].values*aunits.deg,
-                      pm_ra_cosdec=PMRAnew[idxrd].values*aunits.mas/aunits.yr,
-                      pm_dec=PMDECnew[idxrd].values*aunits.mas/aunits.yr).transform_to(BarycentricTrueEcliptic())
+            sc = ICRS(
+                RAJD[idxrd].values*aunits.deg,
+                DECJD[idxrd].values*aunits.deg,
+                pm_ra_cosdec=PMRAnew[idxrd].values*aunits.mas/aunits.yr,
+                pm_dec=PMDECnew[idxrd].values*aunits.mas/aunits.yr
+            ).transform_to(BarycentricTrueEcliptic())
 
             PMELONGnew[idxrd] = sc.pm_lon_coslat.value
             PMELATnew[idxrd] = sc.pm_lat.value
@@ -1009,11 +1015,13 @@ class QueryATNF(object):
             self.__dataframe.update(PMELATnew)
 
             if np.any(idxec):
-                sc = BarycentricTrueEcliptic(ELONGnew[idxec].values*aunits.deg,
-                                             ELATnew[idxec].values*aunits.deg,
-                                             pm_lon_coslat=PMELONGnew[idxec].values*aunits.mas/aunits.yr,
-                                             pm_lat=PMELATnew[idxec].values*aunits.mas/aunits.yr).transform_to(ICRS())
-                
+                sc = BarycentricTrueEcliptic(
+                    ELONGnew[idxec].values*aunits.deg,
+                    ELATnew[idxec].values*aunits.deg,
+                    pm_lon_coslat=PMELONGnew[idxec].values*aunits.mas/aunits.yr,
+                    pm_lat=PMELATnew[idxec].values*aunits.mas/aunits.yr
+                ).transform_to(ICRS())
+
                 PMRAnew[idxec] = sc.pm_ra_cosdec.value
                 PMDECnew[idxec] = sc.pm_dec.value
 
@@ -1041,7 +1049,7 @@ class QueryATNF(object):
 
             if 'DIST' not in self.__dataframe.columns:
                 warnings.warn("Could not set galactic coordinates.",
-                          UserWarning)
+                              UserWarning)
                 return
 
         RAJD = self.__dataframe['RAJD'].values.copy()
@@ -1054,7 +1062,7 @@ class QueryATNF(object):
         idxreal = np.isfinite(RAJD) & np.isfinite(DECJD)
         DIST[~np.isfinite(DIST)] = 0.  # zero undefined distances
 
-        # get sky coordinates 
+        # get sky coordinates
         sc = SkyCoord(RAJD[idxreal]*aunits.deg,
                       DECJD[idxreal]*aunits.deg,
                       DIST[idxreal]*aunits.kpc)
@@ -1191,7 +1199,8 @@ class QueryATNF(object):
             self.__dataframe.update(P1REFnew)
 
         # set the errors
-        if np.all([p in self.__dataframe.columns for p in ['P0_ERR', 'F0_ERR', 'F1_ERR', 'P1_ERR']]):
+        if np.all([p in self.__dataframe.columns for p in 
+                   ['P0_ERR', 'F0_ERR', 'F1_ERR', 'P1_ERR']]):
             P1ERRnew = self.__dataframe['P0_ERR'].copy()
             F1ERR = self.__dataframe['F1_ERR']
             F0ERR = self.__dataframe['F0_ERR']
@@ -1229,12 +1238,13 @@ class QueryATNF(object):
             self.__dataframe.update(F1REFnew)
 
         # set the errors
-        if np.all([p in self.__dataframe.columns for p in ['P0_ERR', 'F0_ERR', 'F1_ERR', 'P1_ERR']]):
+        if np.all([p in self.__dataframe.columns for p in 
+                   ['P0_ERR', 'F0_ERR', 'F1_ERR', 'P1_ERR']]):
             F1ERRnew = self.__dataframe['F0_ERR'].copy()
             P1ERR = self.__dataframe['P1_ERR']
             P0ERR = self.__dataframe['P0_ERR']
-            F1ERRnew[idxf1] = np.sqrt((F0[idxf1]**2*P1ERR[idxf1])**2 +
-                                      (2.0*F0[idxf1]**3*P1[idxf1]*P0ERR[idxf1])**2)
+            F1ERRnew[idxf1] = np.sqrt((F0[idxf1]**2*P1ERR[idxf1])**2 
+                                      + (2.0*F0[idxf1]**3*P1[idxf1]*P0ERR[idxf1])**2)
             self.__dataframe.update(F1ERRnew)
 
     def derived_pb(self):
@@ -1299,8 +1309,9 @@ class QueryATNF(object):
             PBDOTERRnew = self.__dataframe['PBDOT_ERR'].copy()
             FB1ERR = self.__dataframe['FB1_ERR']
             FB0ERR = self.__dataframe['FB0_ERR']
-            PBDOTERRnew[idxpbdot] = np.sqrt((PB[idxpbdot]**2*FB1ERR[idxpbdot])**2 +
-                                            (2.0*PB[idxpbdot]**3*FB1[idxpbdot]*FB0ERR[idxpbdot])**2)
+            PBDOTERRnew[idxpbdot] = np.sqrt((PB[idxpbdot]**2*FB1ERR[idxpbdot])**2 
+                                            + (2.0*PB[idxpbdot]**3*FB1[idxpbdot]
+                                               *FB0ERR[idxpbdot])**2)
             self.__dataframe.update(PBDOTERRnew)
 
     def derived_fb0(self):
@@ -1365,8 +1376,9 @@ class QueryATNF(object):
             FB1ERRnew = self.__dataframe['FB1_ERR'].copy()
             PBDOTERR = self.__dataframe['PBDOT_ERR']
             PBERR = self.__dataframe['PB_ERR']
-            FB1ERRnew[idxfb1] = np.sqrt((FB0[idxfb1]**2*PBDOTERR[idxfb1])**2 +
-                                        (2.0*FB0[idxfb1]**3*PBDOT[idxfb1]*PBERR[idxfb1]*86400.)**2)
+            FB1ERRnew[idxfb1] = np.sqrt((FB0[idxfb1]**2*PBDOTERR[idxfb1])**2 
+                                        + (2.0*FB0[idxfb1]**3*PBDOT[idxfb1]
+                                           *PBERR[idxfb1]*86400.)**2)
             self.__dataframe.update(FB1ERRnew)
 
     def derived_p1_i(self):
@@ -1392,7 +1404,8 @@ class QueryATNF(object):
         DIST = self.__dataframe['DIST']
 
         p1i = ((P1/1.0e-15) - VTRANS**2*1.0e10*P0/(DIST*3.086e6)/2.9979e10)*1.0e-15
-        p1i[~np.isfinite(P1) | ~np.isfinite(P0) | ~np.isfinite(VTRANS) | ~np.isfinite(DIST)] = np.nan
+        p1i[~np.isfinite(P1) | ~np.isfinite(P0) | ~np.isfinite(VTRANS) 
+            | ~np.isfinite(DIST)] = np.nan
         self.__dataframe['P1_I'] = p1i
 
     def derived_age(self):
@@ -1768,7 +1781,8 @@ class QueryATNF(object):
 
                 for p in psrtype:
                     if not isinstance(p, string_types):
-                        raise Exception("Non-string value '{}' found in pulsar type list".format(p))
+                        raise Exception("Non-string value '{}' found in pulsar type list"
+                                        .format(p))
                 self._query_psr_types = psrtype
             else:
                 if isinstance(psrtype, string_types):
@@ -1778,7 +1792,8 @@ class QueryATNF(object):
 
             for p in list(self._query_psr_types):
                 if p.upper() not in PSR_TYPE:
-                    warnings.warn("Pulsar type '{}' is not recognised, no type will be required".format(p))
+                    warnings.warn("Pulsar type '{}' is not recognised, no type will be required"
+                                  .format(p))
                     self._query_psr_types.remove(p)
                 else:
                     if len(conditionparse) == 0:
@@ -1794,7 +1809,8 @@ class QueryATNF(object):
 
                 for p in assoc:
                     if not isinstance(p, string_types):
-                        raise Exception("Non-string value '{}' found in associations list".format(p))
+                        raise Exception("Non-string value '{}' found in associations list"
+                                        .format(p))
                 self._query_assocs = assoc
             else:
                 if isinstance(assoc, string_types):
@@ -1804,7 +1820,8 @@ class QueryATNF(object):
 
             for p in list(self._query_assocs):
                 if p.upper() not in PSR_ASSOC_TYPE:
-                    warnings.warn("Pulsar association '{}' is not recognised, no type will be required".format(p))
+                    warnings.warn("Pulsar association '{}' is not recognised, "
+                                  "no type will be required".format(p))
                     self._query_assocs.remove(p)
                 else:
                     if len(conditionparse) == 0:
@@ -1820,7 +1837,8 @@ class QueryATNF(object):
 
                 for p in bincomp:
                     if not isinstance(p, string_types):
-                        raise Exception("Non-string value '{}' found in binary companions list".format(p))
+                        raise Exception("Non-string value '{}' found in binary "
+                                        "companions list".format(p))
                 self._query_bincomps = bincomp
             else:
                 if isinstance(bincomp, string_types):
@@ -1830,7 +1848,8 @@ class QueryATNF(object):
 
             for p in list(self._query_bincomps):
                 if p.upper() not in PSR_BINARY_TYPE:
-                    warnings.warn("Pulsar binary companion '{}' is not recognised, no type will be required".format(p))
+                    warnings.warn("Pulsar binary companion '{}' is not recognised, "
+                                  "no type will be required".format(p))
                     self._query_bincomps.remove(p)
                 else:
                     if len(conditionparse) == 0:
@@ -1968,6 +1987,7 @@ class QueryATNF(object):
         rcparams['font.size'] = rcparams['font.size'] if 'font.size' in rcparams else 20
         rcparams['legend.fontsize'] = rcparams['legend.fontsize'] if 'legend.fontsize' in rcparams else 16
         rcparams['legend.frameon'] = rcparams['legend.frameon'] if 'legend.frameon' in rcparams else False
+        # TODO: fix PEP-8 issues above
 
         mpl.rcParams.update(rcparams)
 
@@ -2024,9 +2044,11 @@ class QueryATNF(object):
 
         # get limits
         if periodlims is None:
-            periodlims = [10**np.floor(np.min(np.log10(periods))), 10.*int(np.ceil(np.max(pdots)/10.))]
+            periodlims = [10**np.floor(np.min(np.log10(periods))), 
+                          10.*int(np.ceil(np.max(pdots)/10.))]
         if pdotlims is None:
-            pdotlims = [10**np.floor(np.min(np.log10(pdots))), 10**np.ceil(np.max(np.log10(pdots)))]
+            pdotlims = [10**np.floor(np.min(np.log10(pdots))), 
+                        10**np.ceil(np.max(np.log10(pdots)))]
         ax.set_xlim(periodlims)
         ax.set_ylim(pdotlims)
 
@@ -2126,7 +2148,8 @@ class QueryATNF(object):
                 if numv == 1.:
                     tlines[r'$10^{{{0:d}}}\,{{\rm yr}}$'.format(int(taupow))] = tline
                 else:
-                    tlines[r'${{0:.1f}}!\times\!10^{{{1:d}}}\,{{\rm yr}}$'.format(numv, taupow)] = tline
+                    tlines[r'${{0:.1f}}!\times\!10^{{{1:d}}}\,{{\rm yr}}$'
+                           .format(numv, taupow)] = tline
 
         # add magnetic field lines
         Blines = OrderedDict()
@@ -2144,7 +2167,8 @@ class QueryATNF(object):
                 if numv == 1.:
                     Blines[r'$10^{{{0:d}}}\,{{\rm G}}$'.format(int(Bpow))] = bline
                 else:
-                    Blines[r'${{0:.1f}}!\times\!10^{{{1:d}}}\,{{\rm G}}$'.format(numv, Bpow)] = bline
+                    Blines[r'${{0:.1f}}!\times\!10^{{{1:d}}}\,{{\rm G}}$'
+                           .format(numv, Bpow)] = bline
 
         fig.tight_layout()
 
