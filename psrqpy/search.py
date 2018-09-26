@@ -32,7 +32,7 @@ from .utils import get_version, condition
 # set formatting of warnings to not include line number and code (see
 # e.g. https://pymotw.com/3/warnings/#formatting)
 def warning_format(message, category, filename, lineno, file=None, line=None):
-    return '{}: {}'.format(category.__name__, message)
+    return '{}: {}\n'.format(category.__name__, message)
 
 
 warnings.formatwarning = warning_format
@@ -290,6 +290,7 @@ class QueryATNF(object):
 
         # calculate derived parameters
         self.set_derived()
+        self.parse_types()
 
         return self
 
@@ -771,6 +772,71 @@ class QueryATNF(object):
         # reset the indices to zero in the dataframe
         return dftable.reset_index(drop=True)
 
+    def parse_types(self):
+        """
+        Parse information in 'ASSOC', 'TYPE', and 'BINCOMP', as described in
+        `<http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#psr_types>`_.
+        """
+
+        self.parse_assoc()      # parse the association parameter
+        self.parse_type()       # parse the type parameter
+        self.parse_bincomp()    # parse the binary companion parameter
+        #self.parse_survey()     # parse the survey parameter
+
+    def parse_assoc(self):
+        """
+        Blah
+        """
+
+        if not 'ASSOC' in self.__dataframe.columns:
+            warnings.warn("Could not parse ASSOC.", UserWarning)
+            return
+
+        ASSOCnew = self.__dataframe['ASSOC'].copy()
+
+        idxassoc = ~ASSOCnew.isna()
+        ASSOCnew[idxassoc] = ASSOCnew[idxassoc].apply(lambda x: x.split('[')[0].split(',')[0].split('(')[0].split(':')[0])
+
+        self.__dataframe.update(ASSOCnew)
+
+        # TODO: Add references
+
+    def parse_type(self):
+        """
+        Blah
+        """
+
+        if not 'TYPE' in self.__dataframe.columns:
+            warnings.warn("Could not parse TYPE.", UserWarning)
+            return
+
+        TYPEnew = self.__dataframe['TYPE'].copy()
+
+        idxtype = ~TYPEnew.isna()
+        TYPEnew[idxtype] = TYPEnew[idxtype].apply(lambda x: x.split('[')[0].split(',')[0].split('(')[0])
+
+        self.__dataframe.update(TYPEnew)
+
+        # TODO: Add references
+    
+    def parse_bincomp(self):
+        """
+        Blah
+        """
+
+        if not 'BINCOMP' in self.__dataframe.columns:
+            warnings.warn("Could not parse BINCOMP.", UserWarning)
+            return
+
+        BINCOMPnew = self.__dataframe['BINCOMP'].copy()
+
+        idxbincomp = ~BINCOMPnew.isna()
+        BINCOMPnew[idxbincomp] = BINCOMPnew[idxbincomp].apply(lambda x: x.split('[')[0].split(',')[0].split('(')[0])
+
+        self.__dataframe.update(BINCOMPnew)
+
+        # TODO: Add references
+
     def set_derived(self):
         """
         Compute any derived parameters and add them to the class.
@@ -1034,14 +1100,6 @@ class QueryATNF(object):
         Calculate the period from the frequency in cases where period is not
         given.
         """
-
-        if not np.all([p in self.__dataframe.columns for p in ['P0', 'F0']]):
-            warnings.warn("Could not set periods.",
-                          UserWarning)
-            return
-
-        F0 = self.__dataframe['F0']
-        P0 = self.__dataframe['P0']
 
         if not np.all([p in self.__dataframe.columns for p in ['P0', 'F0']]):
             warnings.warn("Could not set periods.", UserWarning)
@@ -1355,9 +1413,16 @@ class QueryATNF(object):
         P0 = self.__dataframe['P0']
         P1 = self.__dataframe['P1']
 
-        age = 0.5 * P0 / P1 / (60.0 * 60.0 * 24.0 * 365.25)
-        age[(P1 < 0) | ~np.isfinite(P1) | ~np.isfinite(P0)] = np.nan
-        self.__dataframe['AGE'] = age
+        idxfinite = np.isfinite(P1) & np.isfinite(P1)
+        P0finite = np.zeros(len(P0))
+        P1finite = np.zeros(len(P1))
+        P0finite[idxfinite] = P0[idxfinite]
+        P1finite[idxfinite] = P1[idxfinite]
+
+        idxpos = (P1finite > 0.) & (P0finite != 0.)
+        AGE = np.ones(len(P1))*np.nan
+        AGE[idxpos] = 0.5 * (P0[idxpos] / P1[idxpos]) / (60.0 * 60.0 * 24.0 * 365.25)
+        self.__dataframe['AGE'] = AGE
 
     def derived_age_i(self):
         """
