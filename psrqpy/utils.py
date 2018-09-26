@@ -22,7 +22,8 @@ import astropy.units as aunits
 from astropy.utils.data import download_file, clear_download_cache
 from pandas import DataFrame
 
-from .config import ATNF_BASE_URL, ATNF_VERSION, ADS_URL, ATNF_TARBALL, PSR_ALL, PSR_ALL_PARS, GLITCH_URL
+from .config import (ATNF_BASE_URL, ATNF_VERSION, ADS_URL, ATNF_TARBALL, 
+                     PSR_ALL, PSR_ALL_PARS, GLITCH_URL)
 
 
 # set formatting of warnings to not include line number and code (see
@@ -283,7 +284,8 @@ def get_version():
     site = requests.get(ATNF_BASE_URL)
 
     if site.status_code != 200:
-        warnings.warn("Could not get ATNF version number, defaulting to {}".format(ATNF_VERSION), UserWarning)
+        warnings.warn("Could not get ATNF version number, defaulting to {}"
+                      .format(ATNF_VERSION), UserWarning)
         atnfversion = ATNF_VERSION
     else:
         # parse the site content with BeautifulSoup
@@ -295,7 +297,8 @@ def get_version():
             version = vsoup.find(attrs={'name': 'version'})
             atnfversion = version['value']
         except IOError:
-            warnings.warn("Could not get ATNF version number, defaulting to {}".format(ATNF_VERSION), UserWarning)
+            warnings.warn("Could not get ATNF version number, defaulting to {}"
+                          .format(ATNF_VERSION), UserWarning)
             atnfversion = ATNF_VERSION
 
     return atnfversion
@@ -557,7 +560,8 @@ def get_references(useads=False, cache=True):
             article = ads.SearchQuery(year=year, first_author=sepauthors[0],
                                       title=title)
         except IOError:
-            warnings.warn('Could not get reference information, so no ADS information will be included', UserWarning)
+            warnings.warn('Could not get reference information, so no ADS '
+                          'information will be included', UserWarning)
             continue
 
         adsrefs[reftag] = ADS_URL.format(list(article)[0].bibcode)
@@ -689,13 +693,16 @@ def condition(table, expression, exactMatch=False):
             newtokens.append(r'~')
         elif tokens[i].upper() in matchTypes:
             if ntokens < i+3:
-                warnings.warn("A '{}' must be followed by a '(NAME)': ignoring in query".format(tokens[i].upper()), UserWarning)
+                warnings.warn("A '{}' must be followed by a '(NAME)': "
+                              "ignoring in query".format(tokens[i].upper()), UserWarning)
             elif tokens[i+1] != '(' or tokens[i+3] != ')':
-                warnings.warn("A '{}' must be followed by a '(NAME)': ignoring in query".format(tokens[i].upper()), UserWarning)
+                warnings.warn("A '{}' must be followed by a '(NAME)': "
+                              "ignoring in query".format(tokens[i].upper()), UserWarning)
             else:
                 if tokens[i].upper() == 'ASSOC':
                     if 'ASSOC' not in tab.keys():
-                        warnings.warn("'ASSOC' parameter not in table: ignoring in query", UserWarning)
+                        warnings.warn("'ASSOC' parameter not in table: ignoring in query", 
+                                      UserWarning)
                     elif exactMatch:
                         newtokens.append(r'(ASSOC == "{}")'.format(tokens[i+2]))
                     else:
@@ -704,12 +711,14 @@ def condition(table, expression, exactMatch=False):
                 elif tokens[i].upper() == 'TYPE':
                     if tokens[i+2].upper() == 'BINARY':
                         if 'BINARY' not in tab.keys():
-                            warnings.warn("'BINARY' parameter not in table: ignoring in query", UserWarning)
+                            warnings.warn("'BINARY' parameter not in table: ignoring in query", 
+                                          UserWarning)
                         else:
                             newtokens.append(r'(BINARY != "None")')
                     else:
                         if 'TYPE' not in tab.keys():
-                            warnings.warn("'TYPE' parameter not in table: ignoring in query", UserWarning)
+                            warnings.warn("'TYPE' parameter not in table: ignoring in query", 
+                                          UserWarning)
                         elif exactMatch:
                             newtokens.append(r'(TYPE == "{}")'.format(tokens[i+2]))
                         else:
@@ -717,7 +726,8 @@ def condition(table, expression, exactMatch=False):
                             newtokens.append(r'(@ttype)')
                 elif tokens[i].upper() == 'BINCOMP':
                     if 'BINCOMP' not in tab.keys():
-                        warnings.warn("'BINCOMP' parameter not in table: ignoring in query", UserWarning)
+                        warnings.warn("'BINCOMP' parameter not in table: ignoring in query", 
+                                      UserWarning)
                     elif exactMatch:
                         newtokens.append(r'(BINCOMP == "{}")'.format(tokens[i+2]))
                     else:
@@ -725,7 +735,8 @@ def condition(table, expression, exactMatch=False):
                         newtokens.append(r'(@bincomp)')
                 elif tokens[i].upper() == 'EXIST':
                     if tokens[i+2] not in tab.keys():
-                        warnings.warn("'{}' does not exist for any pulsar".format(tokens[i+2]), UserWarning)
+                        warnings.warn("'{}' does not exist for any pulsar".format(tokens[i+2]), 
+                                      UserWarning)
                         # create an empty DataFrame
                         tab = DataFrame(columns=table.keys())
                         break
@@ -733,7 +744,8 @@ def condition(table, expression, exactMatch=False):
                         newtokens.append('({} != None)'.format(tokens[i+2]))
                 elif tokens[i].upper() == 'ERROR':
                     if tokens[i+2]+'_ERR' not in tab.keys():
-                        warnings.warn("Error value for '{}' not present: ignoring in query".format(tokens[i+2]), UserWarning)
+                        warnings.warn("Error value for '{}' not present: ignoring in query"
+                                      .format(tokens[i+2]), UserWarning)
                     else:
                         newtokens.append(r'{}_ERR'.format(tokens[i+2]))
             i += 2
@@ -767,7 +779,7 @@ def characteristic_age(period, pdot, braking_idx=3.):
 
     .. math::
 
-       \\tau = \\frac{P}{\dot{P}(n-1)}
+       \\tau = \\frac{P}{\\dot{P}(n-1)}
 
     Args:
         period (float): the pulsar period in seconds
@@ -780,15 +792,18 @@ def characteristic_age(period, pdot, braking_idx=3.):
 
     # check everything is positive, otherwise return NaN
     if period < 0.:
-        warnings.warn("The period must be positive to define a characteristic age", UserWarning)
+        warnings.warn("The period must be positive to define a characteristic age", 
+                      UserWarning)
         return np.nan
 
     if pdot < 0.:
-        warnings.warn("The period derivative must be positive to define a characteristic age", UserWarning)
+        warnings.warn("The period derivative must be positive to define a characteristic age", 
+                      UserWarning)
         return np.nan
 
     if braking_idx < 0.:
-        warnings.warn("The braking index must be positive to define a characteristic age", UserWarning)
+        warnings.warn("The braking index must be positive to define a characteristic age", 
+                      UserWarning)
         return np.nan
 
     return (period/(pdot * (braking_idx - 1.)))/(365.25*86400.)
@@ -801,7 +816,7 @@ def age_pdot(period, tau=1e6, braking_idx=3.):
 
     .. math::
 
-       \dot{P} = \\frac{P}{\\tau(n - 1)}
+       \\dot{P} = \\frac{P}{\\tau(n - 1)}
 
     Args:
         period (list, :class:`numpy.ndarray`): the pulsar period in seconds
@@ -832,7 +847,7 @@ def B_field(period, pdot):
 
     .. math::
 
-       B = 3.2\!\\times\!10^{19} \\sqrt{P\dot{P}}
+       B = 3.2\\!\\times\\!10^{19} \\sqrt{P\\dot{P}}
 
     Args:
         period (float): a pulsar period (s)
@@ -842,16 +857,20 @@ def B_field(period, pdot):
         float: the magnetic field strength in gauss.
     """
 
-    assert isinstance(period, float) or isinstance(period, int), "Period '{}' must be a number".format(period)
-    assert isinstance(pdot, float) or isinstance(pdot, int), "Period derivtaive '{}' must be a number".format(pdot)
+    assert isinstance(period, float) or isinstance(period, int), \
+        "Period '{}' must be a number".format(period)
+    assert isinstance(pdot, float) or isinstance(pdot, int), \
+        "Period derivtaive '{}' must be a number".format(pdot)
 
     # check everything is positive, otherwise return 0
     if period < 0.:
-        warnings.warn("The period must be positive to define a magnetic field strength", UserWarning)
+        warnings.warn("The period must be positive to define a magnetic field strength", 
+                      UserWarning)
         return 0.
 
     if pdot < 0.:
-        warnings.warn("The period derivative must be positive to define a magnetic field streng", UserWarning)
+        warnings.warn("The period derivative must be positive to define a magnetic field streng", 
+                      UserWarning)
         return 0.
 
     return 3.2e19 * np.sqrt(period * pdot)
@@ -864,7 +883,7 @@ def B_field_pdot(period, Bfield=1e10):
 
     .. math::
 
-       \dot{P} = \\frac{1}{P}\left( \\frac{B}{3.2\!\\times\!10^{19}} \\right)^2
+       \\dot{P} = \\frac{1}{P}\left( \\frac{B}{3.2\\!\\times\\!10^{19}} \\right)^2
 
     Args:
         period (list, :class:`~numpy.ndarray`): a list of period values
@@ -918,9 +937,30 @@ def death_line(logP, linemodel='Ip', rho6=1.):
 
     """
 
-    gradvals = {'I': (11./4), 'Ip': (9./4.), 'II': (2./11.), 'IIp': -(2./11.), 'III': (5./2.), 'IIIp': 2., 'IV': -(3./11.), 'IVp': -(7./11.)}
-    intercept = {'I': 14.62, 'Ip': 16.58, 'II': 13.07, 'IIp': 14.50, 'III': 14.56, 'IIIp': 16.52, 'IV': 15.36, 'IVp': 16.79}
-    rho = {'I': 0., 'Ip': 1., 'II': 0., 'IIp': (8./11.), 'III': 0., 'IIIp': 1., 'IV': 0., 'IVp': (8./11.)}
+    gradvals = {'I': (11./4), 
+                'Ip': (9./4.), 
+                'II': (2./11.), 
+                'IIp': -(2./11.), 
+                'III': (5./2.), 
+                'IIIp': 2., 
+                'IV': -(3./11.), 
+                'IVp': -(7./11.)}
+    intercept = {'I': 14.62, 
+                 'Ip': 16.58, 
+                 'II': 13.07, 
+                 'IIp': 14.50, 
+                 'III': 14.56, 
+                 'IIIp': 16.52, 
+                 'IV': 15.36, 
+                 'IVp': 16.79}
+    rho = {'I': 0., 
+           'Ip': 1., 
+           'II': 0., 
+           'IIp': (8./11.), 
+           'III': 0., 
+           'IIIp': 1., 
+           'IV': 0., 
+           'IVp': (8./11.)}
 
     lp = logP
     if not isinstance(lp, np.ndarray):
@@ -961,14 +1001,14 @@ def label_line(ax, line, label, color='k', fs=14, frachoffset=0.1):
     y2 = ydata[-1]
 
     # use fractional horizontal offset frachoffset to set the x position of the label by default
-    # other wise use the halign value
+    # otherwise use the halign value
     if frachoffset >= 0 and frachoffset <= 1:
         if ax.get_xscale() == 'log':
             xx = np.log10(x1) + frachoffset*(np.log10(x2) - np.log10(x1))
         else:
             xx = x1 + frachoffset*(x2 - x1)
     else:
-        raise ValueError("frachoffset must be between 0 and 1".format(halign))
+        raise ValueError("frachoffset must be between 0 and 1")
 
     if ax.get_xscale() == 'log' and ax.get_yscale() == 'log':
         yy = np.interp(xx, np.log10(xdata), np.log10(ydata))
