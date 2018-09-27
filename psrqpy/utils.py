@@ -710,63 +710,73 @@ def condition(table, expression, exactMatch=False):
         elif tokens[i].upper() in matchTypes:
             if ntokens < i+3:
                 warnings.warn("A '{}' must be followed by a '(NAME)': "
-                              "ignoring in query".format(tokens[i].upper()), UserWarning)
+                              "ignoring in query".format(tokens[i].upper()),
+                              UserWarning)
             elif tokens[i+1] != '(' or tokens[i+3] != ')':
                 warnings.warn("A '{}' must be followed by a '(NAME)': "
-                              "ignoring in query".format(tokens[i].upper()), UserWarning)
+                              "ignoring in query".format(tokens[i].upper()),
+                              UserWarning)
             else:
                 if tokens[i].upper() == 'ASSOC':
-                    if 'ASSOC' not in tab.keys():
-                        warnings.warn("'ASSOC' parameter not in table: ignoring in query",
-                                      UserWarning)
+                    if 'ASSOC' not in tab.columns:
+                        warnings.warn("'ASSOC' parameter not in table: "
+                                      "ignoring in query", UserWarning)
                     elif exactMatch:
-                        newtokens.append(r'(ASSOC == "{}")'.format(tokens[i+2]))
+                        newtokens.append(r'(ASSOC == "{}")'.format(tokens[i+2].upper()))
                     else:
-                        assoc = np.array([tokens[i+2] in a for a in table['ASSOC']])
+                        assoc = np.array([tokens[i+2] in str(a) for a in table['ASSOC']])
                         newtokens.append(r'(@assoc)')
+                        i += 1
                 elif tokens[i].upper() == 'TYPE':
                     if tokens[i+2].upper() == 'BINARY':
                         if 'BINARY' not in tab.keys():
-                            warnings.warn("'BINARY' parameter not in table: ignoring in query",
-                                          UserWarning)
+                            warnings.warn("'BINARY' parameter not in table: "
+                                          "ignoring in query", UserWarning)
                         else:
-                            newtokens.append(r'(BINARY != "None")')
+                            binary = ~table['BINARY'].isna()
+                            newtokens.append(r'(@binary)')
+                            i += 1
                     else:
                         if 'TYPE' not in tab.keys():
                             warnings.warn("'TYPE' parameter not in table: ignoring in query",
                                           UserWarning)
                         elif exactMatch:
-                            newtokens.append(r'(TYPE == "{}")'.format(tokens[i+2]))
+                            newtokens.append(r'(TYPE == "{}")'.format(tokens[i+2].upper()))
                         else:
-                            ttype = np.array([tokens[i+2] in a for a in table['TYPE']])
+                            ttype = np.array([tokens[i+2] in str(a) for a in table['TYPE']])
                             newtokens.append(r'(@ttype)')
+                            i += 1
                 elif tokens[i].upper() == 'BINCOMP':
-                    if 'BINCOMP' not in tab.keys():
+                    if 'BINCOMP' not in tab.columns:
                         warnings.warn("'BINCOMP' parameter not in table: ignoring in query",
                                       UserWarning)
                     elif exactMatch:
-                        newtokens.append(r'(BINCOMP == "{}")'.format(tokens[i+2]))
+                        newtokens.append(r'(BINCOMP == "{}")'.format(tokens[i+2].upper()))
                     else:
-                        bincomp = np.array([tokens[i+2] in a for a in table['BINCOMP']])
+                        bincomp = np.array([tokens[i+2] in str(a) for a in table['BINCOMP']])
                         newtokens.append(r'(@bincomp)')
+                        i += 1
                 elif tokens[i].upper() == 'EXIST':
-                    if tokens[i+2] not in tab.keys():
+                    if tokens[i+2].upper() not in tab.columns:
                         warnings.warn("'{}' does not exist for any pulsar".format(tokens[i+2]),
                                       UserWarning)
                         # create an empty DataFrame
-                        tab = DataFrame(columns=table.keys())
+                        tab = DataFrame(columns=table.columns)
                         break
                     else:
-                        newtokens.append('({} != None)'.format(tokens[i+2]))
+                        exists = ~table[tokens[i+2].upper()].isna()
+                        newtokens.append(r'(@exists)')
+                        i += 1
                 elif tokens[i].upper() == 'ERROR':
-                    if tokens[i+2]+'_ERR' not in tab.keys():
-                        warnings.warn("Error value for '{}' not present: ignoring in query"
-                                      .format(tokens[i+2]), UserWarning)
+                    if tokens[i+2].upper()+'_ERR' not in tab.columns:
+                        warnings.warn("Error value for '{}' not present: "
+                                      "ignoring in query".format(tokens[i+2]),
+                                      UserWarning)
                     else:
-                        newtokens.append(r'{}_ERR'.format(tokens[i+2]))
+                        newtokens.append(r'{}_ERR'.format(tokens[i+2].upper()))
             i += 2
         else:
-            newtokens.append(tokens[i])
+            newtokens.append(tokens[i].upper())
 
         i += 1
 

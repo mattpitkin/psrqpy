@@ -296,7 +296,7 @@ class QueryATNF(object):
 
     def sort(self, sort_attr='JNAME', sort_order='asc', inplace=False):
         """
-        Sort the generated catalogue :class:`~astropy.table.Table` on a given
+        Sort the generated catalogue :class:`~pandas.DataFrame` on a given
         attribute and in either ascending or descending order.
 
         Args:
