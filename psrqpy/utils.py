@@ -382,6 +382,12 @@ def get_glitch_catalogue(psr=None):
     table.columns['MJD'].unit = Unit('d')     # add units of days to glitch time
     table.columns['MJD_ERR'].unit = Unit('d')
 
+    # correct scaling of parameters
+    table['DeltaF/F'] *= 1e-9
+    table['DeltaF/F_ERR'] *= 1e-9
+    table['DeltaF1/F1'] *= 1e-3
+    table['DeltaF1/F1_ERR'] *= 1e-3
+
     if psr is None:
         return table
     else:
