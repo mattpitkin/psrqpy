@@ -743,7 +743,7 @@ class QueryATNF(object):
                         retpars.append(par+'_REF')
 
                         if self._useads and self._adsref is not None:
-                            retpars.append(p+'_REFURL')
+                            retpars.append(par+'_REFURL')
 
             retpars = list(set(retpars))  # remove duplicates
 
@@ -1284,6 +1284,53 @@ class QueryATNF(object):
             self.__dataframe['MINMASS'] = MINMASS
             self.__dataframe['MEDMASS'] = MEDMASS
             self.__dataframe['UPRMASS'] = UPRMASS
+
+        # derive eccentricity from EPS1 and EPS2
+        reqpars = ['EPS1', 'EPS2', 'ECC', 'OM']
+        if np.all([p in self.__dataframe.columns for p in reqpars]):
+            EPS1 = self.__dataframe['EPS1'].values.copy()
+            EPS2 = self.__dataframe['EPS2'].values.copy()
+            ECCnew = self.__dataframe['ECC'].copy()
+            OMnew = self.__dataframe['OM'].copy()
+
+            idx = np.isfinite(EPS1) & np.isfinite(EPS2)
+
+            # set eccentricities
+            ECCnew[idx] = np.sqrt(EPS1[idx]**2+EPS2[idx]**2)
+
+            self.__dataframe.update(ECCnew)
+
+            # set angle of peristron
+            idxn = idx & (ECCnew != 0.)
+            OMnew[idxn] = np.arctan2(EPS1[idxn],
+                                     EPS2[idxn])*180./np.pi
+
+            # set errors
+            reqpars = ['EPS1_ERR', 'EPS2_ERR', 'ECC_ERR', 'OM_ERR']
+            if np.all([p in self.__dataframe.columns for p in reqpars]):
+                EPS1ERR = self.__dataframe['EPS1_ERR'].values.copy()
+                EPS2ERR = self.__dataframe['EPS2_ERR'].values.copy()
+                ECCERRnew = self.__dataframe['ECC_ERR'].copy()
+                OMERRnew = self.__dataframe['OM_ERR'].copy()
+
+                idxn = idx & (np.isfinite(EPS1ERR) & np.isfinite(EPS2ERR) &
+                              (ECCnew != 0.))
+
+                OMERRnew[idxn] = (np.sqrt((EPS2[idxn]*EPS1ERR[idxn])**2
+                                          +(EPS1[idxn]*EPS2ERR[idxn])**2)/
+                                          (ECCnew[idxn])**2)*180.0/np.pi
+                self.__dataframe.update(OMERRnew)
+
+                ECCERRnew[idxn] = (np.sqrt((EPS1[idxn]*EPS1ERR[idxn])**2
+                                          +(EPS2[idxn]*EPS2ERR[idxn])**2)
+                                          /ECCnew[idxn])
+                self.__dataframe.update(ECCERRnew)
+
+            # shift angles so that they are positive
+            idxn = idx & (OMnew < 0.)
+            OMnew[idxn] += 360.
+
+            self.__dataframe.update(OMnew)
 
     def derived_p0(self):
         """
@@ -1914,6 +1961,32 @@ class QueryATNF(object):
         R_LUM14[idx] = S1400[idx] * DIST[idx]**2
         self.__dataframe['R_LUM14'] = R_LUM14
 
+    def get_pulsar(self, psr):
+        """
+        Return the table row for a particular pulsar for all the catalogue
+        parameters.
+
+        Args:
+            psr (str): The name of a pulsar to return.
+
+        Returns:
+            :class:`pandas.DataFrame`: a table row
+        """
+
+        namepars = ['PSRJ', 'PSRB', 'BNAME', 'JNAME', 'NAME']
+        if not np.any([p in self.__dataframe.columns for p in namepars]):
+            warnings.warn("No 'NAME' parameter in table!")
+            return None
+
+        # try searching for the name in each potential name-type
+        for namepar in namepars:
+            if namepar in self.__dataframe.columns:
+                names = self.__dataframe[namepar]
+                if np.any(psr==names):
+                    return self.__dataframe[psr==names]
+
+        return None
+
     def get_pulsars(self):
         """
         Returns:
@@ -2260,7 +2333,8 @@ class QueryATNF(object):
                 binaries = binaries[nongcidxs]
 
         # plot pulsars
-        ax.loglog(periods, pdots, marker='.', color='dimgrey', linestyle='none')
+        ax.loglog(periods, pdots, marker='.', color='dimgrey',
+                  linestyle='none')
         ax.set_xlabel(r'Period (s)')
         ax.set_ylabel(r'Period Derivative')
 
@@ -2275,7 +2349,8 @@ class QueryATNF(object):
         ax.set_ylim(pdotlims)
 
         if deathline:
-            deathpdots = 10**death_line(np.log10(periodlims), linemodel=deathmodel)
+            deathpdots = 10**death_line(np.log10(periodlims),
+                                        linemodel=deathmodel)
             ax.loglog(periodlims, deathpdots, 'k--', linewidth=0.5)
 
             if filldeath:
@@ -2382,7 +2457,7 @@ class QueryATNF(object):
                 if numv == 1.:
                     tlines[r'$10^{{{0:d}}}\,{{\rm yr}}$'.format(int(taupow))] = tline
                 else:
-                    tlines[r'${{0:.1f}}!\times\!10^{{{1:d}}}\,{{\rm yr}}$'
+                    tlines[r'${{{0:.1f}}}!\times\!10^{{{1:d}}}\,{{\rm yr}}$'
                            .format(numv, taupow)] = tline
 
         # add magnetic field lines
@@ -2401,7 +2476,7 @@ class QueryATNF(object):
                 if numv == 1.:
                     Blines[r'$10^{{{0:d}}}\,{{\rm G}}$'.format(int(Bpow))] = bline
                 else:
-                    Blines[r'${{0:.1f}}!\times\!10^{{{1:d}}}\,{{\rm G}}$'
+                    Blines[r'${{{0:.1f}}}!\times\!10^{{{1:d}}}\,{{\rm G}}$'
                            .format(numv, Bpow)] = bline
 
         fig.tight_layout()
