@@ -18,6 +18,18 @@ __citation__ = """@article{psrqpy,
 }
 """
 
+import warnings
+
+
+# set formatting of warnings to not include line number and code (see
+# e.g. https://pymotw.com/3/warnings/#formatting)
+def warning_format(message, category, filename, lineno, file=None, line=None):
+    return '{}: {}\n'.format(category.__name__, message)
+
+
+warnings.formatwarning = warning_format
+
+
 from .search import QueryATNF
 from .pulsar import Pulsar, Pulsars
 from .utils import *

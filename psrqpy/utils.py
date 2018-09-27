@@ -17,22 +17,13 @@ from six import string_types
 from collections import OrderedDict
 
 from astropy.table import Table
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import SkyCoord, Angle
 import astropy.units as aunits
 from astropy.utils.data import download_file, clear_download_cache
 from pandas import DataFrame
 
 from .config import (ATNF_BASE_URL, ATNF_VERSION, ADS_URL, ATNF_TARBALL,
                      PSR_ALL, PSR_ALL_PARS, GLITCH_URL)
-
-
-# set formatting of warnings to not include line number and code (see
-# e.g. https://pymotw.com/3/warnings/#formatting)
-def warning_format(message, category, filename, lineno, file=None, line=None):
-    return '{}: {}'.format(category.__name__, message)
-
-
-warnings.formatwarning = warning_format
 
 
 # problematic references that are hard to parse
@@ -46,9 +37,11 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
     <http://www.atnf.csiro.au/people/pulsar/psrcat/downloads/psrcat_pkg.tar.gz>`_,
     or read in database file from a provided path. The database will be
     converted into an :class:`astropy.table.Table` or
-    :class:`pandas.DataFrame`. This is based on the method in the `ATNF.ipynb
+    :class:`pandas.DataFrame`. This was originally based on the method in the
+    `ATNF.ipynb
     <https://github.com/astrophysically/ATNF-Pulsar-Cat/blob/master/ATNF.ipynb>`_
-    notebook by Joshua Tan (`@astrophysically <https://github.com/astrophysically/>`_).
+    notebook by Joshua Tan (`@astrophysically
+    <https://github.com/astrophysically/>`_).
 
     Args:
         path_to_db (str): if the path to a local version of the database file
@@ -178,6 +171,22 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
     # add RA and DEC in degs and JNAME/BNAME
     for i, psr in enumerate(list(psrlist)):
         if 'RAJ' in psr.keys() and 'DECJ' in psr.keys():
+            # check if the string can ber converted to a float (there are a few
+            # cases where the position is just a decimal value)
+            try:
+                rad = float(psr['RAJ'])
+                ras = Angle(rad*aunits.hourangle)
+                psr['RAJ'] = ras.to_string(sep=':', pad=True)
+            except ValueError:
+                pass
+
+            try:
+                decd = float(psr['DECJ'])
+                decs = Angle(decd*aunits.deg)
+                psr['DECJ'] = decs.to_string(sep=':', pad=True, alwayssign=True)
+            except ValueError:
+                pass
+
             coord = SkyCoord(psr['RAJ'], psr['DECJ'],
                              unit=(aunits.hourangle, aunits.deg))
             psrlist[i]['RAJD'] = coord.ra.deg    # right ascension in degrees

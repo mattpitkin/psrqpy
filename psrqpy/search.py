@@ -29,15 +29,6 @@ from .config import *
 from .utils import get_version, condition
 
 
-# set formatting of warnings to not include line number and code (see
-# e.g. https://pymotw.com/3/warnings/#formatting)
-def warning_format(message, category, filename, lineno, file=None, line=None):
-    return '{}: {}\n'.format(category.__name__, message)
-
-
-warnings.formatwarning = warning_format
-
-
 class QueryATNF(object):
     """
     A class to generate a query of the
@@ -896,29 +887,30 @@ class QueryATNF(object):
         `code <http://www.atnf.csiro.au/research/pulsar/psrcat/download.html>`_.
         """
 
-        self.define_dist()       # define the DIST and DIST1 parameters
+        self.define_dist()         # define the DIST and DIST1 parameters
+        self.derived_equatorial()  # derive equatorial coords from ecliptic
         self.derived_ecliptic()  # derive the ecliptic coordinates if not given
-        self.define_galactic()   # define the galactic coordinates
-        self.derived_p0()        # derive P0 from F0 if not given
-        self.derived_f0()        # derive F0 from P0 if not given
-        self.derived_p1()        # derive P1 from F1 if not given
-        self.derived_f1()        # derive F1 from P1 if not given
-        self.derived_pb()        # derive binary period from FB0
-        self.derived_pbdot()     # derive Pbdot from FB1
-        self.derived_fb0()       # derive orbital frequency from period
-        self.derived_fb1()       # derive FB1 from PBDOT
-        self.derived_age()       # characteristic age
-        self.derived_bsurf()     # surface magnetic field
-        self.derived_b_lc()      # magnetic field at light cylinder
-        self.derived_edot()      # spin-down luminosity
-        self.derived_edotd2()    # spin-down flux at Sun
-        self.derived_pmtot()     # total proper motion
-        self.derived_vtrans()    # transverse velocity
-        self.derived_p1_i()      # instrinsic period derivative
-        self.derived_age_i()     # intrinsic age
-        self.derived_bsurf_i()   # intrinsic Bsurf
-        self.derived_edot_i()    # intrinsic luminosity
-        self.derived_flux()      # radio flux
+        self.define_galactic()     # define the galactic coordinates
+        self.derived_p0()          # derive P0 from F0 if not given
+        self.derived_f0()          # derive F0 from P0 if not given
+        self.derived_p1()          # derive P1 from F1 if not given
+        self.derived_f1()          # derive F1 from P1 if not given
+        self.derived_pb()          # derive binary period from FB0
+        self.derived_pbdot()       # derive Pbdot from FB1
+        self.derived_fb0()         # derive orbital frequency from period
+        self.derived_fb1()         # derive FB1 from PBDOT
+        self.derived_age()         # characteristic age
+        self.derived_bsurf()       # surface magnetic field
+        self.derived_b_lc()        # magnetic field at light cylinder
+        self.derived_edot()        # spin-down luminosity
+        self.derived_edotd2()      # spin-down flux at Sun
+        self.derived_pmtot()       # total proper motion
+        self.derived_vtrans()      # transverse velocity
+        self.derived_p1_i()        # instrinsic period derivative
+        self.derived_age_i()       # intrinsic age
+        self.derived_bsurf_i()     # intrinsic Bsurf
+        self.derived_edot_i()      # intrinsic luminosity
+        self.derived_flux()        # radio flux
 
     def define_dist(self):
         """
@@ -977,21 +969,98 @@ class QueryATNF(object):
         idxa1 = ~((DIST1 <= DIST_AMX) & (DIST1 >= DIST_AMN))
 
         DIST[idxa & idxdist & (DIST >= DIST_AMX)] = DIST_AMX[idxa & idxdist & (DIST >= DIST_AMX)]
-        DIST1[idxa1 & idxdist1 & (DIST1 >= DIST_AMX)] = DIST_AMX[idxa1 & idxdist1
-                                                                 & (DIST1 >= DIST_AMX)]
+        DIST1[idxa1 & idxdist1 & (DIST1 >= DIST_AMX)] = DIST_AMX[(idxa1 & idxdist1
+                                                                  & (DIST1 >= DIST_AMX))]
 
         DIST[idxa & idxdist & (DIST < DIST_AMX)] = DIST_AMN[idxa & idxdist & (DIST < DIST_AMX)]
-        DIST1[idxa1 & idxdist1 & (DIST1 < DIST_AMX)] = DIST_AMN[idxa1 & idxdist1
-                                                                & (DIST1 < DIST_AMX)]
+        DIST1[idxa1 & idxdist1 & (DIST1 < DIST_AMX)] = DIST_AMN[(idxa1 & idxdist1
+                                                                 & (DIST1 < DIST_AMX))]
 
-        idxdist = ~np.isfinite(DIST) & ~idxpxgt3 & np.isfinite(DIST_AMN) & np.isfinite(DIST_AMX)
-        idxdist1 = ~np.isfinite(DIST) & ~idxpxgt3 & np.isfinite(DIST_AMN) & np.isfinite(DIST_AMX)
+        idxdist = (~np.isfinite(DIST) & ~idxpxgt3 &
+                   np.isfinite(DIST_AMN) & np.isfinite(DIST_AMX))
+        idxdist1 = (~np.isfinite(DIST) & ~idxpxgt3 &
+                    np.isfinite(DIST_AMN) & np.isfinite(DIST_AMX))
 
         DIST[idxdist] = 0.5*(DIST_AMN[idxdist] + DIST_AMX[idxdist])
         DIST1[idxdist1] = 0.5*(DIST_AMN[idxdist1] + DIST_AMX[idxdist1])
 
         self.__dataframe['DIST'] = DIST
         self.__dataframe['DIST1'] = DIST1
+
+    def derived_equatorial(self):
+        """
+        Calculate equatorial coordinates if only ecliptic coordinates are
+        given. Unlike `psrcat` this function does not currently convert
+        errors on ecliptic coordinates into equavalent errors on equatorial
+        coordinates.
+        """
+
+        reqpar = ['RAJ', 'DECJ', 'RAJD', 'DECJD', 'ELONG', 'ELAT']
+        if not np.all([p in self.__dataframe.columns for p in reqpar]):
+            warnings.warn("Could not set equatorial coordinates.",
+                          UserWarning)
+
+        ELONG = self.__dataframe['ELONG']
+        ELAT = self.__dataframe['ELAT']
+        RAJDnew = self.__dataframe['RAJD'].copy()
+        DECJDnew = self.__dataframe['DECJD'].copy()
+        RAJnew = self.__dataframe['RAJ'].copy()
+        DECJnew = self.__dataframe['DECJ'].copy()
+
+        idx = (np.isfinite(ELONG) & np.isfinite(ELAT) &
+               (~np.isfinite(RAJDnew) & ~np.isfinite(DECJDnew)))
+
+        # get sky coordinates
+        sc = BarycentricTrueEcliptic(ELONG.values[idx]*aunits.deg,
+                                     ELAT.values[idx]*aunits.deg
+                                     ).transform_to(ICRS())
+
+        RAJDnew[idx] = sc.ra.value
+        DECJDnew[idx] = sc.dec.value
+        RAJnew[idx] = sc.ra.to('hourangle').to_string(sep=':', pad=True)
+        DECJnew[idx] = sc.dec.to_string(sep=':', pad=True, alwayssign=True)
+
+        self.__dataframe.update(RAJDnew)
+        self.__dataframe.update(DECJDnew)
+        self.__dataframe.update(RAJnew)
+        self.__dataframe.update(DECJnew)
+
+        # set references
+        reqpars = ['RAJ_REF', 'DECJ_REF', 'ELONG_REF']
+        if np.all([p in self.__dataframe.columns for p in reqpar]):
+            RAJREFnew = self.__dataframe['RAJ_REF'].copy()
+            DECJREFnew = self.__dataframe['DECJ_REF'].copy()
+            ELONGREF = self.__dataframe['ELONG_REF']
+
+            DECJREFnew[idx] = ELONGREF[idx]
+            RAJREFnew[idx] = ELONGREF[idx]
+
+            self.__dataframe.update(DECJREFnew)
+            self.__dataframe.update(RAJREFnew)
+
+        # get PMRA and PMDEC if not given
+        reqpar = ['PMELONG', 'PMELAT', 'PMRA', 'PMDEC']
+        if np.all([p in self.__dataframe.columns for p in reqpar]):
+            PMELONG = self.__dataframe['PMELONG']
+            PMELAT = self.__dataframe['PMELAT']
+            PMRAnew = self.__dataframe['PMRA'].copy()
+            PMDECnew = self.__dataframe['PMDEC'].copy()
+
+            idx = idx & (np.isfinite(PMELONG) & np.isfinite(PMELAT) &
+                         (~np.isfinite(PMRAnew) & ~np.isfinite(PMDECnew)))
+
+            sc = BarycentricTrueEcliptic(
+                ELONG[idx].values*aunits.deg,
+                ELAT[idx].values*aunits.deg,
+                pm_lon_coslat=PMELONG[idx].values*aunits.mas/aunits.yr,
+                pm_lat=PMELAT[idx].values*aunits.mas/aunits.yr
+                ).transform_to(ICRS())
+
+            PMRAnew[idx] = sc.pm_ra_cosdec.value
+            PMDECnew[idx] = sc.pm_dec.value
+
+            self.__dataframe.update(PMRAnew)
+            self.__dataframe.update(PMDECnew)
 
     def derived_ecliptic(self):
         """
@@ -1012,15 +1081,15 @@ class QueryATNF(object):
         ELONGnew = self.__dataframe['ELONG'].copy()
         ELATnew = self.__dataframe['ELAT'].copy()
 
-        idxreal = (np.isfinite(RAJD) & np.isfinite(DECJD)
-                   & (~np.isfinite(ELONGnew) & ~np.isfinite(ELATnew)))
+        idx = (np.isfinite(RAJD) & np.isfinite(DECJD) &
+               (~np.isfinite(ELONGnew) & ~np.isfinite(ELATnew)))
 
         # get sky coordinates
-        sc = SkyCoord(RAJD[idxreal].values*aunits.deg,
-                      DECJD[idxreal].values*aunits.deg)
+        sc = SkyCoord(RAJD[idx].values*aunits.deg,
+                      DECJD[idx].values*aunits.deg)
 
-        ELONGnew[idxreal] = sc.barycentrictrueecliptic.lon.value
-        ELATnew[idxreal] = sc.barycentrictrueecliptic.lat.value
+        ELONGnew[idx] = sc.barycentrictrueecliptic.lon.value
+        ELATnew[idx] = sc.barycentrictrueecliptic.lat.value
 
         self.__dataframe.update(ELONGnew)
         self.__dataframe.update(ELATnew)
@@ -1033,8 +1102,8 @@ class QueryATNF(object):
             ELONGREFnew = self.__dataframe['ELONG_REF'].copy()
             ELATREFnew = self.__dataframe['ELAT_REF'].copy()
 
-            ELONGREFnew[idxreal] = RAJREF[idxreal]
-            ELATREFnew[idxreal] = DECJREF[idxreal]
+            ELONGREFnew[idx] = RAJREF[idx]
+            ELATREFnew[idx] = DECJREF[idx]
 
             self.__dataframe.update(ELONGREFnew)
             self.__dataframe.update(ELATREFnew)
@@ -1044,40 +1113,24 @@ class QueryATNF(object):
         if np.all([p in self.__dataframe.columns for p in reqpar]):
             PMELONGnew = self.__dataframe['PMELONG'].copy()
             PMELATnew = self.__dataframe['PMELAT'].copy()
-            PMRAnew = self.__dataframe['PMRA'].copy()
-            PMDECnew = self.__dataframe['PMDEC'].copy()
+            PMRA = self.__dataframe['PMRA']
+            PMDEC = self.__dataframe['PMDEC']
 
-            idxrd = (np.isfinite(PMRAnew) & np.isfinite(PMDECnew)
-                     & (~np.isfinite(PMELONGnew) & ~np.isfinite(PMELATnew)))
-            idxec = (np.isfinite(PMELONGnew) & np.isfinite(PMELATnew)
-                     & (~np.isfinite(PMRAnew) & ~np.isfinite(PMDECnew)))
+            idx = idx & (np.isfinite(PMRA) & np.isfinite(PMDEC) &
+                         (~np.isfinite(PMELONGnew) & ~np.isfinite(PMELATnew)))
 
             sc = ICRS(
-                RAJD[idxrd].values*aunits.deg,
-                DECJD[idxrd].values*aunits.deg,
-                pm_ra_cosdec=PMRAnew[idxrd].values*aunits.mas/aunits.yr,
-                pm_dec=PMDECnew[idxrd].values*aunits.mas/aunits.yr
+                RAJD[idx].values*aunits.deg,
+                DECJD[idx].values*aunits.deg,
+                pm_ra_cosdec=PMRA[idx].values*aunits.mas/aunits.yr,
+                pm_dec=PMDEC[idx].values*aunits.mas/aunits.yr
             ).transform_to(BarycentricTrueEcliptic())
 
-            PMELONGnew[idxrd] = sc.pm_lon_coslat.value
-            PMELATnew[idxrd] = sc.pm_lat.value
+            PMELONGnew[idx] = sc.pm_lon_coslat.value
+            PMELATnew[idx] = sc.pm_lat.value
 
             self.__dataframe.update(PMELONGnew)
             self.__dataframe.update(PMELATnew)
-
-            if np.any(idxec):
-                sc = BarycentricTrueEcliptic(
-                    ELONGnew[idxec].values*aunits.deg,
-                    ELATnew[idxec].values*aunits.deg,
-                    pm_lon_coslat=PMELONGnew[idxec].values*aunits.mas/aunits.yr,
-                    pm_lat=PMELATnew[idxec].values*aunits.mas/aunits.yr
-                ).transform_to(ICRS())
-
-                PMRAnew[idxec] = sc.pm_ra_cosdec.value
-                PMDECnew[idxec] = sc.pm_dec.value
-
-                self.__dataframe.update(PMRAnew)
-                self.__dataframe.update(PMDECnew)
 
     def define_galactic(self):
         """
@@ -1107,33 +1160,28 @@ class QueryATNF(object):
         DECJD = self.__dataframe['DECJD'].values.copy()
         DIST = self.__dataframe['DIST'].values.copy()
 
-        GL = np.ones(len(RAJD))*np.nan
-        GB = np.ones(len(RAJD))*np.nan
-
-        idxreal = np.isfinite(RAJD) & np.isfinite(DECJD)
-        DIST[~np.isfinite(DIST)] = 0.  # zero undefined distances
+        GL = np.full(len(RAJD), np.nan)
+        GB = np.full(len(RAJD), np.nan)
+        idx = np.isfinite(RAJD) & np.isfinite(DECJD) & np.isfinite(DIST)
 
         # get sky coordinates
-        sc = SkyCoord(RAJD[idxreal]*aunits.deg,
-                      DECJD[idxreal]*aunits.deg,
-                      DIST[idxreal]*aunits.kpc)
+        sc = SkyCoord(RAJD[idx]*aunits.deg, DECJD[idx]*aunits.deg,
+                      DIST[idx]*aunits.kpc)
 
-        GL[idxreal] = sc.galactic.l.value
-        GB[idxreal] = sc.galactic.b.value
+        GL[idx] = sc.galactic.l.value
+        GB[idx] = sc.galactic.b.value
 
         # set galactic longitude and latitude
         self.__dataframe['GL'] = GL
         self.__dataframe['GB'] = GB
 
-        XX = np.ones(len(RAJD))*np.nan
-        YY = np.ones(len(RAJD))*np.nan
-        ZZ = np.ones(len(RAJD))*np.nan
+        XX = np.full(len(RAJD), np.nan)
+        YY = np.full(len(RAJD), np.nan)
+        ZZ = np.full(len(RAJD), np.nan)
 
-        idxreal = idxreal & (DIST != 0.)
-        idxdist = sc.distance.value != 0.
-        XX[idxreal] = sc.galactic.cartesian.x.value[idxdist]
-        YY[idxreal] = sc.galactic.cartesian.y.value[idxdist]
-        ZZ[idxreal] = sc.galactic.cartesian.z.value[idxdist]
+        XX[idx] = sc.galactic.cartesian.x.value
+        YY[idx] = sc.galactic.cartesian.y.value
+        ZZ[idx] = sc.galactic.cartesian.z.value
 
         # set galactic cartesian position
         self.__dataframe['XX'] = XX
@@ -1145,14 +1193,38 @@ class QueryATNF(object):
             DM = self.__dataframe['DM']
             GB = self.__dataframe['GB']
 
-            DMSINB = np.ones(len(RAJD))*np.nan
+            DMSINB = np.full(len(RAJD), np.nan)
 
-            idxreal = np.isfinite(GB) & np.isfinite(DM)
-            DMSINB[idxreal] = DM[idxreal]*np.sin(np.deg2rad(GB[idxreal]))
+            idx = np.isfinite(GB) & np.isfinite(DM)
+            DMSINB[idx] = DM[idx]*np.sin(np.deg2rad(GB[idx]))
 
             self.__dataframe['DMSINB'] = DMSINB
 
-        # TODO: set galactic proper motion
+        # galactic proper motion
+        if not np.all([p in self.__dataframe.columns for p in ['PMB', 'PML']]):
+            reqpar = ['PMRA', 'PMDEC']
+            if np.all([p in self.__dataframe.columns for p in reqpar]):
+                PMRA = self.__dataframe['PMRA'].values.copy()
+                PMDEC = self.__dataframe['PMDEC'].values.copy()
+
+                PMB = np.full(len(PMRA), np.nan)
+                PML = np.full(len(PMRA), np.nan)
+
+                idx = (np.isfinite(PMRA) & np.isfinite(PMDEC) &
+                       np.isfinite(RAJD) & np.isfinite(DECJD) &
+                       np.isfinite(DIST))
+
+                sc = ICRS(RAJD[idx]*aunits.deg, DECJD[idx]*aunits.deg,
+                          distance=DIST[idx]*aunits.kpc,
+                          pm_ra_cosdec=PMRA[idx]*aunits.mas/aunits.yr,
+                          pm_dec=PMDEC[idx]*aunits.mas/aunits.yr
+                          ).transform_to(Galactic())
+
+                PMB[idx] = sc.pm_b.value
+                PML[idx] = sc.pm_l_cosb.value
+
+                self.__dataframe['PMB'] = PMB
+                self.__dataframe['PML'] = PML
 
     def derived_p0(self):
         """
@@ -1168,23 +1240,25 @@ class QueryATNF(object):
         P0 = self.__dataframe['P0']
 
         # find indices where P0 needs to be set from F0
-        idxp0 = ~np.isfinite(P0) & np.isfinite(F0)
+        idx = ~np.isfinite(P0) & np.isfinite(F0)
         P0new = P0.copy()
-        P0new[idxp0] = 1./F0[idxp0]
+        P0new[idx] = 1./F0[idx]
         self.__dataframe.update(P0new)
 
         # set the references
-        if np.all([p in self.__dataframe.columns for p in ['P0_REF', 'F0_REF']]):
+        reqpars = ['P0_REF', 'F0_REF']
+        if np.all([p in self.__dataframe.columns for p in reqpars]):
             P0REFnew = self.__dataframe['P0_REF'].copy()
             F0REF = self.__dataframe['F0_REF']
-            P0REFnew[idxp0] = F0REF[idxp0]
+            P0REFnew[idx] = F0REF[idx]
             self.__dataframe.update(P0REFnew)
 
         # set the errors
-        if np.all([p in self.__dataframe.columns for p in ['P0_ERR', 'F0_ERR']]):
+        reqpars = ['P0_ERR', 'F0_ERR']
+        if np.all([p in self.__dataframe.columns for p in reqpars]):
             P0ERRnew = self.__dataframe['P0_ERR'].copy()
             F0ERR = self.__dataframe['F0_ERR']
-            P0ERRnew[idxp0] = F0ERR[idxp0]*P0[idxp0]**2
+            P0ERRnew[idx] = F0ERR[idx]*P0[idx]**2
             self.__dataframe.update(P0ERRnew)
 
     def derived_f0(self):
@@ -1201,23 +1275,25 @@ class QueryATNF(object):
         P0 = self.__dataframe['P0']
 
         # find indices where F0 needs to be set from P0
-        idxf0 = np.isfinite(P0) & ~np.isfinite(F0)
+        idx = np.isfinite(P0) & ~np.isfinite(F0)
         F0new = F0.copy()
-        F0new[idxf0] = 1./P0[idxf0]
+        F0new[idx] = 1./P0[idx]
         self.__dataframe.update(F0new)
 
         # set the references
-        if np.all([p in self.__dataframe.columns for p in ['P0_REF', 'F0_REF']]):
+        reqpars = ['P0_REF', 'F0_REF']
+        if np.all([p in self.__dataframe.columns for p in reqpars]):
             F0REFnew = self.__dataframe['F0_REF'].copy()
             P0REF = self.__dataframe['P0_REF']
-            F0REFnew[idxf0] = P0REF[idxf0]
+            F0REFnew[idx] = P0REF[idx]
             self.__dataframe.update(F0REFnew)
 
         # set the errors
-        if np.all([p in self.__dataframe.columns for p in ['P0_ERR', 'F0_ERR']]):
+        reqpars = ['P0_ERR', 'F0_ERR']
+        if np.all([p in self.__dataframe.columns for p in reqpars]):
             F0ERRnew = self.__dataframe['F0_ERR'].copy()
             P0ERR = self.__dataframe['P0_ERR']
-            F0ERRnew[idxf0] = P0ERR[idxf0]*F0[idxf0]**2
+            F0ERRnew[idx] = P0ERR[idx]*F0[idx]**2
             self.__dataframe.update(F0ERRnew)
 
     def derived_p1(self):
@@ -1226,7 +1302,8 @@ class QueryATNF(object):
         where period derivative is not given.
         """
 
-        if not np.all([p in self.__dataframe.columns for p in ['P0', 'F0', 'F1', 'P1']]):
+        reqpars = ['P0', 'F0', 'F1', 'P1']
+        if not np.all([p in self.__dataframe.columns for p in reqpars]):
             warnings.warn("Could not set period derivatives.",
                           UserWarning)
             return
@@ -1237,26 +1314,27 @@ class QueryATNF(object):
         P1 = self.__dataframe['P1']
 
         # find indices where P0 needs to be set from F0
-        idxp1 = ~np.isfinite(P1) & np.isfinite(F1)
+        idx = ~np.isfinite(P1) & np.isfinite(F1)
         P1new = P1.copy()
-        P1new[idxp1] = -(P0[idxp1]**2)*F1[idxp1]
+        P1new[idx] = -(P0[idx]**2)*F1[idx]
         self.__dataframe.update(P1new)
 
         # set the references
-        if np.all([p in self.__dataframe.columns for p in ['P1_REF', 'F1_REF']]):
+        reqpars = ['P1_REF', 'F1_REF']
+        if np.all([p in self.__dataframe.columns for p in reqpars]):
             P1REFnew = self.__dataframe['P1_REF'].copy()
             F1REF = self.__dataframe['F1_REF']
-            P1REFnew[idxp1] = F1REF[idxp1]
+            P1REFnew[idx] = F1REF[idx]
             self.__dataframe.update(P1REFnew)
 
         # set the errors
-        if np.all([p in self.__dataframe.columns for p in
-                   ['P0_ERR', 'F0_ERR', 'F1_ERR', 'P1_ERR']]):
+        reqpars = ['P0_ERR', 'F0_ERR', 'F1_ERR', 'P1_ERR']
+        if np.all([p in self.__dataframe.columns for p in reqpars]):
             P1ERRnew = self.__dataframe['P0_ERR'].copy()
             F1ERR = self.__dataframe['F1_ERR']
             F0ERR = self.__dataframe['F0_ERR']
-            P1ERRnew[idxp1] = np.sqrt((P0[idxp1]**2*F1ERR[idxp1])**2
-                                      + (2.0*P0[idxp1]**3*F1[idxp1]*F0ERR[idxp1])**2)
+            P1ERRnew[idx] = np.sqrt((P0[idx]**2*F1ERR[idx])**2
+                                    +(2.0*P0[idx]**3*F1[idx]*F0ERR[idx])**2)
             self.__dataframe.update(P1ERRnew)
 
     def derived_f1(self):
@@ -1265,7 +1343,8 @@ class QueryATNF(object):
         where frequency derivative is not given.
         """
 
-        if not np.all([p in self.__dataframe.columns for p in ['P0', 'F0', 'F1', 'P1']]):
+        reqpars = ['P0', 'F0', 'F1', 'P1']
+        if not np.all([p in self.__dataframe.columns for p in reqpars]):
             warnings.warn("Could not set period derivatives.",
                           UserWarning)
             return
@@ -1276,26 +1355,27 @@ class QueryATNF(object):
         P1 = self.__dataframe['P1']
 
         # find indices where P0 needs to be set from F0
-        idxf1 = np.isfinite(P1) & ~np.isfinite(F1)
+        idx = np.isfinite(P1) & ~np.isfinite(F1)
         F1new = F1.copy()
-        F1new[idxf1] = -(F0[idxf1]**2)*P1[idxf1]
+        F1new[idx] = -(F0[idx]**2)*P1[idx]
         self.__dataframe.update(F1new)
 
         # set the references
-        if np.all([p in self.__dataframe.columns for p in ['P1_REF', 'F1_REF']]):
+        reqpars = ['P1_REF', 'F1_REF']
+        if np.all([p in self.__dataframe.columns for p in reqpars]):
             F1REFnew = self.__dataframe['F1_REF'].copy()
             P1REF = self.__dataframe['P1_REF']
-            F1REFnew[idxf1] = P1REF[idxf1]
+            F1REFnew[idx] = P1REF[idx]
             self.__dataframe.update(F1REFnew)
 
         # set the errors
-        if np.all([p in self.__dataframe.columns for p in
-                   ['P0_ERR', 'F0_ERR', 'F1_ERR', 'P1_ERR']]):
+        reqpars = ['P0_ERR', 'F0_ERR', 'F1_ERR', 'P1_ERR']
+        if np.all([p in self.__dataframe.columns for p in reqpars]):
             F1ERRnew = self.__dataframe['F0_ERR'].copy()
             P1ERR = self.__dataframe['P1_ERR']
             P0ERR = self.__dataframe['P0_ERR']
-            F1ERRnew[idxf1] = np.sqrt((F0[idxf1]**2*P1ERR[idxf1])**2
-                                      + (2.0*F0[idxf1]**3*P1[idxf1]*P0ERR[idxf1])**2)
+            F1ERRnew[idx] = np.sqrt((F0[idx]**2*P1ERR[idx])**2
+                                     +(2.0*F0[idx]**3*P1[idx]*P0ERR[idx])**2)
             self.__dataframe.update(F1ERRnew)
 
     def derived_pb(self):
@@ -1311,22 +1391,24 @@ class QueryATNF(object):
         FB0 = self.__dataframe['FB0']
         PBnew = self.__dataframe['PB'].copy()
 
-        idxpb = ~np.isfinite(PBnew) & np.isfinite(FB0)
-        PBnew[idxpb] = 1./(FB0[idxpb]*86400.)
+        idx = ~np.isfinite(PBnew) & np.isfinite(FB0)
+        PBnew[idx] = 1./(FB0[idx]*86400.)
         self.__dataframe.update(PBnew)
 
         # set the references
-        if np.all([p in self.__dataframe.columns for p in ['PB_REF', 'FB0_REF']]):
+        reqpars = ['PB_REF', 'FB0_REF']
+        if np.all([p in self.__dataframe.columns for p in reqpars]):
             PBREFnew = self.__dataframe['PB_REF'].copy()
             FB0REF = self.__dataframe['FB0_REF']
-            PBREFnew[idxpb] = FB0REF[idxpb]
+            PBREFnew[idx] = FB0REF[idx]
             self.__dataframe.update(PBREFnew)
 
         # set the errors
-        if np.all([p in self.__dataframe.columns for p in ['PB_ERR', 'FB0_ERR']]):
+        reqpars = ['PB_ERR', 'FB0_ERR']
+        if np.all([p in self.__dataframe.columns for p in reqpars]):
             PBERRnew = self.__dataframe['PB_ERR'].copy()
             FB0ERR = self.__dataframe['FB0_ERR']
-            PBERRnew[idxpb] = FB0ERR[idxpb]*PBnew[idxpb]**2*86400.
+            PBERRnew[idx] = FB0ERR[idx]*PBnew[idx]**2*86400.
             self.__dataframe.update(PBERRnew)
 
     def derived_pbdot(self):
@@ -1335,7 +1417,8 @@ class QueryATNF(object):
         derivative.
         """
 
-        if not np.all([p in self.__dataframe.columns for p in ['PBDOT', 'FB1', 'PB']]):
+        reqpars = ['PBDOT', 'FB1', 'PB']
+        if not np.all([p in self.__dataframe.columns for p in reqpars]):
             warnings.warn("Could not set orbital period derivative.",
                           UserWarning)
             return
@@ -1344,25 +1427,27 @@ class QueryATNF(object):
         PB = self.__dataframe['PB']
         PBDOTnew = self.__dataframe['PBDOT'].copy()
 
-        idxpbdot = ~np.isfinite(PBDOTnew) & np.isfinite(FB1)
-        PBDOTnew[idxpbdot] = -(PB[idxpbdot]**2*FB1[idxpbdot])
+        idx = ~np.isfinite(PBDOTnew) & np.isfinite(FB1)
+        PBDOTnew[idx] = -(PB[idx]**2*FB1[idx])
         self.__dataframe.update(PBDOTnew)
 
         # set the references
-        if np.all([p in self.__dataframe.columns for p in ['PBDOT_REF', 'FB1_REF']]):
+        reqpars = ['PBDOT_REF', 'FB1_REF']
+        if np.all([p in self.__dataframe.columns for p in reqpars]):
             PBDOTREFnew = self.__dataframe['PBDOT_REF'].copy()
             FB1REF = self.__dataframe['FB1_REF']
-            PBDOTREFnew[idxpbdot] = FB1REF[idxpbdot]
+            PBDOTREFnew[idx] = FB1REF[idx]
             self.__dataframe.update(PBDOTREFnew)
 
         # set the errors
-        if np.all([p in self.__dataframe.columns for p in ['PBDOT_ERR', 'FB1_ERR', 'FB0_ERR']]):
+        reqpars = ['PBDOT_ERR', 'FB1_ERR', 'FB0_ERR']
+        if np.all([p in self.__dataframe.columns for p in reqpars]):
             PBDOTERRnew = self.__dataframe['PBDOT_ERR'].copy()
             FB1ERR = self.__dataframe['FB1_ERR']
             FB0ERR = self.__dataframe['FB0_ERR']
-            PBDOTERRnew[idxpbdot] = np.sqrt((PB[idxpbdot]**2 * FB1ERR[idxpbdot])**2
-                                            + (2.0 * PB[idxpbdot]**3 * FB1[idxpbdot]
-                                               * FB0ERR[idxpbdot])**2)
+            PBDOTERRnew[idx] = np.sqrt((PB[idx]**2 * FB1ERR[idx])**2
+                                       + (2.0 * PB[idx]**3 * FB1[idx]
+                                          * FB0ERR[idx])**2)
             self.__dataframe.update(PBDOTERRnew)
 
     def derived_fb0(self):
@@ -1378,31 +1463,34 @@ class QueryATNF(object):
         PB = self.__dataframe['PB']
         FB0new = self.__dataframe['FB0'].copy()
 
-        idxfb0 = ~np.isfinite(FB0new) & np.isfinite(PB)
-        FB0new[idxfb0] = 1./(PB[idxfb0]*86400.)
+        idx = ~np.isfinite(FB0new) & np.isfinite(PB)
+        FB0new[idx] = 1./(PB[idx]*86400.)
         self.__dataframe.update(FB0new)
 
         # set the references
-        if np.all([p in self.__dataframe.columns for p in ['PB_REF', 'FB0_REF']]):
+        reqpars = ['PB_REF', 'FB0_REF']
+        if np.all([p in self.__dataframe.columns for p in reqpars]):
             FB0REFnew = self.__dataframe['FB0_REF'].copy()
             PBREF = self.__dataframe['PB_REF']
-            FB0REFnew[idxfb0] = PBREF[idxfb0]
+            FB0REFnew[idx] = PBREF[idx]
             self.__dataframe.update(FB0REFnew)
 
         # set the errors
-        if np.all([p in self.__dataframe.columns for p in ['PB_ERR', 'FB0_ERR']]):
+        reqpars = ['PB_ERR', 'FB0_ERR']
+        if np.all([p in self.__dataframe.columns for p in reqpars]):
             FB0ERRnew = self.__dataframe['FB0_ERR'].copy()
             PBERR = self.__dataframe['PB_ERR']
-            FB0ERRnew[idxfb0] = PBERR[idxfb0]*(FB0new[idxfb0]**2)*86400.
+            FB0ERRnew[idx] = PBERR[idx]*(FB0new[idx]**2)*86400.
             self.__dataframe.update(FB0ERRnew)
 
     def derived_fb1(self):
         """
-        Calculate theorbital frequency derivative from the binary orbital
+        Calculate the orbital frequency derivative from the binary orbital
         period derivative.
         """
 
-        if not np.all([p in self.__dataframe.columns for p in ['PBDOT', 'FB1', 'FB0']]):
+        reqpars = ['PBDOT', 'FB1', 'FB0']
+        if not np.all([p in self.__dataframe.columns for p in reqpars]):
             warnings.warn("Could not set orbital period derivative.",
                           UserWarning)
             return
@@ -1411,25 +1499,27 @@ class QueryATNF(object):
         FB0 = self.__dataframe['FB0']
         FB1new = self.__dataframe['FB1'].copy()
 
-        idxfb1 = ~np.isfinite(FB1new) & np.isfinite(PBDOT)
-        FB1new[idxfb1] = -(FB0[idxfb1]**2*PBDOT[idxfb1])
+        idx = ~np.isfinite(FB1new) & np.isfinite(PBDOT)
+        FB1new[idx] = -(FB0[idx]**2*PBDOT[idx])
         self.__dataframe.update(FB1new)
 
         # set the references
-        if np.all([p in self.__dataframe.columns for p in ['PBDOT_REF', 'FB1_REF']]):
+        reqpars = ['PBDOT_REF', 'FB1_REF']
+        if np.all([p in self.__dataframe.columns for p in reqpars]):
             FB1REFnew = self.__dataframe['FB1_REF'].copy()
             PBDOTREF = self.__dataframe['PBDOT_REF']
-            FB1REFnew[idxfb1] = PBDOTREF[idxfb1]
+            FB1REFnew[idx] = PBDOTREF[idx]
             self.__dataframe.update(FB1REFnew)
 
         # set the errors
-        if np.all([p in self.__dataframe.columns for p in ['PBDOT_ERR', 'FB1_ERR', 'PB_ERR']]):
+        reqpars = ['PBDOT_ERR', 'FB1_ERR', 'PB_ERR']
+        if np.all([p in self.__dataframe.columns for p in reqpars]):
             FB1ERRnew = self.__dataframe['FB1_ERR'].copy()
             PBDOTERR = self.__dataframe['PBDOT_ERR']
             PBERR = self.__dataframe['PB_ERR']
-            FB1ERRnew[idxfb1] = np.sqrt((FB0[idxfb1]**2 * PBDOTERR[idxfb1])**2
-                                        + (2.0 * FB0[idxfb1]**3 * PBDOT[idxfb1]
-                                           * PBERR[idxfb1] * 86400.)**2)
+            FB1ERRnew[idx] = np.sqrt((FB0[idx]**2 * PBDOTERR[idx])**2
+                                     +(2.0 * FB0[idx]**3 * PBDOT[idx]*
+                                       PBERR[idx] * 86400.)**2)
             self.__dataframe.update(FB1ERRnew)
 
     def derived_p1_i(self):
@@ -1454,10 +1544,13 @@ class QueryATNF(object):
         P1 = self.__dataframe['P1']
         DIST = self.__dataframe['DIST']
 
-        p1i = ((P1/1.0e-15) - VTRANS**2 * 1.0e10 * P0/(DIST * 3.086e6)/2.9979e10) * 1.0e-15
-        p1i[~np.isfinite(P1) | ~np.isfinite(P0) | ~np.isfinite(VTRANS)
-            | ~np.isfinite(DIST)] = np.nan
-        self.__dataframe['P1_I'] = p1i
+        P1I = np.full(len(P0), np.nan)
+        idx = (np.isfinite(P1) & np.isfinite(P0) & np.isfinite(VTRANS) &
+               np.isfinite(DIST))
+        P1I[idx] = ((P1[idx]/1.0e-15) -
+                    VTRANS[idx]**2 * 1.0e10 * P0[idx]/
+                    (DIST[idx] * 3.086e6)/2.9979e10) * 1.0e-15
+        self.__dataframe['P1_I'] = P1I
 
     def derived_age(self):
         """
@@ -1477,15 +1570,9 @@ class QueryATNF(object):
         P0 = self.__dataframe['P0']
         P1 = self.__dataframe['P1']
 
-        idxfinite = np.isfinite(P1) & np.isfinite(P1)
-        P0finite = np.zeros(len(P0))
-        P1finite = np.zeros(len(P1))
-        P0finite[idxfinite] = P0[idxfinite]
-        P1finite[idxfinite] = P1[idxfinite]
-
-        idxpos = (P1finite > 0.) & (P0finite != 0.)
-        AGE = np.ones(len(P1))*np.nan
-        AGE[idxpos] = 0.5 * (P0[idxpos] / P1[idxpos]) / (60.0 * 60.0 * 24.0 * 365.25)
+        AGE = np.full(len(P0), np.nan)
+        idx = (P1 > 0.) & (P0 > 0.) & np.isfinite(P0) & np.isfinite(P1)
+        AGE[idx] = 0.5 * (P0[idx] / P1[idx]) / (60.0 * 60.0 * 24.0 * 365.25)
         self.__dataframe['AGE'] = AGE
 
     def derived_age_i(self):
@@ -1509,9 +1596,10 @@ class QueryATNF(object):
         P0 = self.__dataframe['P0']
         P1_I = self.__dataframe['P1_I']
 
-        age_i = 0.5 * (P0 / P1_I) / (60.0 * 60.0 * 24.0 * 365.25)
-        age_i[(P1_I < 0) | ~np.isfinite(P1_I) | ~np.isfinite(P0)] = np.nan
-        self.__dataframe['AGE_I'] = age_i
+        AGEI = np.full(len(P0), np.nan)
+        idx = (P1_I > 0.) & (P0 > 0.) & np.isfinite(P1_I) & np.isfinite(P0)
+        AGEI[idx] = 0.5 * (P0[idx] / P1_I[idx]) / (60.0 * 60.0 * 24.0 * 365.25)
+        self.__dataframe['AGE_I'] = AGEI
 
     def derived_bsurf(self):
         """
@@ -1530,9 +1618,10 @@ class QueryATNF(object):
         P0 = self.__dataframe['P0']
         P1 = self.__dataframe['P1']
 
-        bsurf = 3.2e19 * np.sqrt(np.abs(P0 * P1))
-        bsurf[(P1 < 0) | ~np.isfinite(P1) | ~np.isfinite(P0)] = np.nan
-        self.__dataframe['BSURF'] = bsurf
+        BSURF = np.full(len(P0), np.nan)
+        idx = (P1 > 0.) & np.isfinite(P1) & np.isfinite(P0)
+        BSURF[idx] = 3.2e19 * np.sqrt(np.abs(P0[idx] * P1[idx]))
+        self.__dataframe['BSURF'] = BSURF
 
     def derived_bsurf_i(self):
         """
@@ -1555,9 +1644,10 @@ class QueryATNF(object):
         P0 = self.__dataframe['P0']
         P1_I = self.__dataframe['P1_I']
 
-        bsurf_i = 3.2e19 * np.sqrt(np.abs(P0 * P1_I))
-        bsurf_i[(P1_I < 0) | ~np.isfinite(P1_I) | ~np.isfinite(P0)] = np.nan
-        self.__dataframe['BSURF_I'] = bsurf_i
+        BSURFI = np.full(len(P0), np.nan)
+        idx = (P1_I > 0.) & np.isfinite(P1_I) & np.isfinite(P0)
+        BSURFI[idx] = 3.2e19 * np.sqrt(np.abs(P0[idx] * P1_I[idx]))
+        self.__dataframe['BSURF_I'] = BSURFI
 
     def derived_b_lc(self):
         """
@@ -1576,9 +1666,10 @@ class QueryATNF(object):
         P0 = self.__dataframe['P0']
         P1 = self.__dataframe['P1']
 
-        blc = 3.0e8*np.sqrt(np.abs(P1))*np.abs(P0)**(-5./2.)
-        blc[(P1 < 0) | ~np.isfinite(P1) | ~np.isfinite(P0)] = np.nan
-        self.__dataframe['B_LC'] = blc
+        BLC = np.full(len(P0), np.nan)
+        idx = (P1 > 0.) & np.isfinite(P1) & np.isfinite(P0)
+        BLC[idx] = 3.0e8*np.sqrt(P1[idx])*np.abs(P0[idx])**(-5./2.)
+        self.__dataframe['B_LC'] = BLC
 
     def derived_edot(self):
         """
@@ -1597,9 +1688,10 @@ class QueryATNF(object):
         P0 = self.__dataframe['P0']
         P1 = self.__dataframe['P1']
 
-        edot = 4.0 * np.pi**2 * 1e45 * P1 / P0**3
-        edot[(P1 < 0) | ~np.isfinite(P1) | ~np.isfinite(P0)] = np.nan
-        self.__dataframe['EDOT'] = edot
+        EDOT = np.full(len(P0), np.nan)
+        idx = (P1 > 0.) & np.isfinite(P1) & np.isfinite(P0)
+        EDOT[idx] = 4.0 * np.pi**2 * 1e45 * P1[idx] / P0[idx]**3
+        self.__dataframe['EDOT'] = EDOT
 
     def derived_edot_i(self):
         """
@@ -1622,9 +1714,10 @@ class QueryATNF(object):
         P0 = self.__dataframe['P0']
         P1_I = self.__dataframe['P1_I']
 
-        edot_i = 4.0 * np.pi**2 * 1e45 * P1_I / P0**3
-        edot_i[(P1_I < 0) | ~np.isfinite(P1_I) | ~np.isfinite(P0)] = np.nan
-        self.__dataframe['EDOT_I'] = edot_i
+        EDOT_I = np.full(len(P0), np.nan)
+        idx = (P1_I > 0.) & np.isfinite(P1_I) & np.isfinite(P0)
+        EDOT_I[idx] = 4.0 * np.pi**2 * 1e45 * P1_I[idx] / P0[idx]**3
+        self.__dataframe['EDOT_I'] = EDOT_I
 
     def derived_edotd2(self):
         """
@@ -1634,7 +1727,8 @@ class QueryATNF(object):
         if 'EDOTD2' in self.__dataframe.columns:
             return
 
-        if not np.all([p in self.__dataframe.columns for p in ['P0', 'P1', 'DIST']]):
+        reqpars = ['P0', 'P1', 'DIST']
+        if not np.all([p in self.__dataframe.columns for p in reqpars]):
             warnings.warn("Could not set spin-down luminosity flux.",
                           UserWarning)
             return
@@ -1644,9 +1738,10 @@ class QueryATNF(object):
         P1 = self.__dataframe['P1']
         DIST = self.__dataframe['DIST']
 
-        edotd2 = 4.0 * np.pi**2 * 1e45 * (P1 / P0**3) / DIST**2
-        edotd2[(P1 < 0) | ~np.isfinite(P1) | ~np.isfinite(P0) | ~np.isfinite(DIST)] = np.nan
-        self.__dataframe['EDOTD2'] = edotd2
+        EDOTD2 = np.full(len(P0), np.nan)
+        idx = (P0 > 0.) & np.isfinite(P1) & np.isfinite(P0) & np.isfinite(DIST)
+        EDOTD2[idx] = 4.0*np.pi**2*1e45*((P1[idx]/P0[idx]**3)/DIST[idx]**2)
+        self.__dataframe['EDOTD2'] = EDOTD2
 
     def derived_pmtot(self):
         """
@@ -1674,8 +1769,8 @@ class QueryATNF(object):
         PMRA[useelong] = PMELONG[useelong]
         PMDEC[useelat] = PMELAT[useelat]
 
-        pmtot = np.sqrt(PMRA**2+PMDEC**2)
-        self.__dataframe['PMTOT'] = pmtot
+        PMTOT = np.sqrt(PMRA**2+PMDEC**2)
+        self.__dataframe['PMTOT'] = PMTOT
 
         # get the error
         reqpars = ['PMRA_ERR', 'PMDEC_ERR', 'PMELONG_ERR', 'PMELAT_ERR']
@@ -1689,8 +1784,9 @@ class QueryATNF(object):
         PMDEC_ERR[useelong] = PMELONG_ERR[useelong]
         PMRA_ERR[useelat] = PMELAT_ERR[useelat]
 
-        pmtoterr = np.sqrt(((PMRA*PMRA_ERR)**2+(PMDEC*PMDEC_ERR)**2)/(PMRA**2 + PMDEC**2))
-        self.__dataframe['PMTOT_ERR'] = pmtoterr
+        PMTOTERR = np.sqrt(((PMRA*PMRA_ERR)**2+(PMDEC*PMDEC_ERR)**2)/
+                           (PMRA**2 + PMDEC**2))
+        self.__dataframe['PMTOT_ERR'] = PMTOTERR
 
     def derived_vtrans(self):
         """
@@ -1711,9 +1807,11 @@ class QueryATNF(object):
         PMTOT = self.__dataframe['PMTOT']
         DIST = self.__dataframe['DIST']
 
-        vtrans = (PMTOT/(1000.0*3600.0*180.0*np.pi*365.25*86400.0))*3.086e16*DIST
-        vtrans[~np.isfinite(PMTOT) | ~np.isfinite(DIST)] = np.nan
-        self.__dataframe['VTRANS'] = vtrans
+        VTRANS = np.full(len(PMTOT), np.nan)
+        idx = np.isfinite(PMTOT) & np.isfinite(DIST)
+        VTRANS[idx] = (PMTOT[idx]/(1000.0*3600.0*180.0*np.pi*365.25*
+                                   86400.0))*3.086e16*DIST[idx]
+        self.__dataframe['VTRANS'] = VTRANS
 
     def derived_flux(self):
         """
@@ -1732,8 +1830,10 @@ class QueryATNF(object):
         S1400 = self.__dataframe['S1400']
         S400 = self.__dataframe['S400']
 
-        SI414 = -np.log10(S400/S1400)/(np.log10(400.0/1400.0))
-        SI414[~np.isfinite(S1400) | ~np.isfinite(S400)] = np.nan
+        SI414 = np.full(len(S1400), np.nan)
+        idx = np.isfinite(S1400) & np.isfinite(S400) & (S1400 > 0.) & (S400 > 0.)
+        fac = np.log10(400.0/1400.0)
+        SI414[idx] = -(np.log10(S400[idx]/S1400[idx])/fac)
         self.__dataframe['SI414'] = SI414
 
         # need distance for flux
@@ -1745,12 +1845,14 @@ class QueryATNF(object):
 
         DIST = self.__dataframe['DIST']
 
-        R_LUM = S400 * DIST**2
-        R_LUM[~np.isfinite(S400) | ~np.isfinite(DIST)] = np.nan
+        R_LUM = np.full(len(S400), np.nan)
+        idx = np.isfinite(S400) & np.isfinite(DIST)
+        R_LUM[idx] = S400[idx] * DIST[idx]**2
         self.__dataframe['R_LUM'] = R_LUM
 
-        R_LUM14 = S1400 * DIST**2
-        R_LUM14[~np.isfinite(S1400) | ~np.isfinite(DIST)] = np.nan
+        R_LUM14 = np.full(len(S1400), np.nan)
+        idx = np.isfinite(S1400) & np.isfinite(DIST)
+        R_LUM14[idx] = S1400[idx] * DIST[idx]**2
         self.__dataframe['R_LUM14'] = R_LUM14
 
     def get_pulsars(self):
