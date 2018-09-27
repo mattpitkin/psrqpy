@@ -20,6 +20,7 @@ from bs4 import BeautifulSoup
 
 from astropy.coordinates import SkyCoord, ICRS, BarycentricTrueEcliptic, Galactic
 import astropy.units as aunits
+from astropy.constants import c, GM_sun
 from astropy.table import Table
 
 from pandas import DataFrame, Series
@@ -891,6 +892,7 @@ class QueryATNF(object):
         self.derived_equatorial()  # derive equatorial coords from ecliptic
         self.derived_ecliptic()  # derive the ecliptic coordinates if not given
         self.define_galactic()     # define the galactic coordinates
+        self.derived_binary()      # derived binary parameters 
         self.derived_p0()          # derive P0 from F0 if not given
         self.derived_f0()          # derive F0 from P0 if not given
         self.derived_p1()          # derive P1 from F1 if not given
@@ -1225,6 +1227,63 @@ class QueryATNF(object):
 
                 self.__dataframe['PMB'] = PMB
                 self.__dataframe['PML'] = PML
+
+    def derived_binary(self):
+        """
+        Calculate derived binary system parameters.
+        """
+
+        # derive mass function
+        reqpars = ['A1', 'PB']
+        if np.all([p in self.__dataframe.columns for p in reqpars]):
+            A1 = self.__dataframe['A1'].values.copy()*c.value
+            PB = self.__dataframe['PB'].values.copy()*86400.
+
+            idx = np.isfinite(A1) & np.isfinite(PB)
+
+            MASSFN = np.full(len(A1), np.nan)
+            MASSFN[idx] = (4.*np.pi**2/GM_sun.value)*A1[idx]**3/(PB[idx]**2)
+
+            self.__dataframe['MASSFN'] = MASSFN
+
+            # derive minimum, median and 90% UL for mass
+            MINMASS = np.full(len(A1), np.nan)
+            MEDMASS = np.full(len(A1), np.nan)
+            UPRMASS = np.full(len(A1), np.nan)
+            from scipy.optimize import newton
+            def solfunc(m2, sini, mf, m1):
+                return (m1 + m2)**2 - (m2*sini)**3/mf
+
+            MASS_PSR = 1.35  # pulsar mass initial guess
+            SINI_MIN = 1.0  # inclination for minimum mass
+            SINI_MED = 0.866025403  # inclination of 60deg for median mass
+            SINI_90 = 0.438371146   # inclination for 90% UL mass
+            for i, mf in enumerate(MASSFN):
+                if ~np.isfinite(mf):
+                    continue
+
+                try:
+                    MINMASS[i] = newton(solfunc, MASS_PSR,
+                                        args=(SINI_MIN, mf, MASS_PSR),
+                                        maxiter=1000)
+                except RuntimeError:
+                    MINMASS[i] = np.nan
+                try:
+                    MEDMASS[i] = newton(solfunc, MASS_PSR,
+                                        args=(SINI_MED, mf, MASS_PSR),
+                                        maxiter=1000)
+                except RuntimeError:
+                    MEDMASS[i] = np.nan
+                try:
+                    UPRMASS[i] = newton(solfunc, MASS_PSR,
+                                        args=(SINI_90, mf, MASS_PSR),
+                                        maxiter=1000)
+                except RuntimeError:
+                    UPRMASS[i] = np.nan
+
+            self.__dataframe['MINMASS'] = MINMASS
+            self.__dataframe['MEDMASS'] = MEDMASS
+            self.__dataframe['UPRMASS'] = UPRMASS
 
     def derived_p0(self):
         """
