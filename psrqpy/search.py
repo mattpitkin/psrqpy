@@ -82,8 +82,9 @@ class QueryATNF(object):
             format 'hh:mm:ss' or a float in radians, the second entry is the
             centre point declination as a string in format 'dd:mm:ss' or a
             float in radians, the final entry is the circle's radius in
-            degrees. Alternatively `coord1`, `coord2`, and `radius` can be
-            used.
+            degrees. This condition will only be applied if viewing the results
+            as an :class:`astropy.table.Table`. Alternatively `coord1`,
+            `coord2`, and `radius` can be used.
         coord1 (str): a string containing a right ascension in the format
             ('hh:mm:ss') that centres a circular boundary in which to search
             for pulsars (requires coord2 and radius to be set).
@@ -488,6 +489,10 @@ class QueryATNF(object):
 
     @property
     def table(self):
+        """
+        Return a :class:`astropy.table.Table` based on the query.
+        """
+
         # convert to astropy table
         thistable = Table.from_pandas(self.pandas)
 
@@ -517,7 +522,35 @@ class QueryATNF(object):
 
         # add catalogue version to metadata
         thistable.meta['version'] = self.get_version
-        thistable.meta['ATNF Pulsar Catalogue'] = ATNF_BASE_URL
+
+        return thistable
+
+    @property
+    def catalogue_table(self):
+        """
+        Return the full catalogue as a :class:`astropy.table.Table` without
+        any query conditions applied.
+
+        Note: in this returned table any references will not be converted into
+        actual reference strings, but will still be the ATNF Pulsar Catalogue
+        tags.
+        """
+
+        # convert catalogue to astropy table
+        thistable = Table.from_pandas(self.catalogue)
+
+        # add units if known
+        for key in PSR_ALL_PARS:
+            if key in thistable.colnames:
+                if PSR_ALL[key]['units']:
+                    thistable.columns[key].unit = PSR_ALL[key]['units']
+
+                    if (PSR_ALL[key]['err'] and
+                            key+'_ERR' in thistable.colnames):
+                        thistable.columns[key+'_ERR'].unit = PSR_ALL[key]['units']
+
+        # add catalogue version to metadata
+        thistable.meta['version'] = self.get_version
 
         return thistable
 
@@ -1998,7 +2031,7 @@ class QueryATNF(object):
             psr (str): The name of a pulsar to return.
 
         Returns:
-            :class:`pandas.DataFrame`: a table row
+            :class:`astropy.table.Table`: a table row
         """
 
         namepars = ['PSRJ', 'PSRB', 'BNAME', 'JNAME', 'NAME']
@@ -2011,7 +2044,7 @@ class QueryATNF(object):
             if namepar in self.columns:
                 names = self.catalogue[namepar]
                 if np.any(psr==names):
-                    return self.catalogue[psr==names]
+                    return self.catalogue_table[(psr==names).tolist()]
 
         return None
 
