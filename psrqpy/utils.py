@@ -62,7 +62,7 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
 
     """
 
-    if not path_to_db:
+    if path_to_db is None:
         # remove any cached file if requested
         if update:
             if check_update():
@@ -84,7 +84,7 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
             raise IOError('Problem extracting the database file')
     else:
         try:
-            dbfile = open(path_to_db)
+            dbfile = open(path_to_db, 'r')
         except IOError:
             raise IOError('Error loading given database file')
 
@@ -215,8 +215,7 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
 
     if pandas:
         # return pandas DataFrame
-        if version is not None:
-            dftable.version = version
+        dftable.version = version
 
         return dftable
 
