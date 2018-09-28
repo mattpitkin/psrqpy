@@ -294,6 +294,51 @@ class QueryATNF(object):
 
         return self.__dataframe.columns
 
+    def update(self, column, name=None, overwrite=False):
+        """
+        Update a column in the internal :class:`pandas.DataFrame` table using
+        :meth:`pandas.DataFrame.update`. If the column does not exist it will
+        be added to the table.
+
+        Args:
+            column (:class:`pandas.Series`): a named columns of values.
+            name (str): the name of the column (required if `column` is not a
+                :class:`pandas.Series`, or to overwrite the current column
+                name)
+            overwrite (bool): set whether to overwrite non-NA values or not if
+               the column already exists. Defaults to False, so non-NA values
+               will not be overwritten.
+        """
+
+        # get column name to update/add
+        if name is not None:
+            # use input `name` by default
+            colname = name
+        else:
+            try:
+                colname = column.name
+            except AttributeError:
+                colname = None 
+
+        if colname is not None:
+            if colname in self.columns:
+                if isinstance(column, Series):
+                    self.__dataframe.update(column, overwrite=overwrite)
+                else:
+                    try:
+                        self.__dataframe.update(Series(column, name=colname),
+                                                overwrite=overwrite)
+                    except ValueError:
+                        raise ValueError("Could not update table with "
+                                         "supplied column")
+            else:
+                try:
+                    self.catalogue[colname] = column
+                except ValueError:
+                    raise ValueError("Could not add supplied columns to table")
+        else:
+            raise ValueError("No column name given")
+
     def sort(self, sort_attr='JNAME', sort_order='asc', inplace=False):
         """
         Sort the generated catalogue :class:`~pandas.DataFrame` on a given
@@ -679,11 +724,11 @@ class QueryATNF(object):
     @property
     def catalogue(self):
         """
-        Return a copy of the entire stored :class:`~pandas.DataFrame` catalogue
+        Return the entire stored :class:`~pandas.DataFrame` catalogue
         without any sorting or conditions applied.
         """
 
-        return self.__dataframe.copy()
+        return self.__dataframe
 
     @property
     def dataframe(self):
@@ -780,24 +825,24 @@ class QueryATNF(object):
         and reference. Multiple values and references currently not supported.
         """
 
-        if 'ASSOC' not in self.__dataframe.columns:
+        if 'ASSOC' not in self.columns:
             warnings.warn("Could not parse ASSOC.", UserWarning)
             return
 
         # Save original parameter in new column
-        ASSOCorig = self.__dataframe['ASSOC'].copy()
+        ASSOCorig = self.catalogue['ASSOC'].copy()
         ASSOCorig.name = 'ASSOC_ORIG'
-        self.__dataframe['ASSOC_ORIG'] = ASSOCorig
+        self.update(ASSOCorig, name='ASSOC_ORIG') 
 
-        ASSOCnew = self.__dataframe['ASSOC'].copy()
+        ASSOCnew = self.catalogue['ASSOC'].copy()
         idxassoc = ~ASSOCnew.isna()
 
         # Set references first
-        if 'ASSOC_REF' not in self.__dataframe.columns:
+        if 'ASSOC_REF' not in self.columns:
             ASSOCREFnew = Series(np.asarray([np.nan, ]*len(idxassoc)), name='ASSOC_REF')
-            self.__dataframe['ASSOC_REF'] = ASSOCREFnew
+            self.update(ASSOCREFnew, name='ASSOC_REF')
         else:
-            ASSOCREFnew = self.__dataframe['ASSOC_REF'].copy()
+            ASSOCREFnew = self.catalogue['ASSOC_REF'].copy()
 
         ASSOCREFnew[idxassoc] = ASSOCnew[idxassoc].apply(lambda x: 
                                                          re.split('\]', re.split('\[', x)[1])[0] 
@@ -806,8 +851,8 @@ class QueryATNF(object):
         # Set values
         ASSOCnew[idxassoc] = ASSOCnew[idxassoc].apply(lambda x: re.split('\[|,|\(|:', x)[0])
 
-        self.__dataframe.update(ASSOCnew)
-        self.__dataframe.update(ASSOCREFnew)
+        self.update(ASSOCnew)
+        self.update(ASSOCREFnew)
 
     def parse_type(self):
         """
@@ -815,24 +860,24 @@ class QueryATNF(object):
         and reference. Multiple values and references currently not supported.
         """
 
-        if 'TYPE' not in self.__dataframe.columns:
+        if 'TYPE' not in self.columns:
             warnings.warn("Could not parse TYPE.", UserWarning)
             return
 
         # Save original parameter in new column
-        TYPEorig = self.__dataframe['TYPE'].copy()
+        TYPEorig = self.catalogue['TYPE'].copy()
         TYPEorig.name = 'TYPE_ORIG'
-        self.__dataframe['TYPE_ORIG'] = TYPEorig
+        self.update(TYPEorig, 'TYPE_ORIG')
 
-        TYPEnew = self.__dataframe['TYPE'].copy()
+        TYPEnew = self.catalogue['TYPE'].copy()
         idxtype = ~TYPEnew.isna()
 
         # Set references first
-        if 'TYPE_REF' not in self.__dataframe.columns:
+        if 'TYPE_REF' not in self.columns:
             TYPEREFnew = Series(np.asarray([np.nan, ]*len(idxassoc)), name='TYPE_REF')
-            self.__dataframe['TYPE_REF'] = TYPEREFnew
+            self.update(TYPEREFnew, 'TYPE_REF')
         else:
-            TYPEREFnew = self.__dataframe['TYPE_REF'].copy()
+            TYPEREFnew = self.catalogue['TYPE_REF'].copy()
 
         TYPEREFnew[idxtype] = TYPEnew[idxtype].apply(lambda x: 
                                                      re.split('\]', re.split('\[', x)[1])[0] 
@@ -841,8 +886,8 @@ class QueryATNF(object):
         # Set values
         TYPEnew[idxtype] = TYPEnew[idxtype].apply(lambda x: re.split('\[|,|\(|:', x)[0])
 
-        self.__dataframe.update(TYPEnew)
-        self.__dataframe.update(TYPEREFnew)
+        self.update(TYPEnew)
+        self.update(TYPEREFnew)
 
     def parse_bincomp(self):
         """
@@ -850,24 +895,25 @@ class QueryATNF(object):
         and reference. Multiple values and references currently not supported.
         """
 
-        if 'BINCOMP' not in self.__dataframe.columns:
+        if 'BINCOMP' not in self.columns:
             warnings.warn("Could not parse BINCOMP.", UserWarning)
             return
 
         # Save original parameter in new column
-        BINCOMPorig = self.__dataframe['BINCOMP'].copy()
+        BINCOMPorig = self.catalogue['BINCOMP'].copy()
         BINCOMPorig.name = 'BINCOMP_ORIG'
-        self.__dataframe['BINCOMP_ORIG'] = BINCOMPorig
+        self.update(BINCOMPorig) 
 
-        BINCOMPnew = self.__dataframe['BINCOMP'].copy()
+        BINCOMPnew = self.catalogue['BINCOMP'].copy()
         idxbincomp = ~BINCOMPnew.isna()
 
         # Set references first
-        if 'BINCOMP_REF' not in self.__dataframe.columns:
-            BINCOMPREFnew = Series(np.asarray([np.nan, ]*len(idxassoc)), name='BINCOMP_REF')
-            self.__dataframe['BINCOMP_REF'] = BINCOMPREFnew
+        if 'BINCOMP_REF' not in self.columns:
+            BINCOMPREFnew = Series(np.asarray([np.nan, ]*len(idxassoc)),
+                                   name='BINCOMP_REF')
+            self.update(BINCOMPREFnew) 
         else:
-            BINCOMPREFnew = self.__dataframe['BINCOMP_REF'].copy()
+            BINCOMPREFnew = self.catalogue['BINCOMP_REF'].copy()
 
         BINCOMPREFnew[idxbincomp] = BINCOMPnew[idxbincomp]\
             .apply(lambda x: re.split('\]', re.split('\[', x)[1])[0] 
@@ -876,8 +922,8 @@ class QueryATNF(object):
         # Set values
         BINCOMPnew[idxbincomp] = BINCOMPnew[idxbincomp].apply(lambda x: re.split('\[|,|\(|:', x)[0])
 
-        self.__dataframe.update(BINCOMPnew)
-        self.__dataframe.update(BINCOMPREFnew)
+        self.update(BINCOMPnew)
+        self.update(BINCOMPREFnew)
 
     def set_derived(self):
         """
@@ -921,18 +967,18 @@ class QueryATNF(object):
 
         reqpars = ['PX', 'PX_ERR', 'DIST_A', 'DIST_AMN', 'DIST_AMX', 'DIST_DM',
                    'DIST_DM1']
-        if not np.all([p in self.__dataframe.columns for p in reqpars]):
+        if not np.all([p in self.columns for p in reqpars]):
             warnings.warn("Could not set distances.",
                           UserWarning)
             return
 
-        PX = self.__dataframe['PX']
-        PXERR = self.__dataframe['PX_ERR']
-        DIST_A = self.__dataframe['DIST_A']
-        DIST_AMN = self.__dataframe['DIST_AMN']
-        DIST_AMX = self.__dataframe['DIST_AMX']
-        DIST_DM = self.__dataframe['DIST_DM']
-        DIST_DM1 = self.__dataframe['DIST_DM1']
+        PX = self.catalogue['PX']
+        PXERR = self.catalogue['PX_ERR']
+        DIST_A = self.catalogue['DIST_A']
+        DIST_AMN = self.catalogue['DIST_AMN']
+        DIST_AMX = self.catalogue['DIST_AMX']
+        DIST_DM = self.catalogue['DIST_DM']
+        DIST_DM1 = self.catalogue['DIST_DM1']
 
         # DIST defaults to DM distance
         DIST = DIST_DM.copy()
@@ -986,8 +1032,8 @@ class QueryATNF(object):
         DIST[idxdist] = 0.5*(DIST_AMN[idxdist] + DIST_AMX[idxdist])
         DIST1[idxdist1] = 0.5*(DIST_AMN[idxdist1] + DIST_AMX[idxdist1])
 
-        self.__dataframe['DIST'] = DIST
-        self.__dataframe['DIST1'] = DIST1
+        self.update(DIST, name='DIST')
+        self.update(DIST1, name='DIST1')
 
     def derived_equatorial(self):
         """
@@ -998,16 +1044,16 @@ class QueryATNF(object):
         """
 
         reqpar = ['RAJ', 'DECJ', 'RAJD', 'DECJD', 'ELONG', 'ELAT']
-        if not np.all([p in self.__dataframe.columns for p in reqpar]):
+        if not np.all([p in self.columns for p in reqpar]):
             warnings.warn("Could not set equatorial coordinates.",
                           UserWarning)
 
-        ELONG = self.__dataframe['ELONG']
-        ELAT = self.__dataframe['ELAT']
-        RAJDnew = self.__dataframe['RAJD'].copy()
-        DECJDnew = self.__dataframe['DECJD'].copy()
-        RAJnew = self.__dataframe['RAJ'].copy()
-        DECJnew = self.__dataframe['DECJ'].copy()
+        ELONG = self.catalogue['ELONG']
+        ELAT = self.catalogue['ELAT']
+        RAJDnew = self.catalogue['RAJD'].copy()
+        DECJDnew = self.catalogue['DECJD'].copy()
+        RAJnew = self.catalogue['RAJ'].copy()
+        DECJnew = self.catalogue['DECJ'].copy()
 
         idx = (np.isfinite(ELONG) & np.isfinite(ELAT) &
                (~np.isfinite(RAJDnew) & ~np.isfinite(DECJDnew)))
@@ -1022,31 +1068,31 @@ class QueryATNF(object):
         RAJnew[idx] = sc.ra.to('hourangle').to_string(sep=':', pad=True)
         DECJnew[idx] = sc.dec.to_string(sep=':', pad=True, alwayssign=True)
 
-        self.__dataframe.update(RAJDnew)
-        self.__dataframe.update(DECJDnew)
-        self.__dataframe.update(RAJnew)
-        self.__dataframe.update(DECJnew)
+        self.update(RAJDnew)
+        self.update(DECJDnew)
+        self.update(RAJnew)
+        self.update(DECJnew)
 
         # set references
         reqpars = ['RAJ_REF', 'DECJ_REF', 'ELONG_REF']
-        if np.all([p in self.__dataframe.columns for p in reqpar]):
-            RAJREFnew = self.__dataframe['RAJ_REF'].copy()
-            DECJREFnew = self.__dataframe['DECJ_REF'].copy()
-            ELONGREF = self.__dataframe['ELONG_REF']
+        if np.all([p in self.columns for p in reqpar]):
+            RAJREFnew = self.catalogue['RAJ_REF'].copy()
+            DECJREFnew = self.catalogue['DECJ_REF'].copy()
+            ELONGREF = self.catalogue['ELONG_REF']
 
             DECJREFnew[idx] = ELONGREF[idx]
             RAJREFnew[idx] = ELONGREF[idx]
 
-            self.__dataframe.update(DECJREFnew)
-            self.__dataframe.update(RAJREFnew)
+            self.update(DECJREFnew)
+            self.update(RAJREFnew)
 
         # get PMRA and PMDEC if not given
         reqpar = ['PMELONG', 'PMELAT', 'PMRA', 'PMDEC']
-        if np.all([p in self.__dataframe.columns for p in reqpar]):
-            PMELONG = self.__dataframe['PMELONG']
-            PMELAT = self.__dataframe['PMELAT']
-            PMRAnew = self.__dataframe['PMRA'].copy()
-            PMDECnew = self.__dataframe['PMDEC'].copy()
+        if np.all([p in self.columns for p in reqpar]):
+            PMELONG = self.catalogue['PMELONG']
+            PMELAT = self.catalogue['PMELAT']
+            PMRAnew = self.catalogue['PMRA'].copy()
+            PMDECnew = self.catalogue['PMDEC'].copy()
 
             idx = idx & (np.isfinite(PMELONG) & np.isfinite(PMELAT) &
                          (~np.isfinite(PMRAnew) & ~np.isfinite(PMDECnew)))
@@ -1061,8 +1107,8 @@ class QueryATNF(object):
             PMRAnew[idx] = sc.pm_ra_cosdec.value
             PMDECnew[idx] = sc.pm_dec.value
 
-            self.__dataframe.update(PMRAnew)
-            self.__dataframe.update(PMDECnew)
+            self.update(PMRAnew)
+            self.update(PMDECnew)
 
     def derived_ecliptic(self):
         """
@@ -1074,14 +1120,14 @@ class QueryATNF(object):
         """
 
         reqpar = ['RAJD', 'DECJD', 'ELONG', 'ELAT']
-        if not np.all([p in self.__dataframe.columns for p in reqpar]):
+        if not np.all([p in self.columns for p in reqpar]):
             warnings.warn("Could not set ecliptic coordinates.",
                           UserWarning)
 
-        RAJD = self.__dataframe['RAJD']
-        DECJD = self.__dataframe['DECJD']
-        ELONGnew = self.__dataframe['ELONG'].copy()
-        ELATnew = self.__dataframe['ELAT'].copy()
+        RAJD = self.catalogue['RAJD']
+        DECJD = self.catalogue['DECJD']
+        ELONGnew = self.catalogue['ELONG'].copy()
+        ELATnew = self.catalogue['ELAT'].copy()
 
         idx = (np.isfinite(RAJD) & np.isfinite(DECJD) &
                (~np.isfinite(ELONGnew) & ~np.isfinite(ELATnew)))
@@ -1093,30 +1139,30 @@ class QueryATNF(object):
         ELONGnew[idx] = sc.barycentrictrueecliptic.lon.value
         ELATnew[idx] = sc.barycentrictrueecliptic.lat.value
 
-        self.__dataframe.update(ELONGnew)
-        self.__dataframe.update(ELATnew)
+        self.update(ELONGnew)
+        self.update(ELATnew)
 
         # get references
         refpar = ['RAJ_REF', 'DECJ_REF', 'ELONG_REF', 'ELAT_REF']
-        if np.all([p in self.__dataframe.columns for p in refpar]):
-            RAJREF = self.__dataframe['RAJ_REF']
-            DECJREF = self.__dataframe['DECJ_REF']
-            ELONGREFnew = self.__dataframe['ELONG_REF'].copy()
-            ELATREFnew = self.__dataframe['ELAT_REF'].copy()
+        if np.all([p in self.columns for p in refpar]):
+            RAJREF = self.catalogue['RAJ_REF']
+            DECJREF = self.catalogue['DECJ_REF']
+            ELONGREFnew = self.catalogue['ELONG_REF'].copy()
+            ELATREFnew = self.catalogue['ELAT_REF'].copy()
 
             ELONGREFnew[idx] = RAJREF[idx]
             ELATREFnew[idx] = DECJREF[idx]
 
-            self.__dataframe.update(ELONGREFnew)
-            self.__dataframe.update(ELATREFnew)
+            self.update(ELONGREFnew)
+            self.update(ELATREFnew)
 
         # get PMELONG and PMELAT if not given
         reqpar = ['PMELONG', 'PMELAT', 'PMRA', 'PMDEC']
-        if np.all([p in self.__dataframe.columns for p in reqpar]):
-            PMELONGnew = self.__dataframe['PMELONG'].copy()
-            PMELATnew = self.__dataframe['PMELAT'].copy()
-            PMRA = self.__dataframe['PMRA']
-            PMDEC = self.__dataframe['PMDEC']
+        if np.all([p in self.columns for p in reqpar]):
+            PMELONGnew = self.catalogue['PMELONG'].copy()
+            PMELATnew = self.catalogue['PMELAT'].copy()
+            PMRA = self.catalogue['PMRA']
+            PMDEC = self.catalogue['PMDEC']
 
             idx = idx & (np.isfinite(PMRA) & np.isfinite(PMDEC) &
                          (~np.isfinite(PMELONGnew) & ~np.isfinite(PMELATnew)))
@@ -1131,8 +1177,8 @@ class QueryATNF(object):
             PMELONGnew[idx] = sc.pm_lon_coslat.value
             PMELATnew[idx] = sc.pm_lat.value
 
-            self.__dataframe.update(PMELONGnew)
-            self.__dataframe.update(PMELATnew)
+            self.update(PMELONGnew)
+            self.update(PMELATnew)
 
     def define_galactic(self):
         """
@@ -1140,27 +1186,27 @@ class QueryATNF(object):
         """
 
         galpars = ['GL', 'GB', 'ZZ', 'XX', 'YY', 'DMSINB']
-        if np.all([p in self.__dataframe.columns for p in galpars]):
+        if np.all([p in self.columns for p in galpars]):
             return
 
         reqpars = ['RAJD', 'DECJD']
-        if not np.all([p in self.__dataframe.columns for p in reqpars]):
+        if not np.all([p in self.columns for p in reqpars]):
             warnings.warn("Could not set galactic coordinates.",
                           UserWarning)
             return
 
         # get distance if required
-        if 'DIST' not in self.__dataframe.columns:
+        if 'DIST' not in self.columns:
             self.define_dist()
 
-            if 'DIST' not in self.__dataframe.columns:
+            if 'DIST' not in self.columns:
                 warnings.warn("Could not set galactic coordinates.",
                               UserWarning)
                 return
 
-        RAJD = self.__dataframe['RAJD'].values.copy()
-        DECJD = self.__dataframe['DECJD'].values.copy()
-        DIST = self.__dataframe['DIST'].values.copy()
+        RAJD = self.catalogue['RAJD'].values.copy()
+        DECJD = self.catalogue['DECJD'].values.copy()
+        DIST = self.catalogue['DIST'].values.copy()
 
         GL = np.full(len(RAJD), np.nan)
         GB = np.full(len(RAJD), np.nan)
@@ -1174,8 +1220,8 @@ class QueryATNF(object):
         GB[idx] = sc.galactic.b.value
 
         # set galactic longitude and latitude
-        self.__dataframe['GL'] = GL
-        self.__dataframe['GB'] = GB
+        self.update(GL, name='GL')
+        self.update(GB, name='GB')
 
         XX = np.full(len(RAJD), np.nan)
         YY = np.full(len(RAJD), np.nan)
@@ -1186,28 +1232,28 @@ class QueryATNF(object):
         ZZ[idx] = sc.galactic.cartesian.z.value
 
         # set galactic cartesian position
-        self.__dataframe['XX'] = XX
-        self.__dataframe['YY'] = YY
-        self.__dataframe['ZZ'] = ZZ
+        self.update(XX, name='XX')
+        self.update(YY, name='YY')
+        self.update(ZZ, name='ZZ')
 
         # set DMSINB
-        if 'DM' in self.__dataframe.columns:
-            DM = self.__dataframe['DM']
-            GB = self.__dataframe['GB']
+        if 'DM' in self.columns:
+            DM = self.catalogue['DM']
+            GB = self.catalogue['GB']
 
             DMSINB = np.full(len(RAJD), np.nan)
 
             idx = np.isfinite(GB) & np.isfinite(DM)
             DMSINB[idx] = DM[idx]*np.sin(np.deg2rad(GB[idx]))
 
-            self.__dataframe['DMSINB'] = DMSINB
+            self.update(DMSINB, name='DMSINB')
 
         # galactic proper motion
-        if not np.all([p in self.__dataframe.columns for p in ['PMB', 'PML']]):
+        if not np.all([p in self.columns for p in ['PMB', 'PML']]):
             reqpar = ['PMRA', 'PMDEC']
-            if np.all([p in self.__dataframe.columns for p in reqpar]):
-                PMRA = self.__dataframe['PMRA'].values.copy()
-                PMDEC = self.__dataframe['PMDEC'].values.copy()
+            if np.all([p in self.columns for p in reqpar]):
+                PMRA = self.catalogue['PMRA'].values.copy()
+                PMDEC = self.catalogue['PMDEC'].values.copy()
 
                 PMB = np.full(len(PMRA), np.nan)
                 PML = np.full(len(PMRA), np.nan)
@@ -1225,8 +1271,8 @@ class QueryATNF(object):
                 PMB[idx] = sc.pm_b.value
                 PML[idx] = sc.pm_l_cosb.value
 
-                self.__dataframe['PMB'] = PMB
-                self.__dataframe['PML'] = PML
+                self.update(PMB, name='PMB')
+                self.update(PML, name='PML')
 
     def derived_binary(self):
         """
@@ -1237,16 +1283,16 @@ class QueryATNF(object):
 
         # derive mass function
         reqpars = ['A1', 'PB']
-        if np.all([p in self.__dataframe.columns for p in reqpars]):
-            A1 = self.__dataframe['A1'].values.copy()*c.value
-            PB = self.__dataframe['PB'].values.copy()*86400.
+        if np.all([p in self.columns for p in reqpars]):
+            A1 = self.catalogue['A1'].values.copy()*c.value
+            PB = self.catalogue['PB'].values.copy()*86400.
 
             idx = np.isfinite(A1) & np.isfinite(PB)
 
             MASSFN = np.full(len(A1), np.nan)
             MASSFN[idx] = (4.*np.pi**2/GM_sun.value)*A1[idx]**3/(PB[idx]**2)
 
-            self.__dataframe['MASSFN'] = MASSFN
+            self.update(MASSFN, name='MASSFN')
 
             # derive minimum, median and 90% UL for mass
             MINMASS = np.full(len(A1), np.nan)
@@ -1282,24 +1328,24 @@ class QueryATNF(object):
                 except RuntimeError:
                     UPRMASS[i] = np.nan
 
-            self.__dataframe['MINMASS'] = MINMASS
-            self.__dataframe['MEDMASS'] = MEDMASS
-            self.__dataframe['UPRMASS'] = UPRMASS
+            self.update(MINMASS, name='MINMASS')
+            self.update(MEDMASS, name='MEDMASS')
+            self.update(UPRMASS, name='UPRMASS')
 
         # derive eccentricity from EPS1 and EPS2
         reqpars = ['EPS1', 'EPS2', 'ECC', 'OM']
-        if np.all([p in self.__dataframe.columns for p in reqpars]):
-            EPS1 = self.__dataframe['EPS1'].values.copy()
-            EPS2 = self.__dataframe['EPS2'].values.copy()
-            ECCnew = self.__dataframe['ECC'].copy()
-            OMnew = self.__dataframe['OM'].copy()
+        if np.all([p in self.columns for p in reqpars]):
+            EPS1 = self.catalogue['EPS1'].values.copy()
+            EPS2 = self.catalogue['EPS2'].values.copy()
+            ECCnew = self.catalogue['ECC'].copy()
+            OMnew = self.catalogue['OM'].copy()
 
             idx = np.isfinite(EPS1) & np.isfinite(EPS2)
 
             # set eccentricities
             ECCnew[idx] = np.sqrt(EPS1[idx]**2+EPS2[idx]**2)
 
-            self.__dataframe.update(ECCnew)
+            self.update(ECCnew)
 
             # set angle of peristron
             idxn = idx & (ECCnew != 0.)
@@ -1308,11 +1354,11 @@ class QueryATNF(object):
 
             # set errors
             reqpars = ['EPS1_ERR', 'EPS2_ERR', 'ECC_ERR', 'OM_ERR']
-            if np.all([p in self.__dataframe.columns for p in reqpars]):
-                EPS1ERR = self.__dataframe['EPS1_ERR'].values.copy()
-                EPS2ERR = self.__dataframe['EPS2_ERR'].values.copy()
-                ECCERRnew = self.__dataframe['ECC_ERR'].copy()
-                OMERRnew = self.__dataframe['OM_ERR'].copy()
+            if np.all([p in self.columns for p in reqpars]):
+                EPS1ERR = self.catalogue['EPS1_ERR'].values.copy()
+                EPS2ERR = self.catalogue['EPS2_ERR'].values.copy()
+                ECCERRnew = self.catalogue['ECC_ERR'].copy()
+                OMERRnew = self.catalogue['OM_ERR'].copy()
 
                 idxn = idx & (np.isfinite(EPS1ERR) & np.isfinite(EPS2ERR) &
                               (ECCnew != 0.))
@@ -1320,25 +1366,25 @@ class QueryATNF(object):
                 OMERRnew[idxn] = (np.sqrt((EPS2[idxn]*EPS1ERR[idxn])**2
                                           +(EPS1[idxn]*EPS2ERR[idxn])**2)/
                                           (ECCnew[idxn])**2)*180.0/np.pi
-                self.__dataframe.update(OMERRnew)
+                self.update(OMERRnew)
 
                 ECCERRnew[idxn] = (np.sqrt((EPS1[idxn]*EPS1ERR[idxn])**2
                                           +(EPS2[idxn]*EPS2ERR[idxn])**2)
                                           /ECCnew[idxn])
-                self.__dataframe.update(ECCERRnew)
+                self.update(ECCERRnew)
 
             # shift angles so that they are positive
             idxn = idx & (OMnew < 0.)
             OMnew[idxn] += 360.
 
-            self.__dataframe.update(OMnew)
+            self.update(OMnew)
 
         # derive MINOMDOT
         reqpars = ['ECC', 'PB', 'MINMASS']
-        if np.all([p in self.__dataframe.columns for p in reqpars]):
-            MINMASS = self.__dataframe['MINMASS'].values.copy()
-            PB = self.__dataframe['PB'].values.copy()*86400.
-            ECC = self.__dataframe['ECC'].values.copy()
+        if np.all([p in self.columns for p in reqpars]):
+            MINMASS = self.catalogue['MINMASS'].values.copy()
+            PB = self.catalogue['PB'].values.copy()*86400.
+            ECC = self.catalogue['ECC'].values.copy()
 
             MINOMDOT = np.full(len(PB), np.nan)
 
@@ -1349,7 +1395,7 @@ class QueryATNF(object):
                             (1.-ECC[idx]**2))
             MINOMDOT[idx] = np.rad2deg(MINOMDOT[idx])*86400.*365.25
 
-            self.__dataframe['MINOMDOT'] = MINOMDOT
+            self.update(MINOMDOT, name='MINOMDOT')
 
     def derived_p0(self):
         """
@@ -1357,34 +1403,34 @@ class QueryATNF(object):
         given.
         """
 
-        if not np.all([p in self.__dataframe.columns for p in ['P0', 'F0']]):
+        if not np.all([p in self.columns for p in ['P0', 'F0']]):
             warnings.warn("Could not set periods.", UserWarning)
             return
 
-        F0 = self.__dataframe['F0']
-        P0 = self.__dataframe['P0']
+        F0 = self.catalogue['F0']
+        P0 = self.catalogue['P0']
 
         # find indices where P0 needs to be set from F0
         idx = ~np.isfinite(P0) & np.isfinite(F0)
         P0new = P0.copy()
         P0new[idx] = 1./F0[idx]
-        self.__dataframe.update(P0new)
+        self.update(P0new)
 
         # set the references
         reqpars = ['P0_REF', 'F0_REF']
-        if np.all([p in self.__dataframe.columns for p in reqpars]):
-            P0REFnew = self.__dataframe['P0_REF'].copy()
-            F0REF = self.__dataframe['F0_REF']
+        if np.all([p in self.columns for p in reqpars]):
+            P0REFnew = self.catalogue['P0_REF'].copy()
+            F0REF = self.catalogue['F0_REF']
             P0REFnew[idx] = F0REF[idx]
-            self.__dataframe.update(P0REFnew)
+            self.update(P0REFnew)
 
         # set the errors
         reqpars = ['P0_ERR', 'F0_ERR']
-        if np.all([p in self.__dataframe.columns for p in reqpars]):
-            P0ERRnew = self.__dataframe['P0_ERR'].copy()
-            F0ERR = self.__dataframe['F0_ERR']
+        if np.all([p in self.columns for p in reqpars]):
+            P0ERRnew = self.catalogue['P0_ERR'].copy()
+            F0ERR = self.catalogue['F0_ERR']
             P0ERRnew[idx] = F0ERR[idx]*P0[idx]**2
-            self.__dataframe.update(P0ERRnew)
+            self.update(P0ERRnew)
 
     def derived_f0(self):
         """
@@ -1392,34 +1438,34 @@ class QueryATNF(object):
         given.
         """
 
-        if not np.all([p in self.__dataframe.columns for p in ['P0', 'F0']]):
+        if not np.all([p in self.columns for p in ['P0', 'F0']]):
             warnings.warn("Could not set periods.", UserWarning)
             return
 
-        F0 = self.__dataframe['F0']
-        P0 = self.__dataframe['P0']
+        F0 = self.catalogue['F0']
+        P0 = self.catalogue['P0']
 
         # find indices where F0 needs to be set from P0
         idx = np.isfinite(P0) & ~np.isfinite(F0)
         F0new = F0.copy()
         F0new[idx] = 1./P0[idx]
-        self.__dataframe.update(F0new)
+        self.update(F0new)
 
         # set the references
         reqpars = ['P0_REF', 'F0_REF']
-        if np.all([p in self.__dataframe.columns for p in reqpars]):
-            F0REFnew = self.__dataframe['F0_REF'].copy()
-            P0REF = self.__dataframe['P0_REF']
+        if np.all([p in self.columns for p in reqpars]):
+            F0REFnew = self.catalogue['F0_REF'].copy()
+            P0REF = self.catalogue['P0_REF']
             F0REFnew[idx] = P0REF[idx]
-            self.__dataframe.update(F0REFnew)
+            self.update(F0REFnew)
 
         # set the errors
         reqpars = ['P0_ERR', 'F0_ERR']
-        if np.all([p in self.__dataframe.columns for p in reqpars]):
-            F0ERRnew = self.__dataframe['F0_ERR'].copy()
-            P0ERR = self.__dataframe['P0_ERR']
+        if np.all([p in self.columns for p in reqpars]):
+            F0ERRnew = self.catalogue['F0_ERR'].copy()
+            P0ERR = self.catalogue['P0_ERR']
             F0ERRnew[idx] = P0ERR[idx]*F0[idx]**2
-            self.__dataframe.update(F0ERRnew)
+            self.update(F0ERRnew)
 
     def derived_p1(self):
         """
@@ -1428,39 +1474,39 @@ class QueryATNF(object):
         """
 
         reqpars = ['P0', 'F0', 'F1', 'P1']
-        if not np.all([p in self.__dataframe.columns for p in reqpars]):
+        if not np.all([p in self.columns for p in reqpars]):
             warnings.warn("Could not set period derivatives.",
                           UserWarning)
             return
 
-        F0 = self.__dataframe['F0']
-        P0 = self.__dataframe['P0']
-        F1 = self.__dataframe['F1']
-        P1 = self.__dataframe['P1']
+        F0 = self.catalogue['F0']
+        P0 = self.catalogue['P0']
+        F1 = self.catalogue['F1']
+        P1 = self.catalogue['P1']
 
         # find indices where P0 needs to be set from F0
         idx = ~np.isfinite(P1) & np.isfinite(F1)
         P1new = P1.copy()
         P1new[idx] = -(P0[idx]**2)*F1[idx]
-        self.__dataframe.update(P1new)
+        self.update(P1new)
 
         # set the references
         reqpars = ['P1_REF', 'F1_REF']
-        if np.all([p in self.__dataframe.columns for p in reqpars]):
-            P1REFnew = self.__dataframe['P1_REF'].copy()
-            F1REF = self.__dataframe['F1_REF']
+        if np.all([p in self.columns for p in reqpars]):
+            P1REFnew = self.catalogue['P1_REF'].copy()
+            F1REF = self.catalogue['F1_REF']
             P1REFnew[idx] = F1REF[idx]
-            self.__dataframe.update(P1REFnew)
+            self.update(P1REFnew)
 
         # set the errors
         reqpars = ['P0_ERR', 'F0_ERR', 'F1_ERR', 'P1_ERR']
-        if np.all([p in self.__dataframe.columns for p in reqpars]):
-            P1ERRnew = self.__dataframe['P0_ERR'].copy()
-            F1ERR = self.__dataframe['F1_ERR']
-            F0ERR = self.__dataframe['F0_ERR']
+        if np.all([p in self.columns for p in reqpars]):
+            P1ERRnew = self.catalogue['P0_ERR'].copy()
+            F1ERR = self.catalogue['F1_ERR']
+            F0ERR = self.catalogue['F0_ERR']
             P1ERRnew[idx] = np.sqrt((P0[idx]**2*F1ERR[idx])**2
                                     +(2.0*P0[idx]**3*F1[idx]*F0ERR[idx])**2)
-            self.__dataframe.update(P1ERRnew)
+            self.update(P1ERRnew)
 
     def derived_f1(self):
         """
@@ -1469,72 +1515,72 @@ class QueryATNF(object):
         """
 
         reqpars = ['P0', 'F0', 'F1', 'P1']
-        if not np.all([p in self.__dataframe.columns for p in reqpars]):
+        if not np.all([p in self.columns for p in reqpars]):
             warnings.warn("Could not set period derivatives.",
                           UserWarning)
             return
 
-        F0 = self.__dataframe['F0']
-        P0 = self.__dataframe['P0']
-        F1 = self.__dataframe['F1']
-        P1 = self.__dataframe['P1']
+        F0 = self.catalogue['F0']
+        P0 = self.catalogue['P0']
+        F1 = self.catalogue['F1']
+        P1 = self.catalogue['P1']
 
         # find indices where P0 needs to be set from F0
         idx = np.isfinite(P1) & ~np.isfinite(F1)
         F1new = F1.copy()
         F1new[idx] = -(F0[idx]**2)*P1[idx]
-        self.__dataframe.update(F1new)
+        self.update(F1new)
 
         # set the references
         reqpars = ['P1_REF', 'F1_REF']
-        if np.all([p in self.__dataframe.columns for p in reqpars]):
-            F1REFnew = self.__dataframe['F1_REF'].copy()
-            P1REF = self.__dataframe['P1_REF']
+        if np.all([p in self.columns for p in reqpars]):
+            F1REFnew = self.catalogue['F1_REF'].copy()
+            P1REF = self.catalogue['P1_REF']
             F1REFnew[idx] = P1REF[idx]
-            self.__dataframe.update(F1REFnew)
+            self.update(F1REFnew)
 
         # set the errors
         reqpars = ['P0_ERR', 'F0_ERR', 'F1_ERR', 'P1_ERR']
-        if np.all([p in self.__dataframe.columns for p in reqpars]):
-            F1ERRnew = self.__dataframe['F0_ERR'].copy()
-            P1ERR = self.__dataframe['P1_ERR']
-            P0ERR = self.__dataframe['P0_ERR']
+        if np.all([p in self.columns for p in reqpars]):
+            F1ERRnew = self.catalogue['F0_ERR'].copy()
+            P1ERR = self.catalogue['P1_ERR']
+            P0ERR = self.catalogue['P0_ERR']
             F1ERRnew[idx] = np.sqrt((F0[idx]**2*P1ERR[idx])**2
                                      +(2.0*F0[idx]**3*P1[idx]*P0ERR[idx])**2)
-            self.__dataframe.update(F1ERRnew)
+            self.update(F1ERRnew)
 
     def derived_pb(self):
         """
         Calculate binary orbital period from orbital frequency.
         """
 
-        if not np.all([p in self.__dataframe.columns for p in ['PB', 'FB0']]):
+        if not np.all([p in self.columns for p in ['PB', 'FB0']]):
             warnings.warn("Could not set orbital period.",
                           UserWarning)
             return
 
-        FB0 = self.__dataframe['FB0']
-        PBnew = self.__dataframe['PB'].copy()
+        FB0 = self.catalogue['FB0']
+        PBnew = self.catalogue['PB'].copy()
 
         idx = ~np.isfinite(PBnew) & np.isfinite(FB0)
         PBnew[idx] = 1./(FB0[idx]*86400.)
-        self.__dataframe.update(PBnew)
+        self.update(PBnew)
 
         # set the references
         reqpars = ['PB_REF', 'FB0_REF']
-        if np.all([p in self.__dataframe.columns for p in reqpars]):
-            PBREFnew = self.__dataframe['PB_REF'].copy()
-            FB0REF = self.__dataframe['FB0_REF']
+        if np.all([p in self.columns for p in reqpars]):
+            PBREFnew = self.catalogue['PB_REF'].copy()
+            FB0REF = self.catalogue['FB0_REF']
             PBREFnew[idx] = FB0REF[idx]
-            self.__dataframe.update(PBREFnew)
+            self.update(PBREFnew)
 
         # set the errors
         reqpars = ['PB_ERR', 'FB0_ERR']
-        if np.all([p in self.__dataframe.columns for p in reqpars]):
-            PBERRnew = self.__dataframe['PB_ERR'].copy()
-            FB0ERR = self.__dataframe['FB0_ERR']
+        if np.all([p in self.columns for p in reqpars]):
+            PBERRnew = self.catalogue['PB_ERR'].copy()
+            FB0ERR = self.catalogue['FB0_ERR']
             PBERRnew[idx] = FB0ERR[idx]*PBnew[idx]**2*86400.
-            self.__dataframe.update(PBERRnew)
+            self.update(PBERRnew)
 
     def derived_pbdot(self):
         """
@@ -1543,70 +1589,70 @@ class QueryATNF(object):
         """
 
         reqpars = ['PBDOT', 'FB1', 'PB']
-        if not np.all([p in self.__dataframe.columns for p in reqpars]):
+        if not np.all([p in self.columns for p in reqpars]):
             warnings.warn("Could not set orbital period derivative.",
                           UserWarning)
             return
 
-        FB1 = self.__dataframe['FB1']
-        PB = self.__dataframe['PB']
-        PBDOTnew = self.__dataframe['PBDOT'].copy()
+        FB1 = self.catalogue['FB1']
+        PB = self.catalogue['PB']
+        PBDOTnew = self.catalogue['PBDOT'].copy()
 
         idx = ~np.isfinite(PBDOTnew) & np.isfinite(FB1)
         PBDOTnew[idx] = -(PB[idx]**2*FB1[idx])
-        self.__dataframe.update(PBDOTnew)
+        self.update(PBDOTnew)
 
         # set the references
         reqpars = ['PBDOT_REF', 'FB1_REF']
-        if np.all([p in self.__dataframe.columns for p in reqpars]):
-            PBDOTREFnew = self.__dataframe['PBDOT_REF'].copy()
-            FB1REF = self.__dataframe['FB1_REF']
+        if np.all([p in self.columns for p in reqpars]):
+            PBDOTREFnew = self.catalogue['PBDOT_REF'].copy()
+            FB1REF = self.catalogue['FB1_REF']
             PBDOTREFnew[idx] = FB1REF[idx]
-            self.__dataframe.update(PBDOTREFnew)
+            self.update(PBDOTREFnew)
 
         # set the errors
         reqpars = ['PBDOT_ERR', 'FB1_ERR', 'FB0_ERR']
-        if np.all([p in self.__dataframe.columns for p in reqpars]):
-            PBDOTERRnew = self.__dataframe['PBDOT_ERR'].copy()
-            FB1ERR = self.__dataframe['FB1_ERR']
-            FB0ERR = self.__dataframe['FB0_ERR']
+        if np.all([p in self.columns for p in reqpars]):
+            PBDOTERRnew = self.catalogue['PBDOT_ERR'].copy()
+            FB1ERR = self.catalogue['FB1_ERR']
+            FB0ERR = self.catalogue['FB0_ERR']
             PBDOTERRnew[idx] = np.sqrt((PB[idx]**2 * FB1ERR[idx])**2
                                        + (2.0 * PB[idx]**3 * FB1[idx]
                                           * FB0ERR[idx])**2)
-            self.__dataframe.update(PBDOTERRnew)
+            self.update(PBDOTERRnew)
 
     def derived_fb0(self):
         """
         Calculate orbital frequency from orbital period.
         """
 
-        if not np.all([p in self.__dataframe.columns for p in ['PB', 'FB0']]):
+        if not np.all([p in self.columns for p in ['PB', 'FB0']]):
             warnings.warn("Could not set orbital frequency.",
                           UserWarning)
             return
 
-        PB = self.__dataframe['PB']
-        FB0new = self.__dataframe['FB0'].copy()
+        PB = self.catalogue['PB']
+        FB0new = self.catalogue['FB0'].copy()
 
         idx = ~np.isfinite(FB0new) & np.isfinite(PB)
         FB0new[idx] = 1./(PB[idx]*86400.)
-        self.__dataframe.update(FB0new)
+        self.update(FB0new)
 
         # set the references
         reqpars = ['PB_REF', 'FB0_REF']
-        if np.all([p in self.__dataframe.columns for p in reqpars]):
-            FB0REFnew = self.__dataframe['FB0_REF'].copy()
-            PBREF = self.__dataframe['PB_REF']
+        if np.all([p in self.columns for p in reqpars]):
+            FB0REFnew = self.catalogue['FB0_REF'].copy()
+            PBREF = self.catalogue['PB_REF']
             FB0REFnew[idx] = PBREF[idx]
-            self.__dataframe.update(FB0REFnew)
+            self.update(FB0REFnew)
 
         # set the errors
         reqpars = ['PB_ERR', 'FB0_ERR']
-        if np.all([p in self.__dataframe.columns for p in reqpars]):
-            FB0ERRnew = self.__dataframe['FB0_ERR'].copy()
-            PBERR = self.__dataframe['PB_ERR']
+        if np.all([p in self.columns for p in reqpars]):
+            FB0ERRnew = self.catalogue['FB0_ERR'].copy()
+            PBERR = self.catalogue['PB_ERR']
             FB0ERRnew[idx] = PBERR[idx]*(FB0new[idx]**2)*86400.
-            self.__dataframe.update(FB0ERRnew)
+            self.update(FB0ERRnew)
 
     def derived_fb1(self):
         """
@@ -1615,59 +1661,56 @@ class QueryATNF(object):
         """
 
         reqpars = ['PBDOT', 'FB1', 'FB0']
-        if not np.all([p in self.__dataframe.columns for p in reqpars]):
+        if not np.all([p in self.columns for p in reqpars]):
             warnings.warn("Could not set orbital period derivative.",
                           UserWarning)
             return
 
-        PBDOT = self.__dataframe['PBDOT']
-        FB0 = self.__dataframe['FB0']
-        FB1new = self.__dataframe['FB1'].copy()
+        PBDOT = self.catalogue['PBDOT']
+        FB0 = self.catalogue['FB0']
+        FB1new = self.catalogue['FB1'].copy()
 
         idx = ~np.isfinite(FB1new) & np.isfinite(PBDOT)
         FB1new[idx] = -(FB0[idx]**2*PBDOT[idx])
-        self.__dataframe.update(FB1new)
+        self.update(FB1new)
 
         # set the references
         reqpars = ['PBDOT_REF', 'FB1_REF']
-        if np.all([p in self.__dataframe.columns for p in reqpars]):
-            FB1REFnew = self.__dataframe['FB1_REF'].copy()
-            PBDOTREF = self.__dataframe['PBDOT_REF']
+        if np.all([p in self.columns for p in reqpars]):
+            FB1REFnew = self.catalogue['FB1_REF'].copy()
+            PBDOTREF = self.catalogue['PBDOT_REF']
             FB1REFnew[idx] = PBDOTREF[idx]
-            self.__dataframe.update(FB1REFnew)
+            self.update(FB1REFnew)
 
         # set the errors
         reqpars = ['PBDOT_ERR', 'FB1_ERR', 'PB_ERR']
-        if np.all([p in self.__dataframe.columns for p in reqpars]):
-            FB1ERRnew = self.__dataframe['FB1_ERR'].copy()
-            PBDOTERR = self.__dataframe['PBDOT_ERR']
-            PBERR = self.__dataframe['PB_ERR']
+        if np.all([p in self.columns for p in reqpars]):
+            FB1ERRnew = self.catalogue['FB1_ERR'].copy()
+            PBDOTERR = self.catalogue['PBDOT_ERR']
+            PBERR = self.catalogue['PB_ERR']
             FB1ERRnew[idx] = np.sqrt((FB0[idx]**2 * PBDOTERR[idx])**2
                                      +(2.0 * FB0[idx]**3 * PBDOT[idx]*
                                        PBERR[idx] * 86400.)**2)
-            self.__dataframe.update(FB1ERRnew)
+            self.update(FB1ERRnew)
 
     def derived_p1_i(self):
         """
         Calculate the intrinsic period derivative.
         """
 
-        if 'P1_I' in self.__dataframe.columns:
-            return
-
-        if 'VTRANS' not in self.__dataframe.columns:
+        if 'VTRANS' not in self.columns:
             self.derived_vtrans()
 
-        if not np.all([p in self.__dataframe.columns for p in ['VTRANS', 'P0', 'P1', 'DIST']]):
+        if not np.all([p in self.columns for p in ['VTRANS', 'P0', 'P1', 'DIST']]):
             warnings.warn("Could not set intrinsic period derivative.",
                           UserWarning)
             return
 
         # get required parameters
-        VTRANS = self.__dataframe['VTRANS']
-        P0 = self.__dataframe['P0']
-        P1 = self.__dataframe['P1']
-        DIST = self.__dataframe['DIST']
+        VTRANS = self.catalogue['VTRANS']
+        P0 = self.catalogue['P0']
+        P1 = self.catalogue['P1']
+        DIST = self.catalogue['DIST']
 
         P1I = np.full(len(P0), np.nan)
         idx = (np.isfinite(P1) & np.isfinite(P0) & np.isfinite(VTRANS) &
@@ -1675,30 +1718,26 @@ class QueryATNF(object):
         P1I[idx] = ((P1[idx]/1.0e-15) -
                     VTRANS[idx]**2 * 1.0e10 * P0[idx]/
                     (DIST[idx] * 3.086e6)/2.9979e10) * 1.0e-15
-        self.__dataframe['P1_I'] = P1I
+        self.update(P1I, name='P1_I')
 
     def derived_age(self):
         """
         Calculate the characteristic age.
         """
 
-        # check if AGE is already defined
-        if 'AGE' in self.__dataframe.columns:
-            return
-
-        if not np.all([p in self.__dataframe.columns for p in ['P0', 'P1']]):
+        if not np.all([p in self.columns for p in ['P0', 'P1']]):
             warnings.warn("Could not set characteristic age.",
                           UserWarning)
             return
 
         # get period and period derivative
-        P0 = self.__dataframe['P0']
-        P1 = self.__dataframe['P1']
+        P0 = self.catalogue['P0']
+        P1 = self.catalogue['P1']
 
         AGE = np.full(len(P0), np.nan)
         idx = (P1 > 0.) & (P0 > 0.) & np.isfinite(P0) & np.isfinite(P1)
         AGE[idx] = 0.5 * (P0[idx] / P1[idx]) / (60.0 * 60.0 * 24.0 * 365.25)
-        self.__dataframe['AGE'] = AGE
+        self.update(AGE, name='AGE')
 
     def derived_age_i(self):
         """
@@ -1706,47 +1745,41 @@ class QueryATNF(object):
         period derivative.
         """
 
-        if 'AGE_I' in self.__dataframe.columns:
-            return
-
-        if 'P1_I' not in self.__dataframe.columns:
+        if 'P1_I' not in self.columns:
             self.derived_p1_i()
 
-        if not np.all([p in self.__dataframe.columns for p in ['P0', 'P1_I']]):
+        if not np.all([p in self.columns for p in ['P0', 'P1_I']]):
             warnings.warn("Could not set characteristic age.",
                           UserWarning)
             return
 
         # get period and period derivative
-        P0 = self.__dataframe['P0']
-        P1_I = self.__dataframe['P1_I']
+        P0 = self.catalogue['P0']
+        P1_I = self.catalogue['P1_I']
 
         AGEI = np.full(len(P0), np.nan)
         idx = (P1_I > 0.) & (P0 > 0.) & np.isfinite(P1_I) & np.isfinite(P0)
         AGEI[idx] = 0.5 * (P0[idx] / P1_I[idx]) / (60.0 * 60.0 * 24.0 * 365.25)
-        self.__dataframe['AGE_I'] = AGEI
+        self.update(AGEI, name='AGE_I')
 
     def derived_bsurf(self):
         """
         Calculate the surface magnetic field strength.
         """
 
-        if 'BSURF' in self.__dataframe.columns:
-            return
-
-        if not np.all([p in self.__dataframe.columns for p in ['P0', 'P1']]):
+        if not np.all([p in self.columns for p in ['P0', 'P1']]):
             warnings.warn("Could not set surface magnetic field.",
                           UserWarning)
             return
 
         # get period and period derivative
-        P0 = self.__dataframe['P0']
-        P1 = self.__dataframe['P1']
+        P0 = self.catalogue['P0']
+        P1 = self.catalogue['P1']
 
         BSURF = np.full(len(P0), np.nan)
         idx = (P1 > 0.) & np.isfinite(P1) & np.isfinite(P0)
         BSURF[idx] = 3.2e19 * np.sqrt(np.abs(P0[idx] * P1[idx]))
-        self.__dataframe['BSURF'] = BSURF
+        self.update(BSURF, name='BSURF')
 
     def derived_bsurf_i(self):
         """
@@ -1754,69 +1787,60 @@ class QueryATNF(object):
         intrinsic period derivative.
         """
 
-        if 'BSURF_I' in self.__dataframe.columns:
-            return
-
-        if 'P1_I' not in self.__dataframe.columns:
+        if 'P1_I' not in self.columns:
             self.derived_p1_i()
 
-        if not np.all([p in self.__dataframe.columns for p in ['P0', 'P1_I']]):
+        if not np.all([p in self.columns for p in ['P0', 'P1_I']]):
             warnings.warn("Could not set surface magnetic field.",
                           UserWarning)
             return
 
         # get period and period derivative
-        P0 = self.__dataframe['P0']
-        P1_I = self.__dataframe['P1_I']
+        P0 = self.catalogue['P0']
+        P1_I = self.catalogue['P1_I']
 
         BSURFI = np.full(len(P0), np.nan)
         idx = (P1_I > 0.) & np.isfinite(P1_I) & np.isfinite(P0)
         BSURFI[idx] = 3.2e19 * np.sqrt(np.abs(P0[idx] * P1_I[idx]))
-        self.__dataframe['BSURF_I'] = BSURFI
+        self.update(BSURFI, name='BSURF_I')
 
     def derived_b_lc(self):
         """
         Calculate the magnetic field strength at the light cylinder.
         """
 
-        if 'B_LC' in self.__dataframe.columns:
-            return
-
-        if not np.all([p in self.__dataframe.columns for p in ['P0', 'P1']]):
+        if not np.all([p in self.columns for p in ['P0', 'P1']]):
             warnings.warn("Could not set light cylinder magnetic field.",
                           UserWarning)
             return
 
         # get period and period derivative
-        P0 = self.__dataframe['P0']
-        P1 = self.__dataframe['P1']
+        P0 = self.catalogue['P0']
+        P1 = self.catalogue['P1']
 
         BLC = np.full(len(P0), np.nan)
         idx = (P1 > 0.) & np.isfinite(P1) & np.isfinite(P0)
         BLC[idx] = 3.0e8*np.sqrt(P1[idx])*np.abs(P0[idx])**(-5./2.)
-        self.__dataframe['B_LC'] = BLC
+        self.update(BLC, name='B_LC')
 
     def derived_edot(self):
         """
         Calculate the spin-down luminosity.
         """
 
-        if 'EDOT' in self.__dataframe.columns:
-            return
-
-        if not np.all([p in self.__dataframe.columns for p in ['P0', 'P1']]):
+        if not np.all([p in self.columns for p in ['P0', 'P1']]):
             warnings.warn("Could not set spin-down luminosity.",
                           UserWarning)
             return
 
         # get period and period derivative
-        P0 = self.__dataframe['P0']
-        P1 = self.__dataframe['P1']
+        P0 = self.catalogue['P0']
+        P1 = self.catalogue['P1']
 
         EDOT = np.full(len(P0), np.nan)
         idx = (P1 > 0.) & np.isfinite(P1) & np.isfinite(P0)
         EDOT[idx] = 4.0 * np.pi**2 * 1e45 * P1[idx] / P0[idx]**3
-        self.__dataframe['EDOT'] = EDOT
+        self.update(EDOT, name='EDOT')
 
     def derived_edot_i(self):
         """
@@ -1824,69 +1848,60 @@ class QueryATNF(object):
         period derivative.
         """
 
-        if 'EDOT_I' in self.__dataframe.columns:
-            return
-
-        if 'P1_I' not in self.__dataframe.columns:
+        if 'P1_I' not in self.columns:
             self.derived_p1_i()
 
-        if not np.all([p in self.__dataframe.columns for p in ['P0', 'P1_I']]):
+        if not np.all([p in self.columns for p in ['P0', 'P1_I']]):
             warnings.warn("Could not set spin-down luminosity.",
                           UserWarning)
             return
 
         # get period and period derivative
-        P0 = self.__dataframe['P0']
-        P1_I = self.__dataframe['P1_I']
+        P0 = self.catalogue['P0']
+        P1_I = self.catalogue['P1_I']
 
         EDOT_I = np.full(len(P0), np.nan)
         idx = (P1_I > 0.) & np.isfinite(P1_I) & np.isfinite(P0)
         EDOT_I[idx] = 4.0 * np.pi**2 * 1e45 * P1_I[idx] / P0[idx]**3
-        self.__dataframe['EDOT_I'] = EDOT_I
+        self.update(EDOT_I, name='EDOT_I')
 
     def derived_edotd2(self):
         """
         Calculate the spin-down luminosity flux at the Sun.
         """
 
-        if 'EDOTD2' in self.__dataframe.columns:
-            return
-
         reqpars = ['P0', 'P1', 'DIST']
-        if not np.all([p in self.__dataframe.columns for p in reqpars]):
+        if not np.all([p in self.columns for p in reqpars]):
             warnings.warn("Could not set spin-down luminosity flux.",
                           UserWarning)
             return
 
         # get period, period derivative and distance
-        P0 = self.__dataframe['P0']
-        P1 = self.__dataframe['P1']
-        DIST = self.__dataframe['DIST']
+        P0 = self.catalogue['P0']
+        P1 = self.catalogue['P1']
+        DIST = self.catalogue['DIST']
 
         EDOTD2 = np.full(len(P0), np.nan)
         idx = (P0 > 0.) & np.isfinite(P1) & np.isfinite(P0) & np.isfinite(DIST)
         EDOTD2[idx] = 4.0*np.pi**2*1e45*((P1[idx]/P0[idx]**3)/DIST[idx]**2)
-        self.__dataframe['EDOTD2'] = EDOTD2
+        self.update(EDOTD2, name='EDOTD2')
 
     def derived_pmtot(self):
         """
         Calculate the total proper motion and error.
         """
 
-        if 'PMTOT' in self.__dataframe.columns:
-            return
-
         reqpars = ['PMRA', 'PMDEC', 'PMELONG', 'PMELAT']
-        if not np.all([p in self.__dataframe.columns for p in reqpars]):
+        if not np.all([p in self.columns for p in reqpars]):
             warnings.warn("Could not set total proper motion.",
                           UserWarning)
             return
 
         # get PMRA and PMDEC
-        PMRA = self.__dataframe['PMRA'].copy()
-        PMDEC = self.__dataframe['PMDEC'].copy()
-        PMELONG = self.__dataframe['PMELONG']
-        PMELAT = self.__dataframe['PMELAT']
+        PMRA = self.catalogue['PMRA'].copy()
+        PMDEC = self.catalogue['PMDEC'].copy()
+        PMELONG = self.catalogue['PMELONG']
+        PMELAT = self.catalogue['PMELAT']
 
         # use PM ELONG or ELAT if no RA and DEC
         useelong = ~np.isfinite(PMRA) & np.isfinite(PMELONG)
@@ -1895,48 +1910,45 @@ class QueryATNF(object):
         PMDEC[useelat] = PMELAT[useelat]
 
         PMTOT = np.sqrt(PMRA**2+PMDEC**2)
-        self.__dataframe['PMTOT'] = PMTOT
+        self.update(PMTOT, name='PMTOT')
 
         # get the error
         reqpars = ['PMRA_ERR', 'PMDEC_ERR', 'PMELONG_ERR', 'PMELAT_ERR']
-        if not np.all([p in self.__dataframe.columns for p in reqpars]):
+        if not np.all([p in self.columns for p in reqpars]):
             return
 
-        PMRA_ERR = self.__dataframe['PMRA_ERR'].copy()
-        PMDEC_ERR = self.__dataframe['PMDEC_ERR'].copy()
-        PMELONG_ERR = self.__dataframe['PMELONG_ERR']
-        PMELAT_ERR = self.__dataframe['PMELAT_ERR']
+        PMRA_ERR = self.catalogue['PMRA_ERR'].copy()
+        PMDEC_ERR = self.catalogue['PMDEC_ERR'].copy()
+        PMELONG_ERR = self.catalogue['PMELONG_ERR']
+        PMELAT_ERR = self.catalogue['PMELAT_ERR']
         PMDEC_ERR[useelong] = PMELONG_ERR[useelong]
         PMRA_ERR[useelat] = PMELAT_ERR[useelat]
 
         PMTOTERR = np.sqrt(((PMRA*PMRA_ERR)**2+(PMDEC*PMDEC_ERR)**2)/
                            (PMRA**2 + PMDEC**2))
-        self.__dataframe['PMTOT_ERR'] = PMTOTERR
+        self.update(PMTOTERR, name='PMTOT_ERR')
 
     def derived_vtrans(self):
         """
         Calculate the transverse velocity.
         """
 
-        if 'VTRANS' in self.__dataframe.columns:
-            return
-
-        if 'PMTOT' not in self.__dataframe.columns:
+        if 'PMTOT' not in self.columns:
             self.derived_pmtot()
 
-        if not np.all([p in self.__dataframe.columns for p in ['PMTOT', 'DIST']]):
+        if not np.all([p in self.columns for p in ['PMTOT', 'DIST']]):
             warnings.warn("Could not set transverse velocity.",
                           UserWarning)
             return
 
-        PMTOT = self.__dataframe['PMTOT']
-        DIST = self.__dataframe['DIST']
+        PMTOT = self.catalogue['PMTOT']
+        DIST = self.catalogue['DIST']
 
         VTRANS = np.full(len(PMTOT), np.nan)
         idx = np.isfinite(PMTOT) & np.isfinite(DIST)
         VTRANS[idx] = (PMTOT[idx]/(1000.0*3600.0*180.0*np.pi*365.25*
                                    86400.0))*3.086e16*DIST[idx]
-        self.__dataframe['VTRANS'] = VTRANS
+        self.update(VTRANS, name='VTRANS')
 
     def derived_flux(self):
         """
@@ -1944,41 +1956,38 @@ class QueryATNF(object):
         flux at 400 and 1400 MHz.
         """
 
-        if 'SI414' in self.__dataframe.columns:
-            return
-
-        if not np.all([p in self.__dataframe.columns for p in ['S1400', 'S400']]):
+        if not np.all([p in self.columns for p in ['S1400', 'S400']]):
             warnings.warn("Could not set spectral index.",
                           UserWarning)
             return
 
-        S1400 = self.__dataframe['S1400']
-        S400 = self.__dataframe['S400']
+        S1400 = self.catalogue['S1400']
+        S400 = self.catalogue['S400']
 
         SI414 = np.full(len(S1400), np.nan)
         idx = np.isfinite(S1400) & np.isfinite(S400) & (S1400 > 0.) & (S400 > 0.)
         fac = np.log10(400.0/1400.0)
         SI414[idx] = -(np.log10(S400[idx]/S1400[idx])/fac)
-        self.__dataframe['SI414'] = SI414
+        self.update(SI414, name='SI414')
 
         # need distance for flux
-        if 'DIST' not in self.__dataframe.columns:
+        if 'DIST' not in self.columns:
             self.define_dist()
 
-        if 'DIST' not in self.__dataframe.columns:
+        if 'DIST' not in self.columns:
             return
 
-        DIST = self.__dataframe['DIST']
+        DIST = self.catalogue['DIST']
 
         R_LUM = np.full(len(S400), np.nan)
         idx = np.isfinite(S400) & np.isfinite(DIST)
         R_LUM[idx] = S400[idx] * DIST[idx]**2
-        self.__dataframe['R_LUM'] = R_LUM
+        self.update(R_LUM, name='R_LUM')
 
         R_LUM14 = np.full(len(S1400), np.nan)
         idx = np.isfinite(S1400) & np.isfinite(DIST)
         R_LUM14[idx] = S1400[idx] * DIST[idx]**2
-        self.__dataframe['R_LUM14'] = R_LUM14
+        self.update(R_LUM14, name='R_LUM14')
 
     def get_pulsar(self, psr):
         """
@@ -1993,16 +2002,16 @@ class QueryATNF(object):
         """
 
         namepars = ['PSRJ', 'PSRB', 'BNAME', 'JNAME', 'NAME']
-        if not np.any([p in self.__dataframe.columns for p in namepars]):
+        if not np.any([p in self.columns for p in namepars]):
             warnings.warn("No 'NAME' parameter in table!")
             return None
 
         # try searching for the name in each potential name-type
         for namepar in namepars:
-            if namepar in self.__dataframe.columns:
-                names = self.__dataframe[namepar]
+            if namepar in self.columns:
+                names = self.catalogue[namepar]
                 if np.any(psr==names):
-                    return self.__dataframe[psr==names]
+                    return self.catalogue[psr==names]
 
         return None
 
