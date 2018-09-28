@@ -892,7 +892,6 @@ class QueryATNF(object):
         self.derived_equatorial()  # derive equatorial coords from ecliptic
         self.derived_ecliptic()  # derive the ecliptic coordinates if not given
         self.define_galactic()     # define the galactic coordinates
-        self.derived_binary()      # derived binary parameters 
         self.derived_p0()          # derive P0 from F0 if not given
         self.derived_f0()          # derive F0 from P0 if not given
         self.derived_p1()          # derive P1 from F1 if not given
@@ -913,6 +912,7 @@ class QueryATNF(object):
         self.derived_bsurf_i()     # intrinsic Bsurf
         self.derived_edot_i()      # intrinsic luminosity
         self.derived_flux()        # radio flux
+        self.derived_binary()      # derived binary parameters
 
     def define_dist(self):
         """
@@ -1233,6 +1233,8 @@ class QueryATNF(object):
         Calculate derived binary system parameters.
         """
 
+        MASS_PSR = 1.35  # canonical pulsar mass (solar masses)
+
         # derive mass function
         reqpars = ['A1', 'PB']
         if np.all([p in self.__dataframe.columns for p in reqpars]):
@@ -1254,7 +1256,6 @@ class QueryATNF(object):
             def solfunc(m2, sini, mf, m1):
                 return (m1 + m2)**2 - (m2*sini)**3/mf
 
-            MASS_PSR = 1.35  # pulsar mass initial guess
             SINI_MIN = 1.0  # inclination for minimum mass
             SINI_MED = 0.866025403  # inclination of 60deg for median mass
             SINI_90 = 0.438371146   # inclination for 90% UL mass
@@ -1331,6 +1332,24 @@ class QueryATNF(object):
             OMnew[idxn] += 360.
 
             self.__dataframe.update(OMnew)
+
+        # derive MINOMDOT
+        reqpars = ['ECC', 'PB', 'MINMASS']
+        if np.all([p in self.__dataframe.columns for p in reqpars]):
+            MINMASS = self.__dataframe['MINMASS'].values.copy()
+            PB = self.__dataframe['PB'].values.copy()*86400.
+            ECC = self.__dataframe['ECC'].values.copy()
+
+            MINOMDOT = np.full(len(PB), np.nan)
+
+            idx = np.isfinite(MINMASS) & np.isfinite(PB) & np.isfinite(ECC)
+
+            MINOMDOT[idx] = (3.*(2.*np.pi/PB[idx])**(5./3.)*
+                            ((MASS_PSR+MINMASS[idx])*4.925490946e-6)**(2./3.)/
+                            (1.-ECC[idx]**2))
+            MINOMDOT[idx] = np.rad2deg(MINOMDOT[idx])*86400.*365.25
+
+            self.__dataframe['MINOMDOT'] = MINOMDOT
 
     def derived_p0(self):
         """
