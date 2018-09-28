@@ -1,0 +1,24 @@
+# A fake catalogue based on derived values returned from the
+# full ATNF Pulsar Catalogue (v1.59). Note: errors on derived
+# parameters in the ATNF Pulsar Catalogue are always rounded
+# up at the last significent figure.
+# TEST1 is based on J0023+0923
+PSRJ     TEST1
+P0       0.003050203104480002 7
+P1       1.14234E-20          4
+OM       119                  23
+ECC      8.2e-6               32
+MINMASS  0.016388
+MAXMASS  0.018946
+UPRMASS  0.037772
+MINOMDOT 6.58
+BINARY   ELL1
+AGE      4.23e+09
+BSURF    1.89e+08
+DIST     1.11
+DIST1    1.11
+ELONG    9.07039380           1
+ELAT     6.30910853           9
+GL       111.38
+GB       -52.85
+@-----------------------------------------------------------------
