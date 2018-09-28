@@ -1080,6 +1080,7 @@ class QueryATNF(object):
         if not np.all([p in self.columns for p in reqpar]):
             warnings.warn("Could not set equatorial coordinates.",
                           UserWarning)
+            return
 
         ELONG = self.catalogue['ELONG']
         ELAT = self.catalogue['ELAT']
@@ -1156,6 +1157,7 @@ class QueryATNF(object):
         if not np.all([p in self.columns for p in reqpar]):
             warnings.warn("Could not set ecliptic coordinates.",
                           UserWarning)
+            return
 
         RAJD = self.catalogue['RAJD']
         DECJD = self.catalogue['DECJD']
@@ -1436,34 +1438,31 @@ class QueryATNF(object):
         given.
         """
 
-        if not np.all([p in self.columns for p in ['P0', 'F0']]):
-            warnings.warn("Could not set periods.", UserWarning)
+        if 'F0' not in self.columns:
             return
 
         F0 = self.catalogue['F0']
-        P0 = self.catalogue['P0']
+        P0new = np.full(len(F0), np.nan)
 
         # find indices where P0 needs to be set from F0
-        idx = ~np.isfinite(P0) & np.isfinite(F0)
-        P0new = P0.copy()
+        idx = np.isfinite(F0)
         P0new[idx] = 1./F0[idx]
-        self.update(P0new)
+        self.update(P0new, name='P0')
 
         # set the references
-        reqpars = ['P0_REF', 'F0_REF']
-        if np.all([p in self.columns for p in reqpars]):
-            P0REFnew = self.catalogue['P0_REF'].copy()
+        if 'F0_REF' in self.columns:
+            P0REFnew = np.full(len(F0), np.nan)
             F0REF = self.catalogue['F0_REF']
             P0REFnew[idx] = F0REF[idx]
-            self.update(P0REFnew)
+            self.update(P0REFnew, 'P0_REF')
 
         # set the errors
-        reqpars = ['P0_ERR', 'F0_ERR']
-        if np.all([p in self.columns for p in reqpars]):
-            P0ERRnew = self.catalogue['P0_ERR'].copy()
+        if 'F0_ERR' in self.columns:
+            P0ERRnew = np.full(len(F0), np.nan)
             F0ERR = self.catalogue['F0_ERR']
-            P0ERRnew[idx] = F0ERR[idx]*P0[idx]**2
-            self.update(P0ERRnew)
+            idx = idx & np.isfinite(F0ERR)
+            P0ERRnew[idx] = F0ERR[idx]*P0new[idx]**2
+            self.update(P0ERRnew, 'P0_ERR')
 
     def derived_f0(self):
         """
@@ -1471,34 +1470,31 @@ class QueryATNF(object):
         given.
         """
 
-        if not np.all([p in self.columns for p in ['P0', 'F0']]):
-            warnings.warn("Could not set periods.", UserWarning)
+        if 'P0' not in self.columns:
             return
 
-        F0 = self.catalogue['F0']
         P0 = self.catalogue['P0']
+        F0new = np.full(len(P0), np.nan)
 
         # find indices where F0 needs to be set from P0
-        idx = np.isfinite(P0) & ~np.isfinite(F0)
-        F0new = F0.copy()
+        idx = np.isfinite(P0)
         F0new[idx] = 1./P0[idx]
-        self.update(F0new)
+        self.update(F0new, name='F0')
 
         # set the references
-        reqpars = ['P0_REF', 'F0_REF']
-        if np.all([p in self.columns for p in reqpars]):
-            F0REFnew = self.catalogue['F0_REF'].copy()
+        if 'P0_REF' in self.columns:
+            F0REFnew = np.full(len(P0), np.nan)
             P0REF = self.catalogue['P0_REF']
             F0REFnew[idx] = P0REF[idx]
-            self.update(F0REFnew)
+            self.update(F0REFnew, name='F0_REF')
 
         # set the errors
-        reqpars = ['P0_ERR', 'F0_ERR']
-        if np.all([p in self.columns for p in reqpars]):
-            F0ERRnew = self.catalogue['F0_ERR'].copy()
+        if 'P0_ERR' in self.columns:
+            F0ERRnew = np.full(len(P0), np.nan)
             P0ERR = self.catalogue['P0_ERR']
-            F0ERRnew[idx] = P0ERR[idx]*F0[idx]**2
-            self.update(F0ERRnew)
+            idx = idx & np.isfinite(P0ERR)
+            F0ERRnew[idx] = P0ERR[idx]*F0new[idx]**2
+            self.update(F0ERRnew, name='F0_ERR')
 
     def derived_p1(self):
         """
@@ -1506,40 +1502,36 @@ class QueryATNF(object):
         where period derivative is not given.
         """
 
-        reqpars = ['P0', 'F0', 'F1', 'P1']
+        reqpars = ['P0', 'F1']
         if not np.all([p in self.columns for p in reqpars]):
-            warnings.warn("Could not set period derivatives.",
-                          UserWarning)
             return
 
-        F0 = self.catalogue['F0']
         P0 = self.catalogue['P0']
         F1 = self.catalogue['F1']
-        P1 = self.catalogue['P1']
+        P1new = np.full(len(P0), np.nan)
 
         # find indices where P0 needs to be set from F0
-        idx = ~np.isfinite(P1) & np.isfinite(F1)
-        P1new = P1.copy()
+        idx = np.isfinite(P0) & np.isfinite(F1)
         P1new[idx] = -(P0[idx]**2)*F1[idx]
-        self.update(P1new)
+        self.update(P1new, name='P1')
 
         # set the references
-        reqpars = ['P1_REF', 'F1_REF']
-        if np.all([p in self.columns for p in reqpars]):
-            P1REFnew = self.catalogue['P1_REF'].copy()
+        if 'F1_REF' in self.columns:
+            P1REFnew = np.full(len(P0), np.nan)
             F1REF = self.catalogue['F1_REF']
             P1REFnew[idx] = F1REF[idx]
-            self.update(P1REFnew)
+            self.update(P1REFnew, name='P1_REF')
 
         # set the errors
-        reqpars = ['P0_ERR', 'F0_ERR', 'F1_ERR', 'P1_ERR']
+        reqpars = ['F0_ERR', 'F1_ERR']
         if np.all([p in self.columns for p in reqpars]):
-            P1ERRnew = self.catalogue['P0_ERR'].copy()
+            P1ERRnew = np.full(len(P0), np.nan)
             F1ERR = self.catalogue['F1_ERR']
             F0ERR = self.catalogue['F0_ERR']
+            idx = idx & (np.isfinite(F1ERR) & np.isfinite(F0ERR))
             P1ERRnew[idx] = np.sqrt((P0[idx]**2*F1ERR[idx])**2
                                     +(2.0*P0[idx]**3*F1[idx]*F0ERR[idx])**2)
-            self.update(P1ERRnew)
+            self.update(P1ERRnew, name='P1_ERR')
 
     def derived_f1(self):
         """
@@ -1547,40 +1539,36 @@ class QueryATNF(object):
         where frequency derivative is not given.
         """
 
-        reqpars = ['P0', 'F0', 'F1', 'P1']
+        reqpars = ['F0', 'P1']
         if not np.all([p in self.columns for p in reqpars]):
-            warnings.warn("Could not set period derivatives.",
-                          UserWarning)
             return
 
         F0 = self.catalogue['F0']
-        P0 = self.catalogue['P0']
-        F1 = self.catalogue['F1']
         P1 = self.catalogue['P1']
+        F1new = np.full(len(F0), np.nan)
 
         # find indices where P0 needs to be set from F0
-        idx = np.isfinite(P1) & ~np.isfinite(F1)
-        F1new = F1.copy()
+        idx = np.isfinite(P1) & np.isfinite(F0)
         F1new[idx] = -(F0[idx]**2)*P1[idx]
-        self.update(F1new)
+        self.update(F1new, name='F1')
 
         # set the references
-        reqpars = ['P1_REF', 'F1_REF']
-        if np.all([p in self.columns for p in reqpars]):
-            F1REFnew = self.catalogue['F1_REF'].copy()
+        if 'P1_REF' in self.columns:
+            F1REFnew = np.full(len(P0), np.nan)
             P1REF = self.catalogue['P1_REF']
             F1REFnew[idx] = P1REF[idx]
-            self.update(F1REFnew)
+            self.update(F1REFnew, name='F1_REF')
 
         # set the errors
-        reqpars = ['P0_ERR', 'F0_ERR', 'F1_ERR', 'P1_ERR']
+        reqpars = ['P0_ERR', 'P1_ERR']
         if np.all([p in self.columns for p in reqpars]):
-            F1ERRnew = self.catalogue['F0_ERR'].copy()
+            F1ERRnew = np.full(len(F0), np.nan)
             P1ERR = self.catalogue['P1_ERR']
             P0ERR = self.catalogue['P0_ERR']
+            idx = idx & (np.isfinite(P1ERR) & np.isfinite(P0ERR))
             F1ERRnew[idx] = np.sqrt((F0[idx]**2*P1ERR[idx])**2
                                      +(2.0*F0[idx]**3*P1[idx]*P0ERR[idx])**2)
-            self.update(F1ERRnew)
+            self.update(F1ERRnew, name='F1_ERR')
 
     def derived_pb(self):
         """
