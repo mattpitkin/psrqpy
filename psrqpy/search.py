@@ -878,11 +878,11 @@ class QueryATNF(object):
             ASSOCREFnew = self.catalogue['ASSOC_REF'].copy()
 
         ASSOCREFnew[idxassoc] = ASSOCnew[idxassoc].apply(lambda x: 
-                                                         re.split('\]', re.split('\[', x)[1])[0] 
-                                                         if len(re.split('\[', x)) > 1 else np.nan)
+                                                         re.split(r'\]', re.split(r'\[', x)[1])[0] 
+                                                         if len(re.split(r'\[', x)) > 1 else np.nan)
 
         # Set values
-        ASSOCnew[idxassoc] = ASSOCnew[idxassoc].apply(lambda x: re.split('\[|,|\(|:', x)[0])
+        ASSOCnew[idxassoc] = ASSOCnew[idxassoc].apply(lambda x: re.split(r'\[|,|\(|:', x)[0])
 
         self.update(ASSOCnew)
         self.update(ASSOCREFnew)
@@ -913,11 +913,11 @@ class QueryATNF(object):
             TYPEREFnew = self.catalogue['TYPE_REF'].copy()
 
         TYPEREFnew[idxtype] = TYPEnew[idxtype].apply(lambda x: 
-                                                     re.split('\]', re.split('\[', x)[1])[0] 
-                                                     if len(re.split('\[', x)) > 1 else np.nan)
+                                                     re.split(r'\]', re.split(r'\[', x)[1])[0] 
+                                                     if len(re.split(r'\[', x)) > 1 else np.nan)
 
         # Set values
-        TYPEnew[idxtype] = TYPEnew[idxtype].apply(lambda x: re.split('\[|,|\(|:', x)[0])
+        TYPEnew[idxtype] = TYPEnew[idxtype].apply(lambda x: re.split(r'\[|,|\(|:', x)[0])
 
         self.update(TYPEnew)
         self.update(TYPEREFnew)
@@ -949,11 +949,11 @@ class QueryATNF(object):
             BINCOMPREFnew = self.catalogue['BINCOMP_REF'].copy()
 
         BINCOMPREFnew[idxbincomp] = BINCOMPnew[idxbincomp]\
-            .apply(lambda x: re.split('\]', re.split('\[', x)[1])[0] 
-                   if len(re.split('\[', x)) > 1 else np.nan)
+            .apply(lambda x: re.split(r'\]', re.split(r'\[', x)[1])[0] 
+                   if len(re.split(r'\[', x)) > 1 else np.nan)
 
         # Set values
-        BINCOMPnew[idxbincomp] = BINCOMPnew[idxbincomp].apply(lambda x: re.split('\[|,|\(|:', x)[0])
+        BINCOMPnew[idxbincomp] = BINCOMPnew[idxbincomp].apply(lambda x: re.split(r'\[|,|\(|:', x)[0])
 
         self.update(BINCOMPnew)
         self.update(BINCOMPREFnew)
