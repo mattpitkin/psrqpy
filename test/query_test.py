@@ -18,7 +18,54 @@ def test_crab(query):
 
     assert np.floor(f0) == 29.0
 
+@pytest.mark.enable_socket
+def test_num_pulsars(query):
+    """
+    Test that the number of pulsars returned is as expected.
+    """
 
+    query.psrs = 'J9999+9999'  # bad pulsar
+
+    # length should be zero
+    assert len(query) == 0
+
+    query.psrs = 'J0534+2200'  # Crab pulsar
+
+    # length should be one
+    assert len(query) == 1
+
+    query.psrs = ['J0534+2200', 'J0537-6910']
+
+    # length should be two
+    assert len(query) == 2
+
+@pytest.mark.enable_socket
+def test_num_columns(query):
+    """
+    Test that the number of columns if correct.
+    """
+
+    query.query_params = 'F0'
+    query.include_errs = False
+
+    # number of columns should be 1
+    assert len(query.table.columns) == 1
+
+    # name of column should be 'F0'
+    assert query.table.keys()[0] == 'F0'
+
+    query.include_errs = True
+
+    # number of columns should be 2
+    assert len(query.table.columns) == 2
+    assert 'F0' in query.table.keys() and 'F0_ERR' in query.table.keys()
+
+    query.query_params = ['F0', 'F1']
+
+    # number of columns should be 4
+    assert len(query.table.columns) == 4
+
+### Test derived parameters ###
 @pytest.mark.enable_socket
 def test_derived_p0(query_derived, query_atnf):
     """
@@ -61,3 +108,13 @@ def test_download_db():
 
     with pytest.raises(RuntimeError):
         query = QueryATNF(checkupdate=True)
+
+@pytest.mark.enable_socket
+def test_sort_exception(query):
+    """
+    Test exception in sort method.
+    """
+
+    sortval = 'kgsdkfkfd'  # random sort parameter
+    with pytest.raises(KeyError):
+        query.sort(sort_attr=sortval)

@@ -133,7 +133,7 @@ class QueryATNF(object):
             return
 
         self.__dataframe = DataFrame()
-        self._include_errs = include_errs
+        self.include_errs = include_errs
         self._include_refs = include_refs
         self._adsref = adsref
         self._savefile = None  # file to save class to
@@ -682,6 +682,28 @@ class QueryATNF(object):
         self._condition = expression
 
     @property
+    def include_errs(self):
+        """
+        Return a boolean stating whether errors are to be included.
+        """
+
+        return self._include_errs
+
+    @include_errs.setter
+    def include_errs(self, inclerr):
+        """
+        Set whether to include errors with queried pulsars.
+
+        Args:
+            inclerr (bool): Set to True to include errors.
+        """
+
+        if isinstance(inclerr, (bool, int)):
+            self._include_errs = bool(inclerr)
+        else:
+            TypeError("Flag must be boolean")
+
+    @property
     def exactmatch(self):
         """
         Return the boolean stating whether certain conditions should apply an
@@ -805,6 +827,7 @@ class QueryATNF(object):
             else:
                 warnings.warn("No requested pulsars '{}' were "
                               "found.".format(self.psrs), UserWarning)
+                return DataFrame()  # empty dataframe
 
             dftable = dftable[allnames]
 
