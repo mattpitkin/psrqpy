@@ -859,7 +859,6 @@ class QueryATNF(object):
         """
 
         if 'ASSOC' not in self.columns:
-            warnings.warn("Could not parse ASSOC.", UserWarning)
             return
 
         # Save original parameter in new column
@@ -872,7 +871,9 @@ class QueryATNF(object):
 
         # Set references first
         if 'ASSOC_REF' not in self.columns:
-            ASSOCREFnew = Series(np.asarray([np.nan, ]*len(idxassoc)), name='ASSOC_REF')
+            ASSOCREFnew = Series(np.full(self.catalogue_len, np.nan,
+                                         dtype=np.str),
+                                 name='ASSOC_REF')
             self.update(ASSOCREFnew, name='ASSOC_REF')
         else:
             ASSOCREFnew = self.catalogue['ASSOC_REF'].copy()
@@ -894,7 +895,6 @@ class QueryATNF(object):
         """
 
         if 'TYPE' not in self.columns:
-            warnings.warn("Could not parse TYPE.", UserWarning)
             return
 
         # Save original parameter in new column
@@ -907,7 +907,9 @@ class QueryATNF(object):
 
         # Set references first
         if 'TYPE_REF' not in self.columns:
-            TYPEREFnew = Series(np.asarray([np.nan, ]*len(idxassoc)), name='TYPE_REF')
+            TYPEREFnew = Series(np.full(self.catalogue_len, np.nan,
+                                        dtype=np.str),
+                                name='TYPE_REF')
             self.update(TYPEREFnew, 'TYPE_REF')
         else:
             TYPEREFnew = self.catalogue['TYPE_REF'].copy()
@@ -929,7 +931,6 @@ class QueryATNF(object):
         """
 
         if 'BINCOMP' not in self.columns:
-            warnings.warn("Could not parse BINCOMP.", UserWarning)
             return
 
         # Save original parameter in new column
@@ -942,7 +943,8 @@ class QueryATNF(object):
 
         # Set references first
         if 'BINCOMP_REF' not in self.columns:
-            BINCOMPREFnew = Series(np.asarray([np.nan, ]*len(idxassoc)),
+            BINCOMPREFnew = Series(np.full(self.catalogue_len, np.nan,
+                                           dtype=np.str),
                                    name='BINCOMP_REF')
             self.update(BINCOMPREFnew) 
         else:
@@ -998,20 +1000,40 @@ class QueryATNF(object):
         Set the `DIST` and `DIST1` parameters using other values.
         """
 
-        reqpars = ['PX', 'PX_ERR', 'DIST_A', 'DIST_AMN', 'DIST_AMX', 'DIST_DM',
-                   'DIST_DM1']
-        if not np.all([p in self.columns for p in reqpars]):
-            warnings.warn("Could not set distances.",
-                          UserWarning)
-            return
+        if 'PX' in self.columns:
+            PX = self.catalogue['PX']
+        else:
+            PX = np.full(self.catalogue_len, np.nan)
+        
+        if 'PX_ERR' in self.columns:
+            PXERR = self.catalogue['PX_ERR']
+        else:
+            PXERR = np.full(self.catalogue_len, np.nan)
+        
+        if 'DIST_A' in self.columns:
+            DIST_A = self.catalogue['DIST_A']
+        else:
+            DIST_A = np.full(self.catalogue_len, np.nan)
 
-        PX = self.catalogue['PX']
-        PXERR = self.catalogue['PX_ERR']
-        DIST_A = self.catalogue['DIST_A']
-        DIST_AMN = self.catalogue['DIST_AMN']
-        DIST_AMX = self.catalogue['DIST_AMX']
-        DIST_DM = self.catalogue['DIST_DM']
-        DIST_DM1 = self.catalogue['DIST_DM1']
+        if 'DIST_AMN' in self.columns:
+            DIST_AMN = self.catalogue['DIST_AMN']
+        else:
+            DIST_AMN = np.full(self.catalogue_len, np.nan)
+
+        if 'DIST_AMX' in self.columns:
+            DIST_AMX = self.catalogue['DIST_AMX']
+        else:
+            DIST_AMX = np.full(self.catalogue_len, np.nan)
+
+        if 'DIST_DM' in self.columns:
+            DIST_DM = self.catalogue['DIST_DM']
+        else:
+            DIST_DM = np.full(self.catalogue_len, np.nan)
+        
+        if 'DIST_DM1' in self.columns:
+            DIST_DM1 = self.catalogue['DIST_DM1']
+        else:
+            DIST_DM1 = np.full(self.catalogue_len, np.nan)
 
         # DIST defaults to DM distance
         DIST = DIST_DM.copy()
@@ -1025,7 +1047,7 @@ class QueryATNF(object):
         idxpx = np.isfinite(PX) & np.isfinite(PXERR)
 
         # set distances using parallax if parallax has greater than 3 sigma significance
-        pxsigma = np.zeros(len(PX))
+        pxsigma = np.zeros(self.catalogue_len)
         pxsigma[idxpx] = np.abs(PX[idxpx])/PXERR[idxpx]
 
         # use DIST_A if available
@@ -1076,21 +1098,18 @@ class QueryATNF(object):
         coordinates.
         """
 
-        reqpar = ['RAJ', 'DECJ', 'RAJD', 'DECJD', 'ELONG', 'ELAT']
+        reqpar = ['ELONG', 'ELAT']
         if not np.all([p in self.columns for p in reqpar]):
-            warnings.warn("Could not set equatorial coordinates.",
-                          UserWarning)
             return
 
         ELONG = self.catalogue['ELONG']
         ELAT = self.catalogue['ELAT']
-        RAJDnew = self.catalogue['RAJD'].copy()
-        DECJDnew = self.catalogue['DECJD'].copy()
-        RAJnew = self.catalogue['RAJ'].copy()
-        DECJnew = self.catalogue['DECJ'].copy()
+        RAJDnew = np.full(self.catalogue_len, np.nan)
+        DECJDnew = np.full(self.catalogue_len, np.nan)
+        RAJnew = np.full(self.catalogue_len, np.nan, dtype=np.str)
+        DECJnew = np.full(self.catalogue_len, np.nan, dtype=np.str)
 
-        idx = (np.isfinite(ELONG) & np.isfinite(ELAT) &
-               (~np.isfinite(RAJDnew) & ~np.isfinite(DECJDnew)))
+        idx = np.isfinite(ELONG) & np.isfinite(ELAT)
 
         # get sky coordinates
         sc = BarycentricTrueEcliptic(ELONG.values[idx]*aunits.deg,
@@ -1102,34 +1121,33 @@ class QueryATNF(object):
         RAJnew[idx] = sc.ra.to('hourangle').to_string(sep=':', pad=True)
         DECJnew[idx] = sc.dec.to_string(sep=':', pad=True, alwayssign=True)
 
-        self.update(RAJDnew)
-        self.update(DECJDnew)
-        self.update(RAJnew)
-        self.update(DECJnew)
+        self.update(RAJDnew, name='RAJD')
+        self.update(DECJDnew, name='DECJD')
+        self.update(RAJnew, name='RAJ')
+        self.update(DECJnew, name='DECJ')
 
         # set references
         reqpars = ['RAJ_REF', 'DECJ_REF', 'ELONG_REF']
-        if np.all([p in self.columns for p in reqpar]):
-            RAJREFnew = self.catalogue['RAJ_REF'].copy()
-            DECJREFnew = self.catalogue['DECJ_REF'].copy()
+        if 'ELONG_REF' in self.columns:
+            RAJREFnew = np.full(self.catalogue_len, np.nan, dtype=np.str)
+            DECJREFnew = np.full(self.catalogue_len, np.nan, dtype=np.str)
             ELONGREF = self.catalogue['ELONG_REF']
 
             DECJREFnew[idx] = ELONGREF[idx]
             RAJREFnew[idx] = ELONGREF[idx]
 
-            self.update(DECJREFnew)
-            self.update(RAJREFnew)
+            self.update(DECJREFnew, name='RAJ_REF')
+            self.update(RAJREFnew, name='DECJ_REF')
 
         # get PMRA and PMDEC if not given
-        reqpar = ['PMELONG', 'PMELAT', 'PMRA', 'PMDEC']
+        reqpar = ['PMELONG', 'PMELAT']
         if np.all([p in self.columns for p in reqpar]):
             PMELONG = self.catalogue['PMELONG']
             PMELAT = self.catalogue['PMELAT']
-            PMRAnew = self.catalogue['PMRA'].copy()
-            PMDECnew = self.catalogue['PMDEC'].copy()
+            PMRAnew = np.full(self.catalogue_len, np.nan)
+            PMDECnew = np.full(self.catalogue_len, np.nan)
 
-            idx = idx & (np.isfinite(PMELONG) & np.isfinite(PMELAT) &
-                         (~np.isfinite(PMRAnew) & ~np.isfinite(PMDECnew)))
+            idx = idx & np.isfinite(PMELONG) & np.isfinite(PMELAT)
 
             sc = BarycentricTrueEcliptic(
                 ELONG[idx].values*aunits.deg,
@@ -1141,8 +1159,8 @@ class QueryATNF(object):
             PMRAnew[idx] = sc.pm_ra_cosdec.value
             PMDECnew[idx] = sc.pm_dec.value
 
-            self.update(PMRAnew)
-            self.update(PMDECnew)
+            self.update(PMRAnew, name='PMRA')
+            self.update(PMDECnew, name='PMDEC')
 
     def derived_ecliptic(self):
         """
@@ -1153,19 +1171,16 @@ class QueryATNF(object):
         which may not exactly match that used in `psrcat`.
         """
 
-        reqpar = ['RAJD', 'DECJD', 'ELONG', 'ELAT']
+        reqpar = ['RAJD', 'DECJD']
         if not np.all([p in self.columns for p in reqpar]):
-            warnings.warn("Could not set ecliptic coordinates.",
-                          UserWarning)
             return
 
         RAJD = self.catalogue['RAJD']
         DECJD = self.catalogue['DECJD']
-        ELONGnew = self.catalogue['ELONG'].copy()
-        ELATnew = self.catalogue['ELAT'].copy()
+        ELONGnew = np.full(self.catalogue_len, np.nan)
+        ELATnew = np.full(self.catalogue_len, np.nan)
 
-        idx = (np.isfinite(RAJD) & np.isfinite(DECJD) &
-               (~np.isfinite(ELONGnew) & ~np.isfinite(ELATnew)))
+        idx = np.isfinite(RAJD) & np.isfinite(DECJD)
 
         # get sky coordinates
         sc = SkyCoord(RAJD[idx].values*aunits.deg,
@@ -1174,33 +1189,32 @@ class QueryATNF(object):
         ELONGnew[idx] = sc.barycentrictrueecliptic.lon.value
         ELATnew[idx] = sc.barycentrictrueecliptic.lat.value
 
-        self.update(ELONGnew)
-        self.update(ELATnew)
+        self.update(ELONGnew, name='ELONG')
+        self.update(ELATnew, name='ELAT')
 
         # get references
-        refpar = ['RAJ_REF', 'DECJ_REF', 'ELONG_REF', 'ELAT_REF']
+        refpar = ['RAJ_REF', 'DECJ_REF']
         if np.all([p in self.columns for p in refpar]):
             RAJREF = self.catalogue['RAJ_REF']
             DECJREF = self.catalogue['DECJ_REF']
-            ELONGREFnew = self.catalogue['ELONG_REF'].copy()
-            ELATREFnew = self.catalogue['ELAT_REF'].copy()
+            ELONGREFnew = np.full(self.catalogue_len, np.nan, dtype=np.str)
+            ELATREFnew = np.full(self.catalogue_len, np.nan, dtype=np.str)
 
             ELONGREFnew[idx] = RAJREF[idx]
             ELATREFnew[idx] = DECJREF[idx]
 
-            self.update(ELONGREFnew)
-            self.update(ELATREFnew)
+            self.update(ELONGREFnew, name='ELONG_REF')
+            self.update(ELATREFnew, name='ELAT_REF')
 
         # get PMELONG and PMELAT if not given
-        reqpar = ['PMELONG', 'PMELAT', 'PMRA', 'PMDEC']
+        reqpar = ['PMRA', 'PMDEC']
         if np.all([p in self.columns for p in reqpar]):
-            PMELONGnew = self.catalogue['PMELONG'].copy()
-            PMELATnew = self.catalogue['PMELAT'].copy()
+            PMELONGnew = np.full(self.catalogue_len, np.nan)
+            PMELATnew = np.full(self.catalogue_len, np.nan)
             PMRA = self.catalogue['PMRA']
             PMDEC = self.catalogue['PMDEC']
 
-            idx = idx & (np.isfinite(PMRA) & np.isfinite(PMDEC) &
-                         (~np.isfinite(PMELONGnew) & ~np.isfinite(PMELATnew)))
+            idx = idx & np.isfinite(PMRA) & np.isfinite(PMDEC)
 
             sc = ICRS(
                 RAJD[idx].values*aunits.deg,
@@ -1212,8 +1226,8 @@ class QueryATNF(object):
             PMELONGnew[idx] = sc.pm_lon_coslat.value
             PMELATnew[idx] = sc.pm_lat.value
 
-            self.update(PMELONGnew)
-            self.update(PMELATnew)
+            self.update(PMELONGnew, name='PMELONG')
+            self.update(PMELATnew, name='PMELAT')
 
     def define_galactic(self):
         """
@@ -1226,8 +1240,6 @@ class QueryATNF(object):
 
         reqpars = ['RAJD', 'DECJD']
         if not np.all([p in self.columns for p in reqpars]):
-            warnings.warn("Could not set galactic coordinates.",
-                          UserWarning)
             return
 
         # get distance if required
@@ -1235,16 +1247,14 @@ class QueryATNF(object):
             self.define_dist()
 
             if 'DIST' not in self.columns:
-                warnings.warn("Could not set galactic coordinates.",
-                              UserWarning)
                 return
 
         RAJD = self.catalogue['RAJD'].values.copy()
         DECJD = self.catalogue['DECJD'].values.copy()
         DIST = self.catalogue['DIST'].values.copy()
 
-        GL = np.full(len(RAJD), np.nan)
-        GB = np.full(len(RAJD), np.nan)
+        GL = np.full(self.catalogue_len, np.nan)
+        GB = np.full(self.catalogue_len, np.nan)
         idx = np.isfinite(RAJD) & np.isfinite(DECJD) & np.isfinite(DIST)
 
         # get sky coordinates
@@ -1258,9 +1268,9 @@ class QueryATNF(object):
         self.update(GL, name='GL')
         self.update(GB, name='GB')
 
-        XX = np.full(len(RAJD), np.nan)
-        YY = np.full(len(RAJD), np.nan)
-        ZZ = np.full(len(RAJD), np.nan)
+        XX = np.full(self.catalogue_len, np.nan)
+        YY = np.full(self.catalogue_len, np.nan)
+        ZZ = np.full(self.catalogue_len, np.nan)
 
         XX[idx] = sc.galactic.cartesian.x.value
         YY[idx] = sc.galactic.cartesian.y.value
@@ -1276,7 +1286,7 @@ class QueryATNF(object):
             DM = self.catalogue['DM']
             GB = self.catalogue['GB']
 
-            DMSINB = np.full(len(RAJD), np.nan)
+            DMSINB = np.full(self.catalogue_len, np.nan)
 
             idx = np.isfinite(GB) & np.isfinite(DM)
             DMSINB[idx] = DM[idx]*np.sin(np.deg2rad(GB[idx]))
@@ -1290,8 +1300,8 @@ class QueryATNF(object):
                 PMRA = self.catalogue['PMRA'].values.copy()
                 PMDEC = self.catalogue['PMDEC'].values.copy()
 
-                PMB = np.full(len(PMRA), np.nan)
-                PML = np.full(len(PMRA), np.nan)
+                PMB = np.full(self.catalogue_len, np.nan)
+                PML = np.full(self.catalogue_len, np.nan)
 
                 idx = (np.isfinite(PMRA) & np.isfinite(PMDEC) &
                        np.isfinite(RAJD) & np.isfinite(DECJD) &
@@ -1324,15 +1334,15 @@ class QueryATNF(object):
 
             idx = np.isfinite(A1) & np.isfinite(PB)
 
-            MASSFN = np.full(len(A1), np.nan)
+            MASSFN = np.full(self.catalogue_len, np.nan)
             MASSFN[idx] = (4.*np.pi**2/GM_sun.value)*A1[idx]**3/(PB[idx]**2)
 
             self.update(MASSFN, name='MASSFN')
 
             # derive minimum, median and 90% UL for mass
-            MINMASS = np.full(len(A1), np.nan)
-            MEDMASS = np.full(len(A1), np.nan)
-            UPRMASS = np.full(len(A1), np.nan)
+            MINMASS = np.full(self.catalogue_len, np.nan)
+            MEDMASS = np.full(self.catalogue_len, np.nan)
+            UPRMASS = np.full(self.catalogue_len, np.nan)
             from scipy.optimize import newton
             def solfunc(m2, sini, mf, m1):
                 return (m1 + m2)**2 - (m2*sini)**3/mf
@@ -1372,28 +1382,31 @@ class QueryATNF(object):
         if np.all([p in self.columns for p in reqpars]):
             EPS1 = self.catalogue['EPS1'].values.copy()
             EPS2 = self.catalogue['EPS2'].values.copy()
-            ECCnew = self.catalogue['ECC'].copy()
-            OMnew = self.catalogue['OM'].copy()
+            ECCnew = np.full(self.catalogue_len, np.nan)
+            OMnew = np.full(self.catalogue_len, np.nan)
 
             idx = np.isfinite(EPS1) & np.isfinite(EPS2)
 
             # set eccentricities
             ECCnew[idx] = np.sqrt(EPS1[idx]**2+EPS2[idx]**2)
 
-            self.update(ECCnew)
+            self.update(ECCnew, name='ECC')
 
             # set angle of peristron
             idxn = idx & (ECCnew != 0.)
             OMnew[idxn] = np.arctan2(EPS1[idxn],
                                      EPS2[idxn])*180./np.pi
+            OMnew = np.mod(OMnew+360., 360.)  # make sure angles are positive
+
+            self.update(OMnew, name='OM')
 
             # set errors
-            reqpars = ['EPS1_ERR', 'EPS2_ERR', 'ECC_ERR', 'OM_ERR']
+            reqpars = ['EPS1_ERR', 'EPS2_ERR']
             if np.all([p in self.columns for p in reqpars]):
                 EPS1ERR = self.catalogue['EPS1_ERR'].values.copy()
                 EPS2ERR = self.catalogue['EPS2_ERR'].values.copy()
-                ECCERRnew = self.catalogue['ECC_ERR'].copy()
-                OMERRnew = self.catalogue['OM_ERR'].copy()
+                ECCERRnew = np.full(self.catalogue_len, np.nan)
+                OMERRnew = np.full(self.catalogue_len, np.nan)
 
                 idxn = idx & (np.isfinite(EPS1ERR) & np.isfinite(EPS2ERR) &
                               (ECCnew != 0.))
@@ -1401,18 +1414,12 @@ class QueryATNF(object):
                 OMERRnew[idxn] = (np.sqrt((EPS2[idxn]*EPS1ERR[idxn])**2
                                           +(EPS1[idxn]*EPS2ERR[idxn])**2)/
                                           (ECCnew[idxn])**2)*180.0/np.pi
-                self.update(OMERRnew)
+                self.update(OMERRnew, name='OM_ERR')
 
                 ECCERRnew[idxn] = (np.sqrt((EPS1[idxn]*EPS1ERR[idxn])**2
                                           +(EPS2[idxn]*EPS2ERR[idxn])**2)
                                           /ECCnew[idxn])
-                self.update(ECCERRnew)
-
-            # shift angles so that they are positive
-            idxn = idx & (OMnew < 0.)
-            OMnew[idxn] += 360.
-
-            self.update(OMnew)
+                self.update(ECCERRnew, name='ECC_ERR')
 
         # derive MINOMDOT
         reqpars = ['ECC', 'PB', 'MINMASS']
@@ -1421,7 +1428,7 @@ class QueryATNF(object):
             PB = self.catalogue['PB'].values.copy()*86400.
             ECC = self.catalogue['ECC'].values.copy()
 
-            MINOMDOT = np.full(len(PB), np.nan)
+            MINOMDOT = np.full(self.catalogue_len, np.nan)
 
             idx = np.isfinite(MINMASS) & np.isfinite(PB) & np.isfinite(ECC)
 
@@ -1442,7 +1449,7 @@ class QueryATNF(object):
             return
 
         F0 = self.catalogue['F0']
-        P0new = np.full(len(F0), np.nan)
+        P0new = np.full(self.catalogue_len, np.nan)
 
         # find indices where P0 needs to be set from F0
         idx = np.isfinite(F0)
@@ -1451,14 +1458,14 @@ class QueryATNF(object):
 
         # set the references
         if 'F0_REF' in self.columns:
-            P0REFnew = np.full(len(F0), np.nan)
+            P0REFnew = np.full(self.catalogue_len, np.nan, dtype=np.str)
             F0REF = self.catalogue['F0_REF']
             P0REFnew[idx] = F0REF[idx]
             self.update(P0REFnew, 'P0_REF')
 
         # set the errors
         if 'F0_ERR' in self.columns:
-            P0ERRnew = np.full(len(F0), np.nan)
+            P0ERRnew = np.full(self.catalogue_len, np.nan)
             F0ERR = self.catalogue['F0_ERR']
             idx = idx & np.isfinite(F0ERR)
             P0ERRnew[idx] = F0ERR[idx]*P0new[idx]**2
@@ -1474,7 +1481,7 @@ class QueryATNF(object):
             return
 
         P0 = self.catalogue['P0']
-        F0new = np.full(len(P0), np.nan)
+        F0new = np.full(self.catalogue_len, np.nan)
 
         # find indices where F0 needs to be set from P0
         idx = np.isfinite(P0)
@@ -1483,14 +1490,14 @@ class QueryATNF(object):
 
         # set the references
         if 'P0_REF' in self.columns:
-            F0REFnew = np.full(len(P0), np.nan)
+            F0REFnew = np.full(self.catalogue_len, np.nan, dtype=np.str)
             P0REF = self.catalogue['P0_REF']
             F0REFnew[idx] = P0REF[idx]
             self.update(F0REFnew, name='F0_REF')
 
         # set the errors
         if 'P0_ERR' in self.columns:
-            F0ERRnew = np.full(len(P0), np.nan)
+            F0ERRnew = np.full(self.catalogue_len, np.nan)
             P0ERR = self.catalogue['P0_ERR']
             idx = idx & np.isfinite(P0ERR)
             F0ERRnew[idx] = P0ERR[idx]*F0new[idx]**2
@@ -1508,7 +1515,7 @@ class QueryATNF(object):
 
         P0 = self.catalogue['P0']
         F1 = self.catalogue['F1']
-        P1new = np.full(len(P0), np.nan)
+        P1new = np.full(self.catalogue_len, np.nan)
 
         # find indices where P0 needs to be set from F0
         idx = np.isfinite(P0) & np.isfinite(F1)
@@ -1517,7 +1524,7 @@ class QueryATNF(object):
 
         # set the references
         if 'F1_REF' in self.columns:
-            P1REFnew = np.full(len(P0), np.nan)
+            P1REFnew = np.full(self.catalogue_len, np.nan, dtype=np.str)
             F1REF = self.catalogue['F1_REF']
             P1REFnew[idx] = F1REF[idx]
             self.update(P1REFnew, name='P1_REF')
@@ -1525,7 +1532,7 @@ class QueryATNF(object):
         # set the errors
         reqpars = ['F0_ERR', 'F1_ERR']
         if np.all([p in self.columns for p in reqpars]):
-            P1ERRnew = np.full(len(P0), np.nan)
+            P1ERRnew = np.full(self.catalogue_len, np.nan)
             F1ERR = self.catalogue['F1_ERR']
             F0ERR = self.catalogue['F0_ERR']
             idx = idx & (np.isfinite(F1ERR) & np.isfinite(F0ERR))
@@ -1545,7 +1552,7 @@ class QueryATNF(object):
 
         F0 = self.catalogue['F0']
         P1 = self.catalogue['P1']
-        F1new = np.full(len(F0), np.nan)
+        F1new = np.full(self.catalogue_len, np.nan)
 
         # find indices where P0 needs to be set from F0
         idx = np.isfinite(P1) & np.isfinite(F0)
@@ -1554,7 +1561,7 @@ class QueryATNF(object):
 
         # set the references
         if 'P1_REF' in self.columns:
-            F1REFnew = np.full(len(P0), np.nan)
+            F1REFnew = np.full(self.catalogue_len, np.nan, dtype=np.str)
             P1REF = self.catalogue['P1_REF']
             F1REFnew[idx] = P1REF[idx]
             self.update(F1REFnew, name='F1_REF')
@@ -1562,7 +1569,7 @@ class QueryATNF(object):
         # set the errors
         reqpars = ['P0_ERR', 'P1_ERR']
         if np.all([p in self.columns for p in reqpars]):
-            F1ERRnew = np.full(len(F0), np.nan)
+            F1ERRnew = np.full(self.catalogue_len, np.nan)
             P1ERR = self.catalogue['P1_ERR']
             P0ERR = self.catalogue['P0_ERR']
             idx = idx & (np.isfinite(P1ERR) & np.isfinite(P0ERR))
@@ -1575,33 +1582,30 @@ class QueryATNF(object):
         Calculate binary orbital period from orbital frequency.
         """
 
-        if not np.all([p in self.columns for p in ['PB', 'FB0']]):
-            warnings.warn("Could not set orbital period.",
-                          UserWarning)
+        if 'FB0' not in self.columns:
             return
 
         FB0 = self.catalogue['FB0']
-        PBnew = self.catalogue['PB'].copy()
+        PBnew = np.full(self.catalogue_len, np.nan)
 
-        idx = ~np.isfinite(PBnew) & np.isfinite(FB0)
+        idx = np.isfinite(FB0)
         PBnew[idx] = 1./(FB0[idx]*86400.)
-        self.update(PBnew)
+        self.update(PBnew, name='PB')
 
         # set the references
-        reqpars = ['PB_REF', 'FB0_REF']
-        if np.all([p in self.columns for p in reqpars]):
-            PBREFnew = self.catalogue['PB_REF'].copy()
+        if 'FB0_REF' in self.columns:
+            PBREFnew = np.full(self.catalogue_len, np.nan, dtype=np.str)
             FB0REF = self.catalogue['FB0_REF']
             PBREFnew[idx] = FB0REF[idx]
-            self.update(PBREFnew)
+            self.update(PBREFnew, name='PB_REF')
 
         # set the errors
-        reqpars = ['PB_ERR', 'FB0_ERR']
-        if np.all([p in self.columns for p in reqpars]):
-            PBERRnew = self.catalogue['PB_ERR'].copy()
+        if 'FB0_ERR' in self.columns:
+            PBERRnew = np.full(self.catalogue_len, np.nan)
             FB0ERR = self.catalogue['FB0_ERR']
+            idx = idx & np.isfinite(FB0ERR)
             PBERRnew[idx] = FB0ERR[idx]*PBnew[idx]**2*86400.
-            self.update(PBERRnew)
+            self.update(PBERRnew, name='PB_ERR')
 
     def derived_pbdot(self):
         """
@@ -1609,71 +1613,68 @@ class QueryATNF(object):
         derivative.
         """
 
-        reqpars = ['PBDOT', 'FB1', 'PB']
+        reqpars = ['FB1', 'PB']
         if not np.all([p in self.columns for p in reqpars]):
-            warnings.warn("Could not set orbital period derivative.",
-                          UserWarning)
             return
 
         FB1 = self.catalogue['FB1']
         PB = self.catalogue['PB']
-        PBDOTnew = self.catalogue['PBDOT'].copy()
+        PBDOTnew = np.full(self.catalogue_len, np.nan)
 
-        idx = ~np.isfinite(PBDOTnew) & np.isfinite(FB1)
+        idx = np.isfinite(PB) & np.isfinite(FB1)
         PBDOTnew[idx] = -(PB[idx]**2*FB1[idx])
-        self.update(PBDOTnew)
+        self.update(PBDOTnew, name='PBDOT')
 
         # set the references
-        reqpars = ['PBDOT_REF', 'FB1_REF']
-        if np.all([p in self.columns for p in reqpars]):
-            PBDOTREFnew = self.catalogue['PBDOT_REF'].copy()
+        if 'FB1_REF' in self.columns:
+            PBDOTREFnew = np.full(self.catalogue_len, np.nan, dtype=np.str)
             FB1REF = self.catalogue['FB1_REF']
             PBDOTREFnew[idx] = FB1REF[idx]
-            self.update(PBDOTREFnew)
+            self.update(PBDOTREFnew, name='PBDOT_REF')
 
         # set the errors
-        reqpars = ['PBDOT_ERR', 'FB1_ERR', 'FB0_ERR']
+        reqpars = ['FB1_ERR', 'FB0_ERR']
         if np.all([p in self.columns for p in reqpars]):
-            PBDOTERRnew = self.catalogue['PBDOT_ERR'].copy()
+            PBDOTERRnew = np.full(self.catalogue_len, np.nan)
             FB1ERR = self.catalogue['FB1_ERR']
             FB0ERR = self.catalogue['FB0_ERR']
+            idx = idx & np.isfinite(FB1ERR) & np.isfinite(FB0ERR)
             PBDOTERRnew[idx] = np.sqrt((PB[idx]**2 * FB1ERR[idx])**2
                                        + (2.0 * PB[idx]**3 * FB1[idx]
                                           * FB0ERR[idx])**2)
-            self.update(PBDOTERRnew)
+            self.update(PBDOTERRnew, name='PBDOT_ERR')
 
     def derived_fb0(self):
         """
         Calculate orbital frequency from orbital period.
         """
 
-        if not np.all([p in self.columns for p in ['PB', 'FB0']]):
-            warnings.warn("Could not set orbital frequency.",
-                          UserWarning)
+        if 'PB' not in self.columns:
             return
 
         PB = self.catalogue['PB']
-        FB0new = self.catalogue['FB0'].copy()
+        FB0new = np.full(self.catalogue_len, np.nan)
 
-        idx = ~np.isfinite(FB0new) & np.isfinite(PB)
+        idx = np.isfinite(PB)
         FB0new[idx] = 1./(PB[idx]*86400.)
-        self.update(FB0new)
+        self.update(FB0new, name='FB0')
 
         # set the references
         reqpars = ['PB_REF', 'FB0_REF']
-        if np.all([p in self.columns for p in reqpars]):
-            FB0REFnew = self.catalogue['FB0_REF'].copy()
+        if 'PB_REF' in self.columns:
+            FB0REFnew = np.full(self.catalogue_len, np.nan, dtype=np.str)
             PBREF = self.catalogue['PB_REF']
             FB0REFnew[idx] = PBREF[idx]
-            self.update(FB0REFnew)
+            self.update(FB0REFnew, name='FB0_REF')
 
         # set the errors
         reqpars = ['PB_ERR', 'FB0_ERR']
-        if np.all([p in self.columns for p in reqpars]):
-            FB0ERRnew = self.catalogue['FB0_ERR'].copy()
+        if 'PB_ERR' in self.columns:
+            FB0ERRnew = np.full(self.catalogue_len, np.nan)
             PBERR = self.catalogue['PB_ERR']
+            idx = idx & np.isfinite(PBERR)
             FB0ERRnew[idx] = PBERR[idx]*(FB0new[idx]**2)*86400.
-            self.update(FB0ERRnew)
+            self.update(FB0ERRnew, name='FB0_ERR')
 
     def derived_fb1(self):
         """
@@ -1681,38 +1682,36 @@ class QueryATNF(object):
         period derivative.
         """
 
-        reqpars = ['PBDOT', 'FB1', 'FB0']
+        reqpars = ['PBDOT', 'FB0']
         if not np.all([p in self.columns for p in reqpars]):
-            warnings.warn("Could not set orbital period derivative.",
-                          UserWarning)
             return
 
         PBDOT = self.catalogue['PBDOT']
         FB0 = self.catalogue['FB0']
-        FB1new = self.catalogue['FB1'].copy()
+        FB1new = np.full(self.catalogue_len, np.nan)
 
-        idx = ~np.isfinite(FB1new) & np.isfinite(PBDOT)
+        idx = np.isfinite(FB0) & np.isfinite(PBDOT)
         FB1new[idx] = -(FB0[idx]**2*PBDOT[idx])
-        self.update(FB1new)
+        self.update(FB1new, name='FB1')
 
         # set the references
-        reqpars = ['PBDOT_REF', 'FB1_REF']
-        if np.all([p in self.columns for p in reqpars]):
-            FB1REFnew = self.catalogue['FB1_REF'].copy()
+        if 'PBDOT_REF' in self.columns:
+            FB1REFnew = np.full(self.catalogue_len, np.nan, dtype=np.str)
             PBDOTREF = self.catalogue['PBDOT_REF']
             FB1REFnew[idx] = PBDOTREF[idx]
-            self.update(FB1REFnew)
+            self.update(FB1REFnew, name='FB1_REF')
 
         # set the errors
-        reqpars = ['PBDOT_ERR', 'FB1_ERR', 'PB_ERR']
+        reqpars = ['PBDOT_ERR', 'PB_ERR']
         if np.all([p in self.columns for p in reqpars]):
-            FB1ERRnew = self.catalogue['FB1_ERR'].copy()
+            FB1ERRnew = np.full(self.catalogue_len, np.nan)
             PBDOTERR = self.catalogue['PBDOT_ERR']
             PBERR = self.catalogue['PB_ERR']
+            idx = idx & np.isfinite(PBERR) & np.isfinite(PBDOTERR)
             FB1ERRnew[idx] = np.sqrt((FB0[idx]**2 * PBDOTERR[idx])**2
                                      +(2.0 * FB0[idx]**3 * PBDOT[idx]*
                                        PBERR[idx] * 86400.)**2)
-            self.update(FB1ERRnew)
+            self.update(FB1ERRnew, name='FB1_ERR')
 
     def derived_p1_i(self):
         """
@@ -1722,9 +1721,8 @@ class QueryATNF(object):
         if 'VTRANS' not in self.columns:
             self.derived_vtrans()
 
-        if not np.all([p in self.columns for p in ['VTRANS', 'P0', 'P1', 'DIST']]):
-            warnings.warn("Could not set intrinsic period derivative.",
-                          UserWarning)
+        reqpars = ['VTRANS', 'P0', 'P1', 'DIST']
+        if not np.all([p in self.columns for p in reqpars]):
             return
 
         # get required parameters
@@ -1733,7 +1731,7 @@ class QueryATNF(object):
         P1 = self.catalogue['P1']
         DIST = self.catalogue['DIST']
 
-        P1I = np.full(len(P0), np.nan)
+        P1I = np.full(self.catalogue_len, np.nan)
         idx = (np.isfinite(P1) & np.isfinite(P0) & np.isfinite(VTRANS) &
                np.isfinite(DIST))
         P1I[idx] = ((P1[idx]/1.0e-15) -
@@ -1747,15 +1745,13 @@ class QueryATNF(object):
         """
 
         if not np.all([p in self.columns for p in ['P0', 'P1']]):
-            warnings.warn("Could not set characteristic age.",
-                          UserWarning)
             return
 
         # get period and period derivative
         P0 = self.catalogue['P0']
         P1 = self.catalogue['P1']
 
-        AGE = np.full(len(P0), np.nan)
+        AGE = np.full(self.catalogue_len, np.nan)
         idx = (P1 > 0.) & (P0 > 0.) & np.isfinite(P0) & np.isfinite(P1)
         AGE[idx] = 0.5 * (P0[idx] / P1[idx]) / (60.0 * 60.0 * 24.0 * 365.25)
         self.update(AGE, name='AGE')
@@ -1770,15 +1766,13 @@ class QueryATNF(object):
             self.derived_p1_i()
 
         if not np.all([p in self.columns for p in ['P0', 'P1_I']]):
-            warnings.warn("Could not set characteristic age.",
-                          UserWarning)
             return
 
         # get period and period derivative
         P0 = self.catalogue['P0']
         P1_I = self.catalogue['P1_I']
 
-        AGEI = np.full(len(P0), np.nan)
+        AGEI = np.full(self.catalogue_len, np.nan)
         idx = (P1_I > 0.) & (P0 > 0.) & np.isfinite(P1_I) & np.isfinite(P0)
         AGEI[idx] = 0.5 * (P0[idx] / P1_I[idx]) / (60.0 * 60.0 * 24.0 * 365.25)
         self.update(AGEI, name='AGE_I')
@@ -1789,15 +1783,13 @@ class QueryATNF(object):
         """
 
         if not np.all([p in self.columns for p in ['P0', 'P1']]):
-            warnings.warn("Could not set surface magnetic field.",
-                          UserWarning)
             return
 
         # get period and period derivative
         P0 = self.catalogue['P0']
         P1 = self.catalogue['P1']
 
-        BSURF = np.full(len(P0), np.nan)
+        BSURF = np.full(self.catalogue_len, np.nan)
         idx = (P1 > 0.) & np.isfinite(P1) & np.isfinite(P0)
         BSURF[idx] = 3.2e19 * np.sqrt(np.abs(P0[idx] * P1[idx]))
         self.update(BSURF, name='BSURF')
@@ -1812,15 +1804,13 @@ class QueryATNF(object):
             self.derived_p1_i()
 
         if not np.all([p in self.columns for p in ['P0', 'P1_I']]):
-            warnings.warn("Could not set surface magnetic field.",
-                          UserWarning)
             return
 
         # get period and period derivative
         P0 = self.catalogue['P0']
         P1_I = self.catalogue['P1_I']
 
-        BSURFI = np.full(len(P0), np.nan)
+        BSURFI = np.full(self.catalogue_len, np.nan)
         idx = (P1_I > 0.) & np.isfinite(P1_I) & np.isfinite(P0)
         BSURFI[idx] = 3.2e19 * np.sqrt(np.abs(P0[idx] * P1_I[idx]))
         self.update(BSURFI, name='BSURF_I')
@@ -1831,15 +1821,13 @@ class QueryATNF(object):
         """
 
         if not np.all([p in self.columns for p in ['P0', 'P1']]):
-            warnings.warn("Could not set light cylinder magnetic field.",
-                          UserWarning)
             return
 
         # get period and period derivative
         P0 = self.catalogue['P0']
         P1 = self.catalogue['P1']
 
-        BLC = np.full(len(P0), np.nan)
+        BLC = np.full(self.catalogue_len, np.nan)
         idx = (P1 > 0.) & np.isfinite(P1) & np.isfinite(P0)
         BLC[idx] = 3.0e8*np.sqrt(P1[idx])*np.abs(P0[idx])**(-5./2.)
         self.update(BLC, name='B_LC')
@@ -1850,15 +1838,13 @@ class QueryATNF(object):
         """
 
         if not np.all([p in self.columns for p in ['P0', 'P1']]):
-            warnings.warn("Could not set spin-down luminosity.",
-                          UserWarning)
             return
 
         # get period and period derivative
         P0 = self.catalogue['P0']
         P1 = self.catalogue['P1']
 
-        EDOT = np.full(len(P0), np.nan)
+        EDOT = np.full(self.catalogue_len, np.nan)
         idx = (P1 > 0.) & np.isfinite(P1) & np.isfinite(P0)
         EDOT[idx] = 4.0 * np.pi**2 * 1e45 * P1[idx] / P0[idx]**3
         self.update(EDOT, name='EDOT')
@@ -1873,15 +1859,13 @@ class QueryATNF(object):
             self.derived_p1_i()
 
         if not np.all([p in self.columns for p in ['P0', 'P1_I']]):
-            warnings.warn("Could not set spin-down luminosity.",
-                          UserWarning)
             return
 
         # get period and period derivative
         P0 = self.catalogue['P0']
         P1_I = self.catalogue['P1_I']
 
-        EDOT_I = np.full(len(P0), np.nan)
+        EDOT_I = np.full(self.catalogue_len, np.nan)
         idx = (P1_I > 0.) & np.isfinite(P1_I) & np.isfinite(P0)
         EDOT_I[idx] = 4.0 * np.pi**2 * 1e45 * P1_I[idx] / P0[idx]**3
         self.update(EDOT_I, name='EDOT_I')
@@ -1893,8 +1877,6 @@ class QueryATNF(object):
 
         reqpars = ['P0', 'P1', 'DIST']
         if not np.all([p in self.columns for p in reqpars]):
-            warnings.warn("Could not set spin-down luminosity flux.",
-                          UserWarning)
             return
 
         # get period, period derivative and distance
@@ -1902,7 +1884,7 @@ class QueryATNF(object):
         P1 = self.catalogue['P1']
         DIST = self.catalogue['DIST']
 
-        EDOTD2 = np.full(len(P0), np.nan)
+        EDOTD2 = np.full(self.catalogue_len, np.nan)
         idx = (P0 > 0.) & np.isfinite(P1) & np.isfinite(P0) & np.isfinite(DIST)
         EDOTD2[idx] = 4.0*np.pi**2*1e45*((P1[idx]/P0[idx]**3)/DIST[idx]**2)
         self.update(EDOTD2, name='EDOTD2')
@@ -1914,8 +1896,6 @@ class QueryATNF(object):
 
         reqpars = ['PMRA', 'PMDEC', 'PMELONG', 'PMELAT']
         if not np.all([p in self.columns for p in reqpars]):
-            warnings.warn("Could not set total proper motion.",
-                          UserWarning)
             return
 
         # get PMRA and PMDEC
@@ -1958,14 +1938,12 @@ class QueryATNF(object):
             self.derived_pmtot()
 
         if not np.all([p in self.columns for p in ['PMTOT', 'DIST']]):
-            warnings.warn("Could not set transverse velocity.",
-                          UserWarning)
             return
 
         PMTOT = self.catalogue['PMTOT']
         DIST = self.catalogue['DIST']
 
-        VTRANS = np.full(len(PMTOT), np.nan)
+        VTRANS = np.full(self.catalogue_len, np.nan)
         idx = np.isfinite(PMTOT) & np.isfinite(DIST)
         VTRANS[idx] = (PMTOT[idx]/(1000.0*3600.0*180.0*np.pi*365.25*
                                    86400.0))*3.086e16*DIST[idx]
@@ -1978,14 +1956,12 @@ class QueryATNF(object):
         """
 
         if not np.all([p in self.columns for p in ['S1400', 'S400']]):
-            warnings.warn("Could not set spectral index.",
-                          UserWarning)
             return
 
         S1400 = self.catalogue['S1400']
         S400 = self.catalogue['S400']
 
-        SI414 = np.full(len(S1400), np.nan)
+        SI414 = np.full(self.catalogue_len, np.nan)
         idx = np.isfinite(S1400) & np.isfinite(S400) & (S1400 > 0.) & (S400 > 0.)
         fac = np.log10(400.0/1400.0)
         SI414[idx] = -(np.log10(S400[idx]/S1400[idx])/fac)
@@ -2000,12 +1976,12 @@ class QueryATNF(object):
 
         DIST = self.catalogue['DIST']
 
-        R_LUM = np.full(len(S400), np.nan)
+        R_LUM = np.full(self.catalogue_len, np.nan)
         idx = np.isfinite(S400) & np.isfinite(DIST)
         R_LUM[idx] = S400[idx] * DIST[idx]**2
         self.update(R_LUM, name='R_LUM')
 
-        R_LUM14 = np.full(len(S1400), np.nan)
+        R_LUM14 = np.full(self.catalogue_len, np.nan)
         idx = np.isfinite(S1400) & np.isfinite(DIST)
         R_LUM14[idx] = S1400[idx] * DIST[idx]**2
         self.update(R_LUM14, name='R_LUM14')
@@ -2192,6 +2168,42 @@ class QueryATNF(object):
                         conditionparse += ' && bincomp({})'.format(p.upper())
 
         return conditionparse
+
+    @property
+    def catalogue_shape(self):
+        """
+        The shape of the entire catalogue table as a tuple containing the
+        number of rows and the number of columns.
+        """
+
+        return self.catalogue.shape
+    
+    @property
+    def catalogue_nrows(self):
+        """
+        The number of rows in the entire catalogue, i.e. the number of pulsars
+        it contains.
+        """
+
+        return self.catalogue.shape[0]
+
+    @property
+    def catalogue_ncols(self):
+        """
+        The number of columns in the entire catalogue, i.e. the number of
+        parameters it contains.
+        """
+
+        return self.catalogue.shape[1]
+
+    @property
+    def catalogue_len(self):
+        """
+        The length of the entire catalogue, i.e., the number of pulsars it
+        contains. This should be the same as `catalogue_nrows`.
+        """
+
+        return len(self.catalogue)
 
     def __len__(self):
         """

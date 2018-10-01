@@ -27,7 +27,7 @@ def warning_format(message, category, filename, lineno, file=None, line=None):
     return '{}: {}\n'.format(category.__name__, message)
 
 
-warnings.formatwarning = warning_format
+#warnings.formatwarning = warning_format
 
 
 from .search import QueryATNF
