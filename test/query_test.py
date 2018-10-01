@@ -2,64 +2,62 @@
 Test script.
 """
 
-from __future__ import absolute_import
-
-import unittest
+import pytest
 from psrqpy import QueryATNF
-from psrqpy.config import *
 import numpy as np
 
 
-class TestCrab(unittest.TestCase):
+@pytest.mark.enable_socket
+def test_crab(query):
     """
     Test that the Crab pulsar is present and the frequency is as expected, i.e.
     the frequency rounds down to 29 Hz (should be OK for another ~80 years!)
     """
 
-    def setUp(self):
-        self.query_crab = QueryATNF(psrs='J0534+2200', params='F0')
+    f0 = query.get_pulsar('J0534+2200')['F0'][0]
 
-    def tearDown(self):
-        del self.query_crab
-
-    def test_f0(self):
-        f0 = self.query_crab.table['F0'][0]
-
-        self.assertTrue(np.floor(f0) == 29.0)
+    assert np.floor(f0) == 29.0
 
 
-class TestDerived(unittest.TestCase):
-    def setUp(self):
-        self.query_derived = QueryATNF(loadfromdb='test/test_catalogue.db')
-        self.query_atnf = QueryATNF(loadfromdb='test/derived_catalogue.db')
+@pytest.mark.enable_socket
+def test_derived_p0(query_derived, query_atnf):
+    """
+    Test the derived period value against the values from the ATNF Pulsar
+    Catalogue.
+    """
 
-    def tearDown(self):
-        del self.query_atnf
-        del self.query_derived
+    p0 = query_derived.get_pulsar('TEST1')['P0'][0]
+    p0atnf = query_atnf.get_pulsar('TEST1')['P0'][0]
 
-    def test_derived_p0(self):
-        """
-        Test the derived period value against the values from the ATNF Pulsar
-        Catalogue.
-        """
+    p0err = query_derived.get_pulsar('TEST1')['P0_ERR'][0]
+    p0atnferr = query_atnf.get_pulsar('TEST1')['P0_ERR'][0]
 
-        p0 = self.query_derived.get_pulsar('TEST1')['P0'][0]
-        p0atnf = self.query_atnf.get_pulsar('TEST1')['P0'][0]
+    assert abs(p0-p0atnf) < p0atnferr
 
-        p0err = self.query_derived.get_pulsar('TEST1')['P0_ERR'][0]
-        p0atnferr = self.query_atnf.get_pulsar('TEST1')['P0_ERR'][0]
+    # get ATNF derived error value
+    errexp = np.floor(np.log10(p0atnferr))    # exponent
+    errval = np.round(p0atnferr/10**errexp)   # value before exponent
 
-        self.assertTrue(abs(p0-p0atnf) < p0atnferr)
+    # ATNF derived errors are always rounded up
+    derval = np.ceil(p0err/10**errexp)
 
-        # get ATNF derived error value
-        errexp = np.floor(np.log10(p0atnferr))    # exponent
-        errval = np.round(p0atnferr/10**errexp)   # value before exponent
-
-        # ATNF derived errors are always rounded up
-        derval = np.ceil(p0err/10**errexp)
-
-        self.assertTrue(errval == derval)
+    assert errval == derval
 
 
-if __name__ == '__main__':
-    unittest.main()
+### Test exceptions ###
+def test_bad_database():
+    """
+    Try loading in random file.
+    """
+
+    baddbfile = 'sdhfjjdf'  # bad database file
+    with pytest.raises(IOError):
+        query = QueryATNF(loadfromdb=baddbfile)
+
+def test_download_db():
+    """
+    Try downloading the database without the socket being enabled.
+    """
+
+    with pytest.raises(RuntimeError):
+        query = QueryATNF(checkupdate=True)

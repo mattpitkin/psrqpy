@@ -18,7 +18,7 @@ install:
   # install packages for documentation building
   - pip install sphinx sphinx-rtd-theme
   # install packages for testing
-  - pip install pytest
+  - pip install pytest pytest-socket
   # build psrqpy
   - pip install -e .
 before_script: # configure a headless display to test plot generation (see https://stackoverflow.com/a/35403128/1862861)
