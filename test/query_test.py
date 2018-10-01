@@ -90,6 +90,21 @@ def test_derived_p0(query_derived, query_atnf):
 
     assert errval == derval
 
+@pytest.mark.enable_socket
+def test_derived_ecliptic(query_derived, query_atnf):
+    """
+    Test the derived ecliptic longitude and latitude.
+    """
+
+    elong = query_derived.get_pulsar('TEST1')['ELONG'][0]
+    elongatnf = query_atnf.get_pulsar('TEST1')['ELONG'][0]
+
+    assert abs(elong-elongatnf) < 1e-5
+
+    elat = query_derived.get_pulsar('TEST1')['ELAT'][0]
+    elatatnf = query_atnf.get_pulsar('TEST1')['ELAT'][0]
+
+    assert abs(elat-elatatnf) < 1e-5
 
 ### Test exceptions ###
 def test_bad_database():
