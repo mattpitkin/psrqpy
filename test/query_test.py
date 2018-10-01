@@ -9,6 +9,7 @@ from psrqpy import QueryATNF
 from psrqpy.config import *
 import numpy as np
 
+
 class TestCrab(unittest.TestCase):
     """
     Test that the Crab pulsar is present and the frequency is as expected, i.e.
@@ -25,7 +26,7 @@ class TestCrab(unittest.TestCase):
         f0 = self.query_crab.table['F0'][0]
 
         self.assertTrue(np.floor(f0) == 29.0)
-    
+
 
 class TestDerived(unittest.TestCase):
     def setUp(self):

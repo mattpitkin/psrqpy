@@ -319,7 +319,7 @@ class QueryATNF(object):
             try:
                 colname = column.name
             except AttributeError:
-                colname = None 
+                colname = None
 
         if colname is not None:
             if colname in self.columns:
@@ -864,7 +864,7 @@ class QueryATNF(object):
         # Save original parameter in new column
         ASSOCorig = self.catalogue['ASSOC'].copy()
         ASSOCorig.name = 'ASSOC_ORIG'
-        self.update(ASSOCorig, name='ASSOC_ORIG') 
+        self.update(ASSOCorig, name='ASSOC_ORIG')
 
         ASSOCnew = self.catalogue['ASSOC'].copy()
         idxassoc = ~ASSOCnew.isna()
@@ -878,8 +878,8 @@ class QueryATNF(object):
         else:
             ASSOCREFnew = self.catalogue['ASSOC_REF'].copy()
 
-        ASSOCREFnew[idxassoc] = ASSOCnew[idxassoc].apply(lambda x: 
-                                                         re.split(r'\]', re.split(r'\[', x)[1])[0] 
+        ASSOCREFnew[idxassoc] = ASSOCnew[idxassoc].apply(lambda x:
+                                                         re.split(r'\]', re.split(r'\[', x)[1])[0]
                                                          if len(re.split(r'\[', x)) > 1 else np.nan)
 
         # Set values
@@ -914,8 +914,8 @@ class QueryATNF(object):
         else:
             TYPEREFnew = self.catalogue['TYPE_REF'].copy()
 
-        TYPEREFnew[idxtype] = TYPEnew[idxtype].apply(lambda x: 
-                                                     re.split(r'\]', re.split(r'\[', x)[1])[0] 
+        TYPEREFnew[idxtype] = TYPEnew[idxtype].apply(lambda x:
+                                                     re.split(r'\]', re.split(r'\[', x)[1])[0]
                                                      if len(re.split(r'\[', x)) > 1 else np.nan)
 
         # Set values
@@ -936,7 +936,7 @@ class QueryATNF(object):
         # Save original parameter in new column
         BINCOMPorig = self.catalogue['BINCOMP'].copy()
         BINCOMPorig.name = 'BINCOMP_ORIG'
-        self.update(BINCOMPorig) 
+        self.update(BINCOMPorig)
 
         BINCOMPnew = self.catalogue['BINCOMP'].copy()
         idxbincomp = ~BINCOMPnew.isna()
@@ -946,16 +946,17 @@ class QueryATNF(object):
             BINCOMPREFnew = Series(np.full(self.catalogue_len, np.nan,
                                            dtype=np.str),
                                    name='BINCOMP_REF')
-            self.update(BINCOMPREFnew) 
+            self.update(BINCOMPREFnew)
         else:
             BINCOMPREFnew = self.catalogue['BINCOMP_REF'].copy()
 
         BINCOMPREFnew[idxbincomp] = BINCOMPnew[idxbincomp]\
-            .apply(lambda x: re.split(r'\]', re.split(r'\[', x)[1])[0] 
+            .apply(lambda x: re.split(r'\]', re.split(r'\[', x)[1])[0]
                    if len(re.split(r'\[', x)) > 1 else np.nan)
 
         # Set values
-        BINCOMPnew[idxbincomp] = BINCOMPnew[idxbincomp].apply(lambda x: re.split(r'\[|,|\(|:', x)[0])
+        BINCOMPnew[idxbincomp] = BINCOMPnew[idxbincomp]\
+            .apply(lambda x: re.split(r'\[|,|\(|:', x)[0])
 
         self.update(BINCOMPnew)
         self.update(BINCOMPREFnew)
@@ -1004,12 +1005,12 @@ class QueryATNF(object):
             PX = self.catalogue['PX']
         else:
             PX = np.full(self.catalogue_len, np.nan)
-        
+
         if 'PX_ERR' in self.columns:
             PXERR = self.catalogue['PX_ERR']
         else:
             PXERR = np.full(self.catalogue_len, np.nan)
-        
+
         if 'DIST_A' in self.columns:
             DIST_A = self.catalogue['DIST_A']
         else:
@@ -1029,7 +1030,7 @@ class QueryATNF(object):
             DIST_DM = self.catalogue['DIST_DM']
         else:
             DIST_DM = np.full(self.catalogue_len, np.nan)
-        
+
         if 'DIST_DM1' in self.columns:
             DIST_DM1 = self.catalogue['DIST_DM1']
         else:
@@ -1344,6 +1345,7 @@ class QueryATNF(object):
             MEDMASS = np.full(self.catalogue_len, np.nan)
             UPRMASS = np.full(self.catalogue_len, np.nan)
             from scipy.optimize import newton
+
             def solfunc(m2, sini, mf, m1):
                 return (m1 + m2)**2 - (m2*sini)**3/mf
 
@@ -1411,14 +1413,17 @@ class QueryATNF(object):
                 idxn = idx & (np.isfinite(EPS1ERR) & np.isfinite(EPS2ERR) &
                               (ECCnew != 0.))
 
-                OMERRnew[idxn] = (np.sqrt((EPS2[idxn]*EPS1ERR[idxn])**2
-                                          +(EPS1[idxn]*EPS2ERR[idxn])**2)/
-                                          (ECCnew[idxn])**2)*180.0/np.pi
+                OMERRnew[idxn] = (
+                    np.sqrt((EPS2[idxn]*EPS1ERR[idxn])**2
+                            + (EPS1[idxn]*EPS2ERR[idxn])**2) /
+                    (ECCnew[idxn])**2
+                    )*180.0/np.pi
                 self.update(OMERRnew, name='OM_ERR')
 
-                ECCERRnew[idxn] = (np.sqrt((EPS1[idxn]*EPS1ERR[idxn])**2
-                                          +(EPS2[idxn]*EPS2ERR[idxn])**2)
-                                          /ECCnew[idxn])
+                ECCERRnew[idxn] = (
+                    np.sqrt((EPS1[idxn]*EPS1ERR[idxn])**2
+                            + (EPS2[idxn]*EPS2ERR[idxn])**2) / ECCnew[idxn]
+                    )
                 self.update(ECCERRnew, name='ECC_ERR')
 
         # derive MINOMDOT
@@ -1432,9 +1437,10 @@ class QueryATNF(object):
 
             idx = np.isfinite(MINMASS) & np.isfinite(PB) & np.isfinite(ECC)
 
-            MINOMDOT[idx] = (3.*(2.*np.pi/PB[idx])**(5./3.)*
-                            ((MASS_PSR+MINMASS[idx])*4.925490946e-6)**(2./3.)/
-                            (1.-ECC[idx]**2))
+            MINOMDOT[idx] = (3.*(2.*np.pi/PB[idx])**(5./3.) *
+                             ((MASS_PSR+MINMASS[idx]) *
+                              4.925490946e-6)**(2./3.) /
+                             (1.-ECC[idx]**2))
             MINOMDOT[idx] = np.rad2deg(MINOMDOT[idx])*86400.*365.25
 
             self.update(MINOMDOT, name='MINOMDOT')
@@ -1536,8 +1542,9 @@ class QueryATNF(object):
             F1ERR = self.catalogue['F1_ERR']
             F0ERR = self.catalogue['F0_ERR']
             idx = idx & (np.isfinite(F1ERR) & np.isfinite(F0ERR))
-            P1ERRnew[idx] = np.sqrt((P0[idx]**2*F1ERR[idx])**2
-                                    +(2.0*P0[idx]**3*F1[idx]*F0ERR[idx])**2)
+            P1ERRnew[idx] = np.sqrt(
+                (P0[idx]**2*F1ERR[idx])**2
+                + (2.0*P0[idx]**3*F1[idx]*F0ERR[idx])**2)
             self.update(P1ERRnew, name='P1_ERR')
 
     def derived_f1(self):
@@ -1572,9 +1579,10 @@ class QueryATNF(object):
             F1ERRnew = np.full(self.catalogue_len, np.nan)
             P1ERR = self.catalogue['P1_ERR']
             P0ERR = self.catalogue['P0_ERR']
-            idx = idx & (np.isfinite(P1ERR) & np.isfinite(P0ERR))
-            F1ERRnew[idx] = np.sqrt((F0[idx]**2*P1ERR[idx])**2
-                                     +(2.0*F0[idx]**3*P1[idx]*P0ERR[idx])**2)
+            idx = idx & np.isfinite(P1ERR) & np.isfinite(P0ERR)
+            F1ERRnew[idx] = np.sqrt(
+                (F0[idx]**2*P1ERR[idx])**2
+                + (2.0*F0[idx]**3*P1[idx]*P0ERR[idx])**2)
             self.update(F1ERRnew, name='F1_ERR')
 
     def derived_pb(self):
@@ -1708,9 +1716,10 @@ class QueryATNF(object):
             PBDOTERR = self.catalogue['PBDOT_ERR']
             PBERR = self.catalogue['PB_ERR']
             idx = idx & np.isfinite(PBERR) & np.isfinite(PBDOTERR)
-            FB1ERRnew[idx] = np.sqrt((FB0[idx]**2 * PBDOTERR[idx])**2
-                                     +(2.0 * FB0[idx]**3 * PBDOT[idx]*
-                                       PBERR[idx] * 86400.)**2)
+            FB1ERRnew[idx] = np.sqrt(
+                (FB0[idx]**2 * PBDOTERR[idx])**2
+                + (2.0 * FB0[idx]**3 * PBDOT[idx] *
+                   PBERR[idx] * 86400.)**2)
             self.update(FB1ERRnew, name='FB1_ERR')
 
     def derived_p1_i(self):
@@ -1735,7 +1744,7 @@ class QueryATNF(object):
         idx = (np.isfinite(P1) & np.isfinite(P0) & np.isfinite(VTRANS) &
                np.isfinite(DIST))
         P1I[idx] = ((P1[idx]/1.0e-15) -
-                    VTRANS[idx]**2 * 1.0e10 * P0[idx]/
+                    VTRANS[idx]**2 * 1.0e10 * P0[idx] /
                     (DIST[idx] * 3.086e6)/2.9979e10) * 1.0e-15
         self.update(P1I, name='P1_I')
 
@@ -1925,7 +1934,7 @@ class QueryATNF(object):
         PMDEC_ERR[useelong] = PMELONG_ERR[useelong]
         PMRA_ERR[useelat] = PMELAT_ERR[useelat]
 
-        PMTOTERR = np.sqrt(((PMRA*PMRA_ERR)**2+(PMDEC*PMDEC_ERR)**2)/
+        PMTOTERR = np.sqrt(((PMRA*PMRA_ERR)**2+(PMDEC*PMDEC_ERR)**2) /
                            (PMRA**2 + PMDEC**2))
         self.update(PMTOTERR, name='PMTOT_ERR')
 
@@ -1945,8 +1954,8 @@ class QueryATNF(object):
 
         VTRANS = np.full(self.catalogue_len, np.nan)
         idx = np.isfinite(PMTOT) & np.isfinite(DIST)
-        VTRANS[idx] = (PMTOT[idx]/(1000.0*3600.0*180.0*np.pi*365.25*
-                                   86400.0))*3.086e16*DIST[idx]
+        VTRANS[idx] = (PMTOT[idx] / (1000.0*3600.0*180.0*np.pi*365.25 *
+                       86400.0))*3.086e16*DIST[idx]
         self.update(VTRANS, name='VTRANS')
 
     def derived_flux(self):
@@ -2007,8 +2016,8 @@ class QueryATNF(object):
         for namepar in namepars:
             if namepar in self.columns:
                 names = self.catalogue[namepar]
-                if np.any(psr==names):
-                    return self.catalogue_table[(psr==names).tolist()]
+                if np.any(psr == names):
+                    return self.catalogue_table[(psr == names).tolist()]
 
         return None
 
@@ -2177,7 +2186,7 @@ class QueryATNF(object):
         """
 
         return self.catalogue.shape
-    
+
     @property
     def catalogue_nrows(self):
         """
@@ -2324,26 +2333,26 @@ class QueryATNF(object):
 
         # set plot parameters
         rcparams['figure.figsize'] = rcparams['figure.figsize'] if \
-                                     'figure.figsize' in rcparams else (9, 9.5)
+            'figure.figsize' in rcparams else (9, 9.5)
         rcparams['figure.dpi'] = rcparams['figure.dpi'] if \
-                                 'figure.dpi' in rcparams else 250
+            'figure.dpi' in rcparams else 250
         rcparams['text.usetex'] = rcparams['text.usetex'] if \
-                                  'text.usetex' in rcparams else True
+            'text.usetex' in rcparams else True
         rcparams['axes.linewidth'] = rcparams['axes.linewidth'] if \
-                                     'axes.linewidth' in rcparams else 0.5
+            'axes.linewidth' in rcparams else 0.5
         rcparams['axes.grid'] = rcparams['axes.grid'] if \
-                                'axes.grid' in rcparams else False
+            'axes.grid' in rcparams else False
         rcparams['font.family'] = rcparams['font.family'] if \
-                                  'font.family' in rcparams else 'sans-serif'
+            'font.family' in rcparams else 'sans-serif'
         rcparams['font.sans-serif'] = rcparams['font.sans-serif'] if \
-                                      'font.sans-serif' in rcparams else \
-                                      'Avant Garde, Helvetica, Computer Modern Sans serif'
+            'font.sans-serif' in rcparams else \
+            'Avant Garde, Helvetica, Computer Modern Sans serif'
         rcparams['font.size'] = rcparams['font.size'] if \
-                                'font.size' in rcparams else 20
+            'font.size' in rcparams else 20
         rcparams['legend.fontsize'] = rcparams['legend.fontsize'] if \
-                                      'legend.fontsize' in rcparams else 16
+            'legend.fontsize' in rcparams else 16
         rcparams['legend.frameon'] = rcparams['legend.frameon'] if \
-                                     'legend.frameon' in rcparams else False
+            'legend.frameon' in rcparams else False
 
         mpl.rcParams.update(rcparams)
 
@@ -2419,13 +2428,13 @@ class QueryATNF(object):
                     filldeathtype = {}
 
                 filldeathtype['linestyle'] = filldeathtype['linestyle'] if \
-                                             'linestyle' in filldeathtype else '-'
+                    'linestyle' in filldeathtype else '-'
                 filldeathtype['alpha'] = filldeathtype['alpha'] if \
-                                         'alpha' in filldeathtype else 0.15
+                    'alpha' in filldeathtype else 0.15
                 filldeathtype['facecolor'] = filldeathtype['facecolor'] if \
-                                             'facecolor' in filldeathtype else 'darkorange'
+                    'facecolor' in filldeathtype else 'darkorange'
                 filldeathtype['hatch'] = filldeathtype['hatch'] if \
-                                         'hatch' in filldeathtype else ''
+                    'hatch' in filldeathtype else ''
                 ax.fill_between(periodlims, deathpdots, pdotlims[0], **filldeathtype)
 
         # add markers for each pulsar type
@@ -2434,21 +2443,21 @@ class QueryATNF(object):
 
         # check if markers have been defined by the user or not
         markertypes['AXP'] = {'marker': 's', 'markeredgecolor': 'red'} if \
-                             'AXP' not in markertypes else markertypes['AXP']
+            'AXP' not in markertypes else markertypes['AXP']
         markertypes['BINARY'] = {'marker': 'o', 'markeredgecolor': 'grey'} if \
-                                'BINARY' not in markertypes else markertypes['BINARY']
+            'BINARY' not in markertypes else markertypes['BINARY']
         markertypes['HE'] = {'marker': 'D', 'markeredgecolor': 'orange'} if \
-                            'HE' not in markertypes else markertypes['HE']
+            'HE' not in markertypes else markertypes['HE']
         markertypes['RRAT'] = {'marker': 'h', 'markeredgecolor': 'green'} if \
-                              'RRAT' not in markertypes else markertypes['RRAT']
+            'RRAT' not in markertypes else markertypes['RRAT']
         markertypes['NRAD'] = {'marker': 'v', 'markeredgecolor': 'blue'} if \
-                              'NRAD' not in markertypes else markertypes['NRAD']
+            'NRAD' not in markertypes else markertypes['NRAD']
         markertypes['XINS'] = {'marker': '^', 'markeredgecolor': 'magenta'} if \
-                              'XINS' not in markertypes else markertypes['XINS']
+            'XINS' not in markertypes else markertypes['XINS']
         markertypes['GC'] = {'marker': '8', 'markeredgecolor': 'cyan'} if \
-                            'GC' not in markertypes else markertypes['GC']
+            'GC' not in markertypes else markertypes['GC']
         markertypes['SNR'] = {'marker': '*', 'markeredgecolor': 'darkorchid'} if \
-                             'SNR' not in markertypes else markertypes['SNR']
+            'SNR' not in markertypes else markertypes['SNR']
 
         # legend strings for different types
         typelegstring = {}
