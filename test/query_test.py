@@ -5,9 +5,8 @@ Test script.
 import pytest
 from psrqpy import QueryATNF
 import numpy as np
+import pytest_socket
 
-
-@pytest.mark.enable_socket
 def test_crab(query):
     """
     Test that the Crab pulsar is present and the frequency is as expected, i.e.
@@ -18,7 +17,6 @@ def test_crab(query):
 
     assert np.floor(f0) == 29.0
 
-@pytest.mark.enable_socket
 def test_num_pulsars(query):
     """
     Test that the number of pulsars returned is as expected.
@@ -39,7 +37,6 @@ def test_num_pulsars(query):
     # length should be two
     assert len(query) == 2
 
-@pytest.mark.enable_socket
 def test_num_columns(query):
     """
     Test that the number of columns if correct.
@@ -66,7 +63,6 @@ def test_num_columns(query):
     assert len(query.table.columns) == 4
 
 ### Test derived parameters ###
-@pytest.mark.enable_socket
 def test_derived_p0(query_derived, query_atnf):
     """
     Test the derived period value against the values from the ATNF Pulsar
@@ -90,7 +86,6 @@ def test_derived_p0(query_derived, query_atnf):
 
     assert errval == derval
 
-@pytest.mark.enable_socket
 def test_derived_ecliptic(query_derived, query_atnf):
     """
     Test the derived ecliptic longitude and latitude.
@@ -116,6 +111,7 @@ def test_bad_database():
     with pytest.raises(IOError):
         query = QueryATNF(loadfromdb=baddbfile)
 
+@pytest.mark.disable_socket
 def test_download_db():
     """
     Try downloading the database without the socket being enabled.
@@ -124,7 +120,6 @@ def test_download_db():
     with pytest.raises(RuntimeError):
         query = QueryATNF(checkupdate=True)
 
-@pytest.mark.enable_socket
 def test_sort_exception(query):
     """
     Test exception in sort method.

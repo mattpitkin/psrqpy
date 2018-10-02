@@ -12,13 +12,15 @@ before_install:
   # try a lighter weight texlive distribution, e.g. just texlive and texlive-latex-extra
   - sudo apt-get -qq update && sudo apt-get install -y --no-install-recommends texlive texlive-latex-extra
 install:
+  - pip install --upgrade pip
   - pip install -r requirements.txt
   # install additionally allowed packages
   - pip install matplotlib ads
   # install packages for documentation building
   - pip install sphinx sphinx-rtd-theme
   # install packages for testing
-  - pip install pytest pytest-socket
+  - pip install --upgrade pytest>=3.6.3
+  - pip install pytest-socket
   # build psrqpy
   - pip install -e .
 before_script: # configure a headless display to test plot generation (see https://stackoverflow.com/a/35403128/1862861)
