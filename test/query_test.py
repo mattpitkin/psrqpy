@@ -7,6 +7,7 @@ from psrqpy import QueryATNF
 import numpy as np
 import pytest_socket
 
+
 def test_crab(query):
     """
     Test that the Crab pulsar is present and the frequency is as expected, i.e.
@@ -62,7 +63,7 @@ def test_num_columns(query):
     # number of columns should be 4
     assert len(query.table.columns) == 4
 
-### Test derived parameters ###
+# TEST DERIVED PARAMETERS #
 def test_derived_p0(query_derived, query_atnf):
     """
     Test the derived period value against the values from the ATNF Pulsar
@@ -101,7 +102,7 @@ def test_derived_ecliptic(query_derived, query_atnf):
 
     assert abs(elat-elatatnf) < 1e-5
 
-### Test exceptions ###
+# TEST EXCEPTIONS #
 def test_bad_database():
     """
     Try loading in random file.
@@ -114,7 +115,7 @@ def test_bad_database():
 @pytest.mark.disable_socket
 def test_download_db():
     """
-    Try downloading the database without the socket being enabled.
+    Try downloading the database with the socket disabled.
     """
 
     with pytest.raises(RuntimeError):
