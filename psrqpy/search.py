@@ -1403,7 +1403,7 @@ class QueryATNF(object):
             self.update(UPRMASS, name='UPRMASS')
 
         # derive eccentricity from EPS1 and EPS2
-        reqpars = ['EPS1', 'EPS2', 'ECC', 'OM']
+        reqpars = ['EPS1', 'EPS2']
         if np.all([p in self.columns for p in reqpars]):
             EPS1 = self.catalogue['EPS1'].values.copy()
             EPS2 = self.catalogue['EPS2'].values.copy()
@@ -1448,6 +1448,48 @@ class QueryATNF(object):
                             + (EPS2[idxn]*EPS2ERR[idxn])**2) / ECCnew[idxn]
                     )
                 self.update(ECCERRnew, name='ECC_ERR')
+
+        # derive EPS1 and EPS2 from ECC and OM
+        reqpars = ['ECC', 'OM']
+        if np.all([p in self.columns for p in reqpars]):
+            ECC = self.catalogue['ECC'].values.copy()
+            OM = self.catalogue['OM'].values.copy()
+            EPS1new = np.full(self.catalogue_len, np.nan)
+            EPS2new = np.full(self.catalogue_len, np.nan)
+
+            idx = np.isfinite(ECC) & np.isfinite(OM)
+
+            EPS1new[idx] = ECC[idx] * np.sin(OM[idx])
+            EPS2new[idx] = ECC[idx] * np.cos(OM[idx])
+
+            self.update(EPS1new, name='EPS1')
+            self.update(EPS2new, name='EPS2')
+
+            # set errors
+            reqpars = ['ECC_ERR', 'OM_ERR']
+            if np.all([p in self.columns for p in reqpars]):
+                ECCERR = self.catalogue['ECC_ERR'].values.copy()
+                OMERR = self.catalogue['OM_ERR'].values.copy()
+                EPS1ERRnew = np.full(self.catalogue_len, np.nan)
+                EPS2ERRnew = np.full(self.catalogue_len, np.nan)
+
+                idxn = idx & np.isfinite(ECCERR) & np.isfinite(OMERR)
+
+                EPS1ERRnew[idxn] = (
+                    np.abs(EPS1new[idxn]) *
+                    np.sqrt((ECCERR[idxn]/ECC[idxn])**2 +
+                            (np.abs(np.cos(np.deg2rad(OM[idxn]))) * np.deg2rad(OMERR[idxn]) /
+                             np.abs(np.sin(np.deg2rad(OM[idxn]))))**2)
+                    )
+                EPS2ERRnew[idxn] = (
+                    np.abs(EPS2new[idxn]) *
+                    np.sqrt((ECCERR[idxn]/ECC[idxn])**2 +
+                            (np.abs(np.sin(np.deg2rad(OM[idxn]))) * np.deg2rad(OMERR[idxn]) /
+                             np.abs(np.cos(np.deg2rad(OM[idxn]))))**2)
+                    )
+
+                self.update(EPS1ERRnew, name='EPS1_ERR')
+                self.update(EPS2ERRnew, name='EPS2_ERR')
 
         # derive MINOMDOT
         reqpars = ['ECC', 'PB', 'MINMASS']
