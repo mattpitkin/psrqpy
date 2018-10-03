@@ -994,8 +994,8 @@ class QueryATNF(object):
         """
 
         self.define_dist()         # define the DIST and DIST1 parameters
-        self.derived_equatorial()  # derive equatorial coords from ecliptic
         self.derived_ecliptic()  # derive the ecliptic coordinates if not given
+        self.derived_equatorial()  # derive equatorial coords from ecliptic
         self.define_galactic()     # define the galactic coordinates
         self.derived_p0()          # derive P0 from F0 if not given
         self.derived_f0()          # derive F0 from P0 if not given
@@ -2007,19 +2007,53 @@ class QueryATNF(object):
         self.update(PMTOT, name='PMTOT')
 
         # get the error
-        reqpars = ['PMRA_ERR', 'PMDEC_ERR', 'PMELONG_ERR', 'PMELAT_ERR']
-        if not np.all([p in self.columns for p in reqpars]):
+        reqpars1 = ['PMRA_ERR', 'PMDEC_ERR']
+        reqpars2 = ['PMELONG_ERR', 'PMELAT_ERR']
+        if (not np.all([p in self.columns for p in reqpars1]) and
+            not np.all([p in self.columns for p in reqpars2])):
             return
 
-        PMRA_ERR = self.catalogue['PMRA_ERR'].copy()
-        PMDEC_ERR = self.catalogue['PMDEC_ERR'].copy()
-        PMELONG_ERR = self.catalogue['PMELONG_ERR']
-        PMELAT_ERR = self.catalogue['PMELAT_ERR']
-        PMDEC_ERR[useelong] = PMELONG_ERR[useelong]
-        PMRA_ERR[useelat] = PMELAT_ERR[useelat]
+        if 'PMRA_ERR' in self.columns:
+            PMRA_ERR = self.catalogue['PMRA_ERR'].copy()
+        else:
+            PMRA_ERR = np.full(self.catalogue_len, np.nan)
 
-        PMTOTERR = np.sqrt(((PMRA*PMRA_ERR)**2+(PMDEC*PMDEC_ERR)**2) /
-                           (PMRA**2 + PMDEC**2))
+        if 'PMDEC_ERR' in self.columns:
+            PMDEC_ERR = self.catalogue['PMDEC_ERR'].copy()
+        else:
+            PMDEC_ERR = np.full(self.catalogue_len, np.nan)
+
+        if 'PMELONG_ERR' in self.columns:
+            PMELONG_ERR = self.catalogue['PMELONG_ERR'].copy()
+        else:
+            PMELONG_ERR = np.full(self.catalogue_len, np.nan)
+
+        if 'PMELAT_ERR' in self.columns:
+            PMELAT_ERR = self.catalogue['PMELAT_ERR'].copy()
+        else:
+            PMELAT_ERR = np.full(self.catalogue_len, np.nan)
+
+        PMLAT = np.full(self.catalogue_len, np.nan)
+        PMLONG = np.full(self.catalogue_len, np.nan)
+        PMLATERR = np.full(self.catalogue_len, np.nan)
+        PMLONGERR = np.full(self.catalogue_len, np.nan)
+
+        idx = np.isfinite(PMELONG) & np.isfinite(PMELONG_ERR)
+        PMLONG[idx] = PMELONG[idx]
+        PMLONGERR[idx] = PMELONG_ERR[idx]
+        idx = np.isfinite(PMRA) & np.isfinite(PMRA_ERR)
+        PMLONG[idx] = PMRA[idx]
+        PMLONGERR[idx] = PMRA_ERR[idx]
+
+        idx = np.isfinite(PMELAT) & np.isfinite(PMELAT_ERR)
+        PMLAT[idx] = PMELAT[idx]
+        PMLATERR[idx] = PMELAT_ERR[idx]
+        idx = np.isfinite(PMDEC) & np.isfinite(PMDEC_ERR)
+        PMLAT[idx] = PMDEC[idx]
+        PMLATERR[idx] = PMDEC_ERR[idx]
+
+        PMTOTERR = np.sqrt(((PMLONG*PMLONGERR)**2+(PMLAT*PMLATERR)**2) /
+                           (PMLONG**2 + PMLAT**2))
         self.update(PMTOTERR, name='PMTOT_ERR')
 
     def derived_vtrans(self):
@@ -2038,7 +2072,7 @@ class QueryATNF(object):
 
         VTRANS = np.full(self.catalogue_len, np.nan)
         idx = np.isfinite(PMTOT) & np.isfinite(DIST)
-        VTRANS[idx] = (PMTOT[idx] / (1000.0*3600.0*180.0*np.pi*365.25 *
+        VTRANS[idx] = (PMTOT[idx] * np.pi / (1000.0*3600.0*180.0*365.25 *
                        86400.0))*3.086e16*DIST[idx]
         self.update(VTRANS, name='VTRANS')
 
