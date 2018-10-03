@@ -1353,8 +1353,8 @@ class QueryATNF(object):
         # derive mass function
         reqpars = ['A1', 'PB']
         if np.all([p in self.columns for p in reqpars]):
-            A1 = self.catalogue['A1'].values.copy()*c.value
-            PB = self.catalogue['PB'].values.copy()*86400.
+            A1 = self.catalogue['A1'].values.copy()*c.value  # convert to m
+            PB = self.catalogue['PB'].values.copy()*86400.   # convert to sec
 
             idx = np.isfinite(A1) & np.isfinite(PB)
 
@@ -1401,6 +1401,25 @@ class QueryATNF(object):
             self.update(MINMASS, name='MINMASS')
             self.update(MEDMASS, name='MEDMASS')
             self.update(UPRMASS, name='UPRMASS')
+
+            # add uncertainty on mass function
+            reqpars = ['A1_ERR', 'PB_ERR']
+            if np.all([p in self.columns for p in reqpars]):
+                 # convert to metres
+                A1ERR = self.catalogue['A1_ERR'].values.copy()*c.value
+                # convert to seconds
+                PBERR = self.catalogue['PB_ERR'].values.copy()*86400.   
+
+                idx = (np.isfinite(MASSFN) & np.isfinite(A1ERR) &
+                       np.isfinite(PBERR))
+
+                MASSFN_ERR = np.full(self.catalogue_len, np.nan)
+                MASSFN_ERR[idx] = (
+                    MASSFN[idx] * np.sqrt((3.*A1ERR[idx]/A1[idx])**2 +
+                                          (2.*PBERR[idx]/PB[idx])**2 )
+                    )
+
+                self.update(MASSFN_ERR, name='MASSFN_ERR')
 
         # derive eccentricity from EPS1 and EPS2
         reqpars = ['EPS1', 'EPS2']

@@ -233,7 +233,7 @@ PSR_BINARY = {
     'H4':       {'ref': True,  'err': True,  'units': 's'},
     # STIG: Ratio of successive Shapiro-delay harmonics
     'STIG':     {'ref': True,  'err': True,  'units': None},
-    'MASSFN':   {'ref': False, 'err': False, 'units': 'M_sun'},    # Pulsar mass function
+    'MASSFN':   {'ref': False, 'err': True,  'units': 'M_sun'},    # Pulsar mass function
     'MINMASS':  {'ref': False, 'err': False, 'units': 'M_sun'},    # Minimum companion mass
     'MEDMASS':  {'ref': False, 'err': False, 'units': 'M_sun'},    # Median companion mass
     # UPRMASS: 90% confidence upper companion mass limit
