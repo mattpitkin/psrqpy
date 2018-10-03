@@ -1405,10 +1405,10 @@ class QueryATNF(object):
             # add uncertainty on mass function
             reqpars = ['A1_ERR', 'PB_ERR']
             if np.all([p in self.columns for p in reqpars]):
-                 # convert to metres
+                # convert to metres
                 A1ERR = self.catalogue['A1_ERR'].values.copy()*c.value
                 # convert to seconds
-                PBERR = self.catalogue['PB_ERR'].values.copy()*86400.   
+                PBERR = self.catalogue['PB_ERR'].values.copy()*86400.  
 
                 idx = (np.isfinite(MASSFN) & np.isfinite(A1ERR) &
                        np.isfinite(PBERR))
@@ -1416,7 +1416,7 @@ class QueryATNF(object):
                 MASSFN_ERR = np.full(self.catalogue_len, np.nan)
                 MASSFN_ERR[idx] = (
                     MASSFN[idx] * np.sqrt((3.*A1ERR[idx]/A1[idx])**2 +
-                                          (2.*PBERR[idx]/PB[idx])**2 )
+                                          (2.*PBERR[idx]/PB[idx])**2)
                     )
 
                 self.update(MASSFN_ERR, name='MASSFN_ERR')
@@ -2010,7 +2010,7 @@ class QueryATNF(object):
         reqpars1 = ['PMRA_ERR', 'PMDEC_ERR']
         reqpars2 = ['PMELONG_ERR', 'PMELAT_ERR']
         if (not np.all([p in self.columns for p in reqpars1]) and
-            not np.all([p in self.columns for p in reqpars2])):
+                not np.all([p in self.columns for p in reqpars2])):
             return
 
         if 'PMRA_ERR' in self.columns:
