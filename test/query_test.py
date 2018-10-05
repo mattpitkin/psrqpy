@@ -5,6 +5,7 @@ Test script.
 import pytest
 from psrqpy import QueryATNF
 import numpy as np
+from pandas import Series
 import pytest_socket
 
 
@@ -108,6 +109,45 @@ def test_num_columns(query):
 
     # number of columns should be 4
     assert len(query.table.columns) == 4
+
+
+def test_update(query):
+    """
+    Test update method.
+    """
+
+    # no name set (and column not a Series)
+    column = 1
+    with pytest.raises(ValueError):
+        query.update(column)
+
+    # add an additional column using a numpy array
+    newcol = np.ones(query.catalogue_len)
+    newname = "TEST1"
+    numcols = len(query.columns)
+
+    assert newname not in query.columns
+
+    query.update(newcol, name=newname)
+
+    assert newname in query.columns
+    assert len(query.columns) == (numcols + 1)
+    assert np.all(query.catalogue[newname] == 1.)
+
+    # add an additional columns using a Series
+    numcols = len(query.columns)
+    newname = "TEST2"
+    newseries = Series(np.full(query.catalogue_len, 0.5), name=newname)
+    
+    assert newname not in query.columns
+    
+    query.update(newseries)
+
+    assert newname in query.columns
+    assert len(query.columns) == (numcols + 1)
+    assert np.all(query.catalogue[newname] == 0.5)
+
+    # TODO: add a test to make sure only NaNs get updated
 
 
 # TEST DERIVED PARAMETERS #
@@ -344,6 +384,10 @@ def test_sort_exception(query):
     Test exception in sort method.
     """
 
+    curkey = query.sort_key
     sortval = 'kgsdkfkfd'  # random sort parameter
     with pytest.raises(KeyError):
         query.sort(sort_attr=sortval)
+
+    # reset sort key
+    query.sort_key = curkey

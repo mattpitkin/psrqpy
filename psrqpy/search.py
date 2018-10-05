@@ -15,9 +15,6 @@ from six.moves import cPickle as pickle
 from six import string_types
 
 import numpy as np
-import requests
-from bs4 import BeautifulSoup
-
 from astropy.coordinates import SkyCoord, ICRS, BarycentricTrueEcliptic, Galactic
 import astropy.units as aunits
 from astropy.constants import c, GM_sun
@@ -142,7 +139,7 @@ class QueryATNF(object):
         self.exactmatch = exactmatch
         self.psrs = psrs
         self._sort_order = sort_order
-        self._sort_attr = sort_attr.upper()
+        self.sort_key = sort_attr.upper()
 
         # conditions for finding pulsars within a circular boundary
         self._coord1 = coord1
@@ -340,6 +337,21 @@ class QueryATNF(object):
         else:
             raise ValueError("No column name given")
 
+    @property
+    def sort_key(self):
+        return self._sort_attr
+
+    @sort_key.setter
+    def sort_key(self, value):
+        """
+        Set the parameter to sort on.
+        """
+
+        if not isinstance(value, string_types):
+            raise ValueError("Sort parameter must be a string")
+
+        self._sort_attr = value
+
     def sort(self, sort_attr='JNAME', sort_order='asc', inplace=False):
         """
         Sort the generated catalogue :class:`~pandas.DataFrame` on a given
@@ -361,11 +373,12 @@ class QueryATNF(object):
                 catalogue.
         """
 
-        self._sort_attr = sort_attr.upper()
+        if sort_attr is not None:
+            self.sort_key = sort_attr.upper()
 
-        if self._sort_attr not in self.columns:
+        if self.sort_key not in self.columns:
             raise KeyError("Sorting by attribute '{}' is not possible as it "
-                           "is not in the table".format(self._sort_attr))
+                           "is not in the table".format(self.sort_key))
 
         self._sort_order = sort_order
 
@@ -383,12 +396,12 @@ class QueryATNF(object):
 
         if inplace:
             # sort the stored dataframe
-            _ = self.__dataframe.sort_values(self._sort_attr,
+            _ = self.__dataframe.sort_values(self.sort_key,
                                              ascending=sortorder,
                                              inplace=inplace)
             return self.__dataframe
         else:
-            return self.__dataframe.sort_values(self._sort_attr,
+            return self.__dataframe.sort_values(self.sort_key,
                                                 ascending=sortorder)
 
     def __getitem__(self, key):
@@ -618,7 +631,7 @@ class QueryATNF(object):
                 expression = usecondition
 
             # sort table
-            dftable = self.sort(self._sort_attr, self._sort_order)
+            dftable = self.sort(self.sort_key, self._sort_order)
             if expression is not None:
                 # apply conditions
                 dftable = condition(dftable, expression, self._exactmatch)
@@ -800,7 +813,7 @@ class QueryATNF(object):
         """
 
         # get only required parameters and sort
-        dftable = self.sort(self._sort_attr, self._sort_order)
+        dftable = self.sort(self.sort_key, self._sort_order)
 
         if self._condition is not None:
             # apply condition
