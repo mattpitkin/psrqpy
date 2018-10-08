@@ -35,5 +35,7 @@ script:
   - cd docs
   - mkdir source/_static
   - make html
+  # return to base directory
+  - cd .. 
 after_success:
   - codecov
