@@ -20,7 +20,8 @@ install:
   - pip install sphinx sphinx-rtd-theme
   # install packages for testing
   - pip install --upgrade pytest>=3.6.3
-  - pip install pytest-socket
+  - pip install pytest-cov pytest-socket
+  - pip install codecov
   # build psrqpy
   - pip install -e .
 before_script: # configure a headless display to test plot generation (see https://stackoverflow.com/a/35403128/1862861)
@@ -29,8 +30,10 @@ before_script: # configure a headless display to test plot generation (see https
   - sleep 3 # give xvfb some time to start
 script:
   # run the test script
-  - pytest
+  - pytest --cov=./
   # try building documentation
   - cd docs
   - mkdir source/_static
   - make html
+after_success:
+  - codecov
