@@ -30,7 +30,7 @@ before_script: # configure a headless display to test plot generation (see https
   - sleep 3 # give xvfb some time to start
 script:
   # run the test script
-  - pytest --cov=./
+  - pytest --cov=psrqpy
   # try building documentation
   - cd docs
   - mkdir source/_static
