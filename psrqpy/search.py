@@ -1105,16 +1105,18 @@ class QueryATNF(object):
         idxdist = np.isfinite(DIST) & ~idxpxgt3
         idxdist1 = np.isfinite(DIST1) & ~idxpxgt3
 
-        idxa = ~((DIST <= DIST_AMX) & (DIST >= DIST_AMN))
-        idxa1 = ~((DIST1 <= DIST_AMX) & (DIST1 >= DIST_AMN))
+        # ignore warnings from comparisons that involve NaN
+        with np.errstate(invalid='ignore'):
+            idxa = ~((DIST <= DIST_AMX) & (DIST >= DIST_AMN))
+            idxa1 = ~((DIST1 <= DIST_AMX) & (DIST1 >= DIST_AMN))
 
-        DIST[idxa & idxdist & (DIST >= DIST_AMX)] = DIST_AMX[idxa & idxdist & (DIST >= DIST_AMX)]
-        DIST1[idxa1 & idxdist1 & (DIST1 >= DIST_AMX)] = DIST_AMX[(idxa1 & idxdist1
-                                                                  & (DIST1 >= DIST_AMX))]
+            DIST[idxa & idxdist & (DIST >= DIST_AMX)] = DIST_AMX[idxa & idxdist & (DIST >= DIST_AMX)]
+            DIST1[idxa1 & idxdist1 & (DIST1 >= DIST_AMX)] = DIST_AMX[(idxa1 & idxdist1
+                                                                      & (DIST1 >= DIST_AMX))]
 
-        DIST[idxa & idxdist & (DIST < DIST_AMX)] = DIST_AMN[idxa & idxdist & (DIST < DIST_AMX)]
-        DIST1[idxa1 & idxdist1 & (DIST1 < DIST_AMX)] = DIST_AMN[(idxa1 & idxdist1
-                                                                 & (DIST1 < DIST_AMX))]
+            DIST[idxa & idxdist & (DIST < DIST_AMX)] = DIST_AMN[idxa & idxdist & (DIST < DIST_AMX)]
+            DIST1[idxa1 & idxdist1 & (DIST1 < DIST_AMX)] = DIST_AMN[(idxa1 & idxdist1
+                                                                     & (DIST1 < DIST_AMX))]
 
         idxdist = (~np.isfinite(DIST) & ~idxpxgt3 &
                    np.isfinite(DIST_AMN) & np.isfinite(DIST_AMX))
@@ -1309,11 +1311,14 @@ class QueryATNF(object):
         YY = np.full(self.catalogue_len, np.nan)
         ZZ = np.full(self.catalogue_len, np.nan)
 
-        XX[idx] = sc.galactic.cartesian.x.value
-        YY[idx] = sc.galactic.cartesian.y.value
-        ZZ[idx] = sc.galactic.cartesian.z.value
+        # set galactocentric cartesian position (these seem to have a
+        # different orientation (rotated 90 deg anticlockwise) to that
+        # defined in the ATNF catalogue, and using a slightly different
+        # distance to the galactic centre 8.3 kpc in astropy and 8.5 in psrcat)
+        XX[idx] = sc.galactocentric.cartesian.x.value
+        YY[idx] = sc.galactocentric.cartesian.y.value
+        ZZ[idx] = sc.galactocentric.cartesian.z.value
 
-        # set galactic cartesian position
         self.update(XX, name='XX')
         self.update(YY, name='YY')
         self.update(ZZ, name='ZZ')

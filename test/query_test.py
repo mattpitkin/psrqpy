@@ -147,7 +147,25 @@ def test_update(query):
     assert len(query.columns) == (numcols + 1)
     assert np.all(query.catalogue[newname] == 0.5)
 
-    # TODO: add a test to make sure only NaNs get updated
+    # make sure only NaNs get updated
+    newname = "TEST3"
+    newseries = Series(np.full(query.catalogue_len, np.nan), name=newname)
+    newseries[0] = 1.
+    query.update(newseries)
+
+    assert query.catalogue[newname][0] == 1
+    assert np.all(np.isnan(query.catalogue[newname][1:]))
+
+    newseries = np.full(query.catalogue_len, 2.)
+    query.update(newseries, name=newname)
+
+    assert query.catalogue[newname][0] == 1
+    assert np.all(query.catalogue[newname][1:] == 2.)
+
+    # check that overwrite works
+    query.update(newseries, name=newname, overwrite=True)
+
+    assert np.all(query.catalogue[newname] == 2.)
 
 
 # TEST DERIVED PARAMETERS #
@@ -174,9 +192,33 @@ def test_derived_p0_p1(query_derived, query_atnf):
     assert round_err(p1err, p1atnferr)
 
 
+def test_derived_f0_f1(query_derived, query_atnf):
+    """
+    Test the derived frequency and frequency derivative values against the
+    values from the ATNF Pulsar Catalogue.
+    """
+
+    f0 = query_derived.get_pulsar('TEST2')['F0'][0]
+    f0atnf = query_atnf.get_pulsar('TEST2')['F0'][0]
+    f0err = query_derived.get_pulsar('TEST2')['F0_ERR'][0]
+    f0atnferr = query_atnf.get_pulsar('TEST2')['F0_ERR'][0]
+
+    assert abs(f0-f0atnf) < sf_scale(f0atnf)
+    assert round_err(f0err, f0atnferr)
+
+    f1 = query_derived.get_pulsar('TEST2')['F1'][0]
+    f1atnf = query_atnf.get_pulsar('TEST2')['F1'][0]
+    f1err = query_derived.get_pulsar('TEST2')['F1_ERR'][0]
+    f1atnferr = query_atnf.get_pulsar('TEST2')['F1_ERR'][0]
+
+    assert abs(f1-f1atnf) < sf_scale(f1atnf)
+    assert round_err(f1err, f1atnferr)
+
+
 def test_derived_galactic(query_derived, query_atnf):
     """
-    Test the derived galactic longitude and latitude.
+    Test the derived galactic longitude and latitude and galactic
+    cartesian coordinates.
     """
 
     gb = query_derived.get_pulsar('TEST1')['GB'][0]
@@ -187,6 +229,24 @@ def test_derived_galactic(query_derived, query_atnf):
 
     assert abs(gb-gbatnf) < sf_scale(gbatnf)
     assert abs(gl-glatnf) < sf_scale(glatnf)
+
+    dmsinb = query_derived.get_pulsar('TEST1')['DMSINB'][0]
+    dmsinbatnf = query_atnf.get_pulsar('TEST1')['DMSINB'][0]
+
+    assert abs(dmsinb-dmsinbatnf) < sf_scale(dmsinbatnf)
+
+    # xx = query_derived.get_pulsar('TEST1')['XX'][0]
+    # xxatnf = query_atnf.get_pulsar('TEST1')['XX'][0]
+
+    # yy = query_derived.get_pulsar('TEST1')['YY'][0]
+    # yyatnf = query_atnf.get_pulsar('TEST1')['YY'][0]
+
+    # zz = query_derived.get_pulsar('TEST1')['ZZ'][0]
+    # zzatnf = query_atnf.get_pulsar('TEST1')['ZZ'][0]
+
+    # assert abs(xx-xxatnf) < sf_scale(xxatnf)
+    # assert abs(yy-yyatnf) < sf_scale(yyatnf)
+    # assert abs(zz-zzatnf) < sf_scale(zzatnf)
 
 
 def test_derived_ecliptic(query_derived, query_atnf):
@@ -322,6 +382,36 @@ def test_distance(query_derived, query_atnf):
 
     assert dist == dist1
 
+    # distance obtained from DM and DM1
+    dist = query_derived.get_pulsar('TEST2')['DIST'][0]
+    distatnf = query_atnf.get_pulsar('TEST2')['DIST'][0]
+
+    assert abs(dist - distatnf) < sf_scale(distatnf)
+
+    distdm = query_derived.get_pulsar('TEST2')['DIST_DM'][0]
+
+    assert dist == distdm
+
+    dist = query_derived.get_pulsar('TEST2')['DIST1'][0]
+    distatnf = query_atnf.get_pulsar('TEST2')['DIST1'][0]
+
+    assert abs(dist - distatnf) < sf_scale(distatnf)
+
+    distdm = query_derived.get_pulsar('TEST2')['DIST_DM1'][0]
+
+    assert dist == distdm
+
+    # distance obtained from DIST_AMN and DIST_AMX
+    dist = query_derived.get_pulsar('TEST3')['DIST'][0]
+    distatnf = query_atnf.get_pulsar('TEST3')['DIST'][0]
+
+    assert abs(dist - distatnf) < sf_scale(distatnf)
+
+    dist = query_derived.get_pulsar('TEST3')['DIST1'][0]
+    distatnf = query_atnf.get_pulsar('TEST3')['DIST1'][0]
+
+    assert abs(dist - distatnf) < sf_scale(distatnf)
+
 
 def test_luminosity(query_derived, query_atnf):
     """
@@ -337,6 +427,22 @@ def test_luminosity(query_derived, query_atnf):
     edotd2atnf = query_atnf.get_pulsar('TEST1')['EDOTD2'][0]
 
     assert abs(edotd2 - edotd2atnf) < sf_scale(edotd2atnf)
+
+
+def test_derived_radio_luminosity(query_derived, query_atnf):
+    """
+    Test the derived radio luminosity.
+    """
+
+    rlum = query_derived.get_pulsar('TEST1')['R_LUM'][0]
+    rlumatnf = query_atnf.get_pulsar('TEST1')['R_LUM'][0]
+
+    assert abs(rlum - rlumatnf) < sf_scale(rlumatnf)
+
+    rlum14 = query_derived.get_pulsar('TEST1')['R_LUM14'][0]
+    rlum14atnf = query_atnf.get_pulsar('TEST1')['R_LUM14'][0]
+
+    assert abs(rlum14 - rlum14atnf) < sf_scale(rlum14atnf)
 
 
 def test_proper_motion(query_derived, query_atnf):
