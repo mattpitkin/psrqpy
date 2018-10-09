@@ -89,9 +89,8 @@ class QueryATNF(object):
             to search for pulsars (requires coord1 and coord2 to be set).
         include_errs (bool): Set if wanting parameter errors to be returned.
             Defaults to True.
-        include_refs (bool): Set if wanting parameter
-            `references <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_ref.html>`_
-            to be returned. Defaults to False.
+        include_refs (bool): Set if wanting to include references tags in the
+            output tables. Defaults to False. 
         adsref (bool): Set if wanting to use an :class:`ads.search.SearchQuery`
             to get reference information. Defaults to False.
         loadfromdb (str): Load a pulsar database file from a given path rather
@@ -136,6 +135,7 @@ class QueryATNF(object):
         self.psrs = psrs
         self._sort_order = sort_order
         self.sort_key = sort_attr.upper()
+        self._useads = adsref
 
         # conditions for finding pulsars within a circular boundary
         self._coord1 = coord1
@@ -199,27 +199,95 @@ class QueryATNF(object):
         except IOError:
             raise IOError("Could not get catalogue database file")
 
-        # get references if required
-        if self._include_refs:
-            self.get_references(adsref, cache=self._cache)
-
         # perform requested sorting
         _ = self.sort(inplace=True)
 
     def get_references(self, useads=False, cache=True):
+        """
+        Get a dictionary of short reference tags keyed to the full reference
+        string. If requested also get a dictionary of reference tags keyed to
+        NASA ADS URLs for the given reference. This uses the function
+        :func:`psrqpy.utils.get_references`.
+
+        Args:
+            useads (bool): Set this to True to get the NASA ADS reference
+                URLs. Defaults to False.
+            cache (bool): The flag sets whether or not to use a pre-cached
+                database of references. Defaults to True.
+        """
 
         from .utils import get_references
 
-        self._useads = useads
         self._refs = None
         self._adsrefs = None
-        self._include_refs = True
+        useadst = useads or self._useads
 
-        if self._useads:
-            self._refs, self._adsrefs = get_references(self._useads,
+        if useadst:
+            self._refs, self._adsrefs = get_references(useadst,
                                                        cache=cache)
         else:
             self._refs = get_references(False, cache=cache)
+
+    def parse_ref(self, refs, useads=False):
+        """
+        This function takes a short format reference string from the ATNF
+        Pulsar Catalogue and returns the full format reference. It can
+        also return a NASA ADS URL if requested and present.
+
+        Args:
+            refs (str, array_like): a single short reference string, or
+                an array of reference strings.
+            useads (bool): Set whether or not to also return a NASA ADS
+                reference URL if present.
+
+        Returns:
+            array_like: a single full reference string, or an array of full
+            reference strings. If NASA ADS URLs are requested, each return
+            value will be a tuple containing the reference string and URL.
+        """
+
+        useadst = useads or self._useads
+
+        if self._refs is None:
+            self.get_references(useads=useadst)
+        elif self._adsrefs is None and useadst:
+            self.get_references(useads=useadst)
+
+        singleref = False
+        if isinstance(refs, string_types):
+            singleref = True
+            refs = [refs]
+
+        # check refs is an iterable object
+        if not hasattr(refs, '__iter__'):
+            raise ValueError("Reference tags must be a string or array like")
+
+        refstrs = []
+        for ref in refs:
+            if isinstance(ref, string_types):
+                if ref in self._refs:
+                    if useadst:
+                        if ref in self._adsrefs:
+                            refstrs.append((self._refs[ref], self._adsrefs[ref]))
+                        else:
+                            refstrs.append((self._refs[ref], None))
+                    else:
+                        refstrs.append(self._refs[ref])
+                if useadst:
+                    refstrs.append((None, None))
+                else:
+                    refstrs.append(None)
+            else:
+                if useadst:
+                    refstrs.append((None, None))
+                else:
+                    refstrs.append(None)
+        
+        # just return a single value if only one input
+        if singleref:
+            return refstrs[0]
+        
+        return refstrs
 
     def get_catalogue(self, path_to_db=None, cache=True, update=False,
                       overwrite=True):
@@ -366,7 +434,7 @@ class QueryATNF(object):
 
         Returns:
             :class:`~pandas.DataFrame`: a table containing the sorted
-                catalogue.
+            catalogue.
         """
 
         if sort_attr is not None:
@@ -889,27 +957,6 @@ class QueryATNF(object):
             retpars = list(set(retpars))  # remove duplicates
 
             dftable = dftable[retpars]
-
-        # convert reference tags to reference strings
-        if self._include_refs and isinstance(self._refs, dict):
-            for par in list(dftable.columns):
-                if par[-4:] == '_REF':
-                    if self._adsrefs is not None and self._useads:
-                        adsrefcol = np.full(len(dftable), '',
-                                            dtype='U64')
-
-                    for j, i in enumerate(dftable[par].index.values):
-                        reftag = dftable[par][i]
-                        if reftag in self._refs:
-                            dftable.loc[i, par] = self._refs[reftag]
-
-                            if self._adsrefs is not None and self._useads:
-                                if reftag in self._adsrefs:
-                                    adsrefcol[j] = self._adsrefs[reftag]
-
-                    if self._adsrefs is not None and self._useads:
-                        # add column with ADS reference URL
-                        dftable.loc[:, par[:-4]+'_REFURL'] = adsrefcol
 
         # reset the indices to zero in the dataframe
         return dftable.reset_index(drop=True)

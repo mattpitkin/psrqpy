@@ -238,8 +238,8 @@ We can make use of the `ADS module <https://ads.readthedocs.io/en/latest/>`_ to 
 For example we could get the reference for the orbital period of J0737-3039A with
 
     >>> from psrqpy import QueryATNF
-    >>> query = QueryATNF(params='PB', psrs='J0737-3039A', include_refs=True, adsref=True)
-    >>> print(query.table['PB_REFURL'][0])
+    >>> query = QueryATNF(params='PB', psrs='J0737-3039A', adsref=True)
+    >>> print(query.parse_ref(query.table['PB_REF'])[0])
     https://ui.adsabs.harvard.edu/#abs/2006Sci...314...97K/
 
 .. note::
