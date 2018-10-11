@@ -168,6 +168,14 @@ def test_update(query):
     assert np.all(query.catalogue[newname] == 2.)
 
 
+def test_ppdot_diagram(query):
+    """
+    Test the creation of the P-Pdot diagram
+    """
+
+    fig = query.ppdot(showtypes='BINARY', showGCs=True)
+
+
 # TEST DERIVED PARAMETERS #
 def test_derived_p0_p1(query_derived, query_atnf):
     """
@@ -445,7 +453,7 @@ def test_derived_radio_luminosity(query_derived, query_atnf):
     assert abs(rlum14 - rlum14atnf) < sf_scale(rlum14atnf)
 
 
-def test_proper_motion(query_derived, query_atnf):
+def test_derived_proper_motion(query_derived, query_atnf):
     """
     Test the derived proper motion values.
     """
@@ -462,6 +470,39 @@ def test_proper_motion(query_derived, query_atnf):
     vtransatnf = query_atnf.get_pulsar('TEST1')['VTRANS'][0]
 
     assert abs(vtrans - vtransatnf) < sf_scale(vtransatnf)
+
+    # proper motion in galactic coordinates
+    # pml = query_derived.get_pulsar('TEST1')['PML'][0]
+    # pmlatnf = query_atnf.get_pulsar('TEST1')['PML'][0]
+
+    # assert abs(pml - pmlatnf) < sf_scale(pmlatnf)
+
+    # pmb = query_derived.get_pulsar('TEST1')['PMB'][0]
+    # pmbatnf = query_atnf.get_pulsar('TEST1')['PMB'][0]
+
+    # assert abs(pmb - pmbatnf) < sf_scale(pmbatnf)
+
+
+def test_derived_pb_pbdot(query_derived, query_atnf):
+    """
+    Test binary period and period derivative from orbital frequency.
+    """
+
+    pb = query_derived.get_pulsar('TEST4')['PB'][0]
+    pbatnf = query_atnf.get_pulsar('TEST4')['PB'][0]
+    pberr = query_derived.get_pulsar('TEST4')['PB_ERR'][0]
+    pberratnf = query_atnf.get_pulsar('TEST4')['PB_ERR'][0]
+
+    assert abs(pb - pbatnf) < sf_scale(pbatnf)
+    assert round_err(pberr, pberratnf)
+
+    pbdot = query_derived.get_pulsar('TEST4')['PBDOT'][0]
+    pbdotatnf = query_atnf.get_pulsar('TEST4')['PBDOT'][0]
+    pbdoterr = query_derived.get_pulsar('TEST4')['PBDOT_ERR'][0]
+    pbdoterratnf = query_atnf.get_pulsar('TEST4')['PBDOT_ERR'][0]
+
+    assert abs(pbdot - pbdotatnf) < sf_scale(pbdotatnf)
+    assert round_err(pbdoterr, pbdoterratnf)
 
 
 # TEST EXCEPTIONS #

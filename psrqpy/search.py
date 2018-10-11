@@ -24,7 +24,7 @@ from pandas import DataFrame, Series
 from copy import deepcopy
 
 from .config import *
-from .utils import get_version, condition
+from .utils import get_version, condition, age_pdot, B_field_pdot
 
 
 class QueryATNF(object):
@@ -2441,7 +2441,7 @@ class QueryATNF(object):
         from .utils import death_line, label_line
 
         # get table containing all required parameters
-        table = self.query_table(condition=usecondition,
+        table = self.query_table(usecondition=usecondition,
                                  query_params=['P0', 'P1', 'P1_I', 'ASSOC',
                                                'BINARY', 'TYPE'])
 
@@ -2506,9 +2506,9 @@ class QueryATNF(object):
         periods = periods[pidx]
         pdots = pdots[pidx]
 
-        if 'ASSOC' in self.query_params:
+        if 'ASSOC' in table.columns:
             assocs = table['ASSOC'][pidx]     # associations
-        if 'TYPE' in self.query_params:
+        if 'TYPE' in table.columns:
             types = table['TYPE'][pidx]       # pulsar types
         if 'BINARY' in nshowtypes:
             binaries = table['BINARY'][pidx]  # binary pulsars
@@ -2517,9 +2517,9 @@ class QueryATNF(object):
         pidx = pdots > 0.
         periods = periods[pidx]
         pdots = pdots[pidx]
-        if 'ASSOC' in self.query_params:
+        if 'ASSOC' in table.columns:
             assocs = assocs[pidx]      # associations
-        if 'TYPE' in self.query_params:
+        if 'TYPE' in table.columns:
             types = types[pidx]        # pulsar types
         if 'BINARY' in nshowtypes:
             binaries = binaries[pidx]  # binary pulsars
@@ -2528,12 +2528,14 @@ class QueryATNF(object):
         # contaminated spin-down value
         if excludeGCs:
             # use '!=' to find GC indexes
-            nongcidxs = np.flatnonzero(np.char.find(assocs, 'GC:') == -1)
+            nongcidxs = np.flatnonzero(
+                np.char.find(np.array(assocs.tolist(),
+                                      dtype=np.str), 'GC:') == -1)
             periods = periods[nongcidxs]
             pdots = pdots[nongcidxs]
-            if 'ASSOC' in self.query_params:
+            if 'ASSOC' in table.columns:
                 assocs = assocs[nongcidxs]
-            if 'TYPE' in self.query_params:
+            if 'TYPE' in table.columns:
                 types = types[nongcidxs]
             if 'BINARY' in nshowtypes:
                 binaries = binaries[nongcidxs]
@@ -2571,7 +2573,8 @@ class QueryATNF(object):
                     'facecolor' in filldeathtype else 'darkorange'
                 filldeathtype['hatch'] = filldeathtype['hatch'] if \
                     'hatch' in filldeathtype else ''
-                ax.fill_between(periodlims, deathpdots, pdotlims[0], **filldeathtype)
+                ax.fill_between(periodlims, deathpdots, pdotlims[0],
+                                **filldeathtype)
 
         # add markers for each pulsar type
         if not markertypes:
@@ -2621,11 +2624,15 @@ class QueryATNF(object):
                 thistype = stype.upper()
                 if thistype == 'BINARY':
                     # for binaries used the 'BINARY' column in the table
-                    typeidx = np.flatnonzero(np.char.find(binaries, '*') == -1)
+                    typeidx = np.flatnonzero(~binaries.mask)
                 elif thistype in ['GC', 'SNR']:
-                    typeidx = np.flatnonzero(np.char.find(assocs, thistype) != -1)
+                    typeidx = np.flatnonzero(
+                        np.char.find(np.array(assocs.tolist(),
+                                              dtype=np.str), thistype) != -1)
                 else:
-                    typeidx = np.flatnonzero(np.char.find(types, thistype) != -1)
+                    typeidx = np.flatnonzero(
+                        np.char.find(np.array(types.tolist(),
+                                              dtype=np.str), thistype) != -1)
 
                 if len(typeidx) == 0:
                     continue
@@ -2643,7 +2650,8 @@ class QueryATNF(object):
                 else:
                     handles[thistype] = typehandle
 
-                ax.legend(handles.values(), handles.keys(), loc='upper left', numpoints=1)
+                ax.legend(handles.values(), handles.keys(), loc='upper left',
+                          numpoints=1)
 
         # add characteristic age lines
         tlines = OrderedDict()
