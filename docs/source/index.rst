@@ -12,9 +12,10 @@ The psrqpy package
 
 .. automodule:: psrqpy
 
-This package provides a way to directly query the `ATNF Pulsar Catalogue <http://www.atnf.csiro.au/people/pulsar/psrcat/>`_ [1]_ using Python.
-It is primarily aimed at astronomers wanting access to the latest pulsar information via a script,
-rather than through the standard web interface.
+This package provides a way to directly query the `ATNF Pulsar Catalogue <http://www.atnf.csiro.au/people/pulsar/psrcat/>`_ [1]_ using Python. It does this by
+downloading and parsing the full catalogue database, which itself is cached and can
+be reused. It is primarily aimed at astronomers wanting access to the latest pulsar
+information via a script, rather than through the standard web interface.
 
 Other functionality that it includes:
 
@@ -43,47 +44,75 @@ The requirements for installing the code are:
  * :mod:`numpy`
  * :mod:`astropy` (for Python 2 astropy versions before `3.0 <http://docs.astropy.org/en/latest/whatsnew/3.0.html#whatsnew-3-0-python3>`_ must be used)
  * :mod:`datetime`
+ * :mod: `pandas`
 
-The :mod:`ads` module and :mod:`matplotlib` are optional requirement to get the full functionality.
+The :mod:`ads` module and :mod:`matplotlib` are optional requirements to get the full functionality.
 
 Examples
 ========
 
-You can query the ATNF catalogue for any combination of the pulsar parameters listed
+Downloading the full database can be simply achieved via
+
+    >>> from psrqpy import QueryATNF
+    >>> query = QueryATNF()
+
+From this query the database can then be accessed as an :class:`astropy.table.Table` via
+
+    >>> table = query.table
+
+or as a :class:`pandas.DataFrame` via
+
+    >>> df = query.pandas
+
+You can also specifically limit the query to any combination of the pulsar parameters listed
 `here <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=expert#par_list>`_.
 
-A simple example of a query is to get the frequency 'F0' for all pulsars in the catalogue. By default the
-`'JName' <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=normal&highlight=jname#jname>`_
-(pulsar name based on the J2000 coordinates) parameter will also always be returned by default. This could be done with
+A simple example of such a limited query is to get the frequency 'F0' for all pulsars in the
+catalogue. This could be done with
 
-   >>> from psrqpy import QueryATNF
-   >>> query = QueryATNF(params=['F0'])
+    >>> from psrqpy import QueryATNF
+    >>> query = QueryATNF(params=['F0'])
 
-where the parameter names are case insensitive. The returned :class:`~psrqpy.search.QueryATNF` query willbe stored as an :class:`astropy.table.Table`, which can be accessed via
+where the parameter names are case insensitive. This will also automatically include the
+database uncertainty on 'F0', stored as a variable called 'F0_ERR' (parameter uncertainties
+will always be stored using the uppercase version of the parameter name, with `_ERR` appended).
+Again, the table, now only containing 'F0' and 'F0_ERR', can be accessed with
 
-   >>> qtable = query.table
+    >>> table = query.table
+
+Note, that the full catalogue is still stored in the :class:`psrqpy.QueryATNF`
+(as a :class:`pandas.DataFrame`) and can accessed with
+
+    >>> catalogue = query.catalogue
+
+Other parameters could be selected using the same `query` object with, e.g.,
+
+    >>> query.query_params = ['F1', 'RAJ']
+    >>> print(query.table)
+            F1_ERR             RAJ      RAJ_ERR           F1          
+            1 / s2                                      1 / s2        
+    ---------------------- ------------ ------- ----------------------
+                     5e-18  00:02:58.17    0.02           -4.48354e-13
+    2.4933208594475155e-17   00:06:04.8     0.2 -4.357078201884523e-15
+                     5e-16   00:07:01.7     0.2             -3.612e-12
+                        --     00:11:34   114.0                     --
+                     9e-20  00:14:17.75    0.04            -3.6669e-16
+                     4e-20            0      --           -1.22783e-15
+                       ...          ...     ...                    ...
+                     8e-19  23:39:38.74    0.01            -1.6952e-15
+                        --     23:40:45     7.0                     --
+                        --        23:43      --                     --
+                     3e-20            2      --             -9.765e-16
+                        --        23:52      --                     --
+                        --        23:54     7.0                     --
+                     9e-20 23:54:04.724   0.004          -1.821923e-14
+    Length = 2659 rows
 
 The number of pulsars can easily be accessed, e.g.,
 
    >>> numstring = 'Version {} of the ATNF catalogue contains {} pulsars'
    >>> print(numstring.format(query.get_version, query.num_pulsars))
-   Version 1.57 of the ATNF catalogue contains 2627 pulsars
-
-The code will automatically attempt to query the current version of the
-ATNF catalogue, the value of which is printed in the above example.
-
-.. note::
-
-   If you really want to query the catalogue many times in quick succession it is advisable not to use this module, as
-   it could result in too much load on the ATNF catalogue's server. Instead it is probably preferable to `download
-   the catalogue <http://www.atnf.csiro.au/research/pulsar/psrcat/download.html>`_ and query it with the ``psrcat`` software
-   provided.
-
-A function, :func:`~psrqpy.utils.get_catalogue`, is also available to download the entire catalogue and return it as an
-:class:`astropy.table.Table`. This function is heavily based on
-`code <https://github.com/astrophysically/ATNF-Pulsar-Cat/blob/master/ATNF.ipynb>`_ by Joshua Tan
-(`@astrophysically <https://github.com/astrophysically/>`_). The function currently does not return parameter uncertainties
-or references in the table.
+   Version 1.59 of the ATNF catalogue contains 2659 pulsars
 
 More complex queries
 --------------------
@@ -91,12 +120,12 @@ More complex queries
 **Setting conditions**
 
 You can set `logical conditions <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#condition>`_
-on the parameters that you query. Let's say you want the names of all pulsars with rotation frequencies between
-100 and 200 Hz, then (because the name is always queried by default) you could do the following:
+on the parameters that you query. Let's say you want all pulsars with rotation frequencies between
+100 and 200 Hz, then you could do the following:
 
     >>> from psrqpy import QueryATNF
     >>> query = QueryATNF(condition='F0 > 100 && F0 < 200')
-    >>> print(len(query))
+    >>> print(query.num_pulsars)
     82
 
 If you also wanted pulsars with this condition, but also in globular clusters, you could do
@@ -116,7 +145,7 @@ use, e.g., if using a previous ``query`` we had done:
 
 Then we could reload this with
 
-   >>> oldquery = QueryATNF(loadfromfile='atnfquery.pkl')
+    >>> oldquery = QueryATNF(loadfromfile='atnfquery.pkl')
 
 **Query specific pulsars**
 
@@ -124,12 +153,12 @@ We might just want to get information on certain pulsars, such as the Crab pulsa
 J0537-6910, then we could get their sky positions with:
 
     >>> from psrqpy import QueryATNF
-    >>> query = QueryATNF(params=['RAJ', 'DECJ'], psrs=['J0534+2200', 'J0537-6910'])
+    >>> query = QueryATNF(params=['JNAME', 'RAJ', 'DECJ'], psrs=['J0534+2200', 'J0537-6910'])
     >>> print(query.table)
-       JNAME        RAJ      RAJ_ERR     DECJ     DECJ_ERR
-    ---------- ------------ ------- ------------ --------
-    J0534+2200 05:34:31.973   0.005 +22:00:52.06     0.06
-    J0537-6910 05:37:47.416    0.11 -69:10:19.88      0.6
+    RAJ_ERR     RAJ          DECJ     DECJ_ERR   JNAME   
+    ------- ------------ ------------ -------- ----------
+      0.005 05:34:31.973 +22:00:52.06     0.06 J0534+2200
+       0.11 05:37:47.416 -69:10:19.88      0.6 J0537-6910
 
 You can also access these pulsars using the :class:`psrqpy.pulsar.Pulsars` class. This
 will create a dictionary of :class:`psrqpy.pulsar.Pulsar` objects keyed on the pulsar
@@ -147,13 +176,13 @@ contain. E.g., so first lets get the :class:`psrqpy.pulsar.Pulsars`:
     >>> print(psrs['J0534+2200'].keys()) # show attributes of the psr class
     ['DECJ', 'RAJ', 'DECJ_ERR', 'RAJ_ERR', 'JNAME']
 
-What if we want the frequency of J0534+2200? Well we just have to do
+What if we want the frequency of J0534+2200? Well, we just have to do
 
     >>> crab = psrs['J0534+2200']
     >>> print(crab.F0)
     29.946923
 
-We can also get the whole ephemeris for the Crab with
+We can also get the whole ephemeris for the Crab with [FIXME: change this]
 
     >>> print(crab.get_ephemeris())
     PSRJ            J0534+2200
