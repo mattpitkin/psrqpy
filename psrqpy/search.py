@@ -181,7 +181,7 @@ class QueryATNF(object):
             if self._condition is None:
                 self._condition = condparse
             else:
-                self._condition += condparse
+                self._condition += ' && {}'.format(condparse)
 
         self.query_params = params
         self._refs = None  # set of pulsar references
@@ -2156,6 +2156,87 @@ class QueryATNF(object):
                     return self.catalogue_table[(psr == names).tolist()]
 
         return None
+
+    def get_ephemeris(self, psr):
+        """
+        Return the table row for a particular pulsar and output it as an
+        ephemeris-style string output.
+
+        Args:
+            psr (str): The name of a pulsar to return.
+
+        Returns:
+            str: an ephemeris
+        """
+
+        psr = self.get_pulsar(psr)
+
+        if psr is None:
+            return None
+
+        ephemstr = ''
+
+        # get variables that are set
+        variables = []
+        values = []
+        errors = []
+        for par in PSR_ALL_PARS:
+            if par in psr.columns:
+                parval = psr[par]
+
+                if not parval.mask[0]:
+                    variables.append(par)
+                    values.append(parval[0])
+            
+                    if par+'_ERR' in psr.columns:
+                        errval = psr[par+'_ERR']
+
+                        if not errval.mask[0]:
+                            errors.append(errval[0])
+                        else:
+                            errors.append(None)
+                    else:
+                        errors.append(None)
+
+        precision = 15
+        mkl = max([len(kn) for kn in variables])+2  # max key length for output alignment
+        vlb = precision + 10  # allow extra space for minus sign/exponents
+        outputstr = '{{name: <{0}}}{{value: <{1}}}\t{{error}}'.format(mkl, vlb)
+
+        for varname, varval, varerr in zip(variables, values, errors):
+            outputdic = {}
+            outputdic['name'] = varname
+            
+            if isinstance(varval, float):
+                precstr = '{{0:.{}f}}'.format(precision) # print out float
+                if abs(varval) < 1e-6 or abs(varval) > 1e6:
+                    # print out float in scientific notation
+                    precstr = '{{0:.{}e}}'.format(precision)
+
+                precstre = '{{0:.{}f}}'.format(precision)  # print out float
+                if varerr is not None:
+                    if abs(varerr) < 1e-6 or abs(varerr) > 1e6:
+                        # print out float in scientific notation
+                        precstre = '{{0:.{}e}}'.format(precision)
+                
+                outputdic['value'] = precstr.format(varval)
+                outputdic['error'] = precstre.format(varerr) if varerr is not None else ''
+            else:
+                outputdic['value'] = varval
+                
+                if isinstance(varerr, float):
+                    precstre = '{{0:.{}f}}'.format(precision)  # print out float
+                    if abs(varerr) < 1e-6 or abs(varerr) > 1e6:
+                        # print out float in scientific notation
+                        precstre = '{{0:.{}e}}'.format(precision)
+
+                    outputdic['error'] = precstre.format(varerr)
+                else:
+                    outputdic['error'] = ''
+
+            ephemstr += outputstr.format(**outputdic).strip()+'\n'
+
+        return ephemstr
 
     def get_pulsars(self):
         """
