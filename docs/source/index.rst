@@ -182,24 +182,36 @@ What if we want the frequency of J0534+2200? Well, we just have to do
     >>> print(crab.F0)
     29.946923
 
-We can also get the whole ephemeris for the Crab with [FIXME: change this]
+We can also get the whole ephemeris for the Crab with
 
-    >>> print(crab.get_ephemeris())
-    PSRJ            J0534+2200
-    PSRB            B0531+21
-    NAME            B0531+21
-    RAJ             05:34:31.973             5.000e-03
-    DECJ            +22:00:52.06             6.000e-02
-    ELONG           84.10
-    ELAT            -1.29
-    DM              56.77118                 2.400e-04
-    PEPOCH          48442.5
-    F0              29.946923                1.000e-06
-    F1              -3.77535E-10             2.000e-15
-    P0              0.0333924123             1.200e-09
-    P1              4.20972E-13              3.000e-18
-    DIST_DM         1.31
+    >>> print(query.get_ephemeris('J0534+2200))
+    NAME      J0534+2200
+    JNAME     J0534+2200
+    BNAME     B0531+21
+    PSRJ      J0534+2200
+    PSRB      B0531+21
+    RAJ       05:34:31.973             	0.005000000000000
+    DECJ      +22:00:52.06             	0.060000000000000
+    PMRA      -14.699999999999999      	0.800000000000000
+    PMDEC     2                        	0.800000000000000
+    POSEPOCH  40706
+    ELONG     84.097631599851169
+    ELAT      -1.294467050350203
+    PMELONG   -14.597441126565251
+    PMELAT    2.646641750683564
+    GL        184.557559483180171
+    GB        -5.784269849609095
+    RAJD      83.633220833333311
+    DECJD     22.014461111111110
+    TYPE      HE[cdt69,fhm+69,hjm+70]
+    PML       -9.558486649099681
+    PMB       -11.345718707027030
+    DIST      2
+    DIST_DM   1.310000000000000
     ...
+
+Note that this is not completely equivalent to the pulsar ephemerides returned by the
+`ATNF Pulsar Catalogue <http://www.atnf.csiro.au/people/pulsar/psrcat/psrcat_help.html#boundary>`_.
 
 **Query pulsars within a circular boundary**
 
@@ -209,19 +221,16 @@ by a central right ascension and declination, and with a given radius (in degree
     >>> from psrqpy import QueryATNF
     >>> # set the boundary circle centre (RAJ then DECJ) and radius
     >>> c = ['12:34:56.7', '-02:54:12.3', 10.]
-    >>> query = QueryATNF(params=['RAJ', 'DECJ'], circular_boundary=c)
+    >>> query = QueryATNF(params=['JNAME', 'RAJ', 'DECJ'], circular_boundary=c)
     >>> print(query.table)
-      JNAME     RAJ  RAJ_ERR  DECJ  DECJ_ERR
-    ---------- ----- ------- ------ --------
-    J1142+0119 11:42     0.0 +01:19      0.0
+      JNAME         RAJ      DECJ_ERR      DECJ      RAJ_ERR
+    ---------- ------------- -------- -------------- -------
+    J1257-1027 12:57:04.7686       -- -10:27:05.7817      --
+    J1312+0051         13:12       --         +00:51      --
 
 The circle's coordinates can also be define as, e.g.:
 
     >>> c = ['12h34m56.7s', '-02d54m12.3s', 10.]
-
-Or, in radians, as:
-
-    >>> c = [3.29406898, -0.05067418, 10.]
 
 **Return a reference**
 

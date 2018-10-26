@@ -23,7 +23,7 @@ from astropy.table import Table
 from pandas import DataFrame, Series
 from copy import deepcopy
 
-from .config import *
+from .config import ATNF_BASE_URL, PSR_ALL, PSR_ALL_PARS, PSR_TYPE, PSR_ASSOC_TYPE, PSR_BINARY_TYPE
 from .utils import get_version, condition, age_pdot, B_field_pdot
 
 
@@ -76,12 +76,11 @@ class QueryATNF(object):
             defining the centre (in right ascension and declination), and
             radius of a circle in which to search for and return pulsars. The
             first entry is the centre point right ascension as a string in
-            format 'hh:mm:ss' or a float in radians, the second entry is the
-            centre point declination as a string in format 'dd:mm:ss' or a
-            float in radians, the final entry is the circle's radius in
-            degrees. This condition will only be applied if viewing the results
-            as an :class:`astropy.table.Table`. Alternatively `coord1`,
-            `coord2`, and `radius` can be used.
+            format 'hh:mm:ss', the second entry is the centre point declination
+            as a string in format 'dd:mm:ss', and the final entry is the
+            circle's radius in degrees. This condition will only be applied if
+            viewing the results as an :class:`astropy.table.Table`.
+            Alternatively, `coord1`, `coord2`, and `radius` can be used.
         coord1 (str): a string containing a right ascension in the format
             ('hh:mm:ss') that centres a circular boundary in which to search
             for pulsars (requires coord2 and radius to be set).
@@ -171,8 +170,8 @@ class QueryATNF(object):
                 params = []
 
             # set centre coordinate as an astropy SkyCoord
-            coord = SkyCoord(self._coord1, self._coord2,
-                             unit=(aunits.hourangle, aunits.deg))
+            self._coord = SkyCoord(self._coord1, self._coord2,
+                                   unit=(aunits.hourangle, aunits.deg))
 
         # set conditions
         condparse = self.parse_conditions(psrtype=psrtype, assoc=assoc,
@@ -455,9 +454,6 @@ class QueryATNF(object):
 
         return self.table.as_array()
 
-    def __len__(self):
-        return len(self.pandas)
-
     @property
     def psrs(self):
         """
@@ -508,20 +504,6 @@ class QueryATNF(object):
 
         # convert to astropy table
         thistable = Table.from_pandas(self.pandas)
-
-        if (self._coord is not None and 'RAJ' in thistable.colnames
-                and 'DECJ' in thistable.colnames):
-            # apply sky coordinate constraint
-            catalog = SkyCoord(thistable['RAJ'], thistable['DECJ'],
-                               unit=(aunits.hourangle, aunits.deg))
-
-            # get seperations
-            d2d = self._coord.separation(catalog)
-
-            # find seperations within required radius
-            catalogmsk = d2d < self._radius*aunits.deg
-
-            thistable = thistable[catalogmsk]
 
         # add units if known
         for key in PSR_ALL_PARS:
@@ -815,6 +797,20 @@ class QueryATNF(object):
         # get only required parameters and sort
         dftable = self.sort(self.sort_key, self._sort_order)
 
+        if (self._coord is not None and 'RAJD' in dftable.columns
+                and 'DECJD' in dftable.columns):
+            # apply sky coordinate constraint
+            catalog = SkyCoord(dftable['RAJD'], dftable['DECJD'],
+                               unit=(aunits.deg, aunits.deg))
+
+            # get seperations
+            d2d = self._coord.separation(catalog)
+
+            # find seperations within required radius
+            catalogmsk = d2d < self._radius*aunits.deg
+
+            dftable = dftable[catalogmsk]
+
         if self._condition is not None:
             # apply condition
             dftable = condition(dftable, self._condition, self._exactmatch)
@@ -907,8 +903,8 @@ class QueryATNF(object):
 
         # Set references first
         if 'ASSOC_REF' not in self.columns:
-            ASSOCREFnew = Series(np.full(self.catalogue_len, np.nan,
-                                         dtype=np.str),
+            ASSOCREFnew = Series(np.full(self.catalogue_len, '',
+                                         dtype='U64'),
                                  name='ASSOC_REF')
             self.update(ASSOCREFnew, name='ASSOC_REF')
         else:
@@ -943,8 +939,8 @@ class QueryATNF(object):
 
         # Set references first
         if 'TYPE_REF' not in self.columns:
-            TYPEREFnew = Series(np.full(self.catalogue_len, np.nan,
-                                        dtype=np.str),
+            TYPEREFnew = Series(np.full(self.catalogue_len, '',
+                                        dtype='U64'),
                                 name='TYPE_REF')
             self.update(TYPEREFnew, 'TYPE_REF')
         else:
@@ -979,8 +975,8 @@ class QueryATNF(object):
 
         # Set references first
         if 'BINCOMP_REF' not in self.columns:
-            BINCOMPREFnew = Series(np.full(self.catalogue_len, np.nan,
-                                           dtype=np.str),
+            BINCOMPREFnew = Series(np.full(self.catalogue_len, '',
+                                           dtype='U64'),
                                    name='BINCOMP_REF')
             self.update(BINCOMPREFnew)
         else:
@@ -1145,8 +1141,8 @@ class QueryATNF(object):
         ELAT = self.catalogue['ELAT']
         RAJDnew = np.full(self.catalogue_len, np.nan)
         DECJDnew = np.full(self.catalogue_len, np.nan)
-        RAJnew = np.full(self.catalogue_len, np.nan, dtype=np.str)
-        DECJnew = np.full(self.catalogue_len, np.nan, dtype=np.str)
+        RAJnew = np.full(self.catalogue_len, '', dtype='U32')
+        DECJnew = np.full(self.catalogue_len, '', dtype='U32')
 
         idx = np.isfinite(ELONG) & np.isfinite(ELAT)
 
@@ -1168,8 +1164,8 @@ class QueryATNF(object):
         # set references
         reqpars = ['RAJ_REF', 'DECJ_REF', 'ELONG_REF']
         if 'ELONG_REF' in self.columns:
-            RAJREFnew = np.full(self.catalogue_len, np.nan, dtype=np.str)
-            DECJREFnew = np.full(self.catalogue_len, np.nan, dtype=np.str)
+            RAJREFnew = np.full(self.catalogue_len, '', dtype='U32')
+            DECJREFnew = np.full(self.catalogue_len, '', dtype='U32')
             ELONGREF = self.catalogue['ELONG_REF']
 
             DECJREFnew[idx] = ELONGREF[idx]
@@ -1236,8 +1232,8 @@ class QueryATNF(object):
         if np.all([p in self.columns for p in refpar]):
             RAJREF = self.catalogue['RAJ_REF']
             DECJREF = self.catalogue['DECJ_REF']
-            ELONGREFnew = np.full(self.catalogue_len, np.nan, dtype=np.str)
-            ELATREFnew = np.full(self.catalogue_len, np.nan, dtype=np.str)
+            ELONGREFnew = np.full(self.catalogue_len, '', dtype='U32')
+            ELATREFnew = np.full(self.catalogue_len, '', dtype='U32')
 
             ELONGREFnew[idx] = RAJREF[idx]
             ELATREFnew[idx] = DECJREF[idx]
@@ -1566,7 +1562,7 @@ class QueryATNF(object):
 
         # set the references
         if 'F0_REF' in self.columns:
-            P0REFnew = np.full(self.catalogue_len, np.nan, dtype=np.str)
+            P0REFnew = np.full(self.catalogue_len, '', dtype='U32')
             F0REF = self.catalogue['F0_REF']
             P0REFnew[idx] = F0REF[idx]
             self.update(P0REFnew, 'P0_REF')
@@ -1598,7 +1594,7 @@ class QueryATNF(object):
 
         # set the references
         if 'P0_REF' in self.columns:
-            F0REFnew = np.full(self.catalogue_len, np.nan, dtype=np.str)
+            F0REFnew = np.full(self.catalogue_len, '', dtype='U32')
             P0REF = self.catalogue['P0_REF']
             F0REFnew[idx] = P0REF[idx]
             self.update(F0REFnew, name='F0_REF')
@@ -1632,7 +1628,7 @@ class QueryATNF(object):
 
         # set the references
         if 'F1_REF' in self.columns:
-            P1REFnew = np.full(self.catalogue_len, np.nan, dtype=np.str)
+            P1REFnew = np.full(self.catalogue_len, '', dtype='U32')
             F1REF = self.catalogue['F1_REF']
             P1REFnew[idx] = F1REF[idx]
             self.update(P1REFnew, name='P1_REF')
@@ -1670,7 +1666,7 @@ class QueryATNF(object):
 
         # set the references
         if 'P1_REF' in self.columns:
-            F1REFnew = np.full(self.catalogue_len, np.nan, dtype=np.str)
+            F1REFnew = np.full(self.catalogue_len, '', dtype='U32')
             P1REF = self.catalogue['P1_REF']
             F1REFnew[idx] = P1REF[idx]
             self.update(F1REFnew, name='F1_REF')
@@ -1704,7 +1700,7 @@ class QueryATNF(object):
 
         # set the references
         if 'FB0_REF' in self.columns:
-            PBREFnew = np.full(self.catalogue_len, np.nan, dtype=np.str)
+            PBREFnew = np.full(self.catalogue_len, '', dtype='U32')
             FB0REF = self.catalogue['FB0_REF']
             PBREFnew[idx] = FB0REF[idx]
             self.update(PBREFnew, name='PB_REF')
@@ -1737,7 +1733,7 @@ class QueryATNF(object):
 
         # set the references
         if 'FB1_REF' in self.columns:
-            PBDOTREFnew = np.full(self.catalogue_len, np.nan, dtype=np.str)
+            PBDOTREFnew = np.full(self.catalogue_len, '', dtype='U32')
             FB1REF = self.catalogue['FB1_REF']
             PBDOTREFnew[idx] = FB1REF[idx]
             self.update(PBDOTREFnew, name='PBDOT_REF')
@@ -1770,15 +1766,13 @@ class QueryATNF(object):
         self.update(FB0new, name='FB0')
 
         # set the references
-        reqpars = ['PB_REF', 'FB0_REF']
         if 'PB_REF' in self.columns:
-            FB0REFnew = np.full(self.catalogue_len, np.nan, dtype=np.str)
+            FB0REFnew = np.full(self.catalogue_len, '', dtype='U32')
             PBREF = self.catalogue['PB_REF']
             FB0REFnew[idx] = PBREF[idx]
             self.update(FB0REFnew, name='FB0_REF')
 
         # set the errors
-        reqpars = ['PB_ERR', 'FB0_ERR']
         if 'PB_ERR' in self.columns:
             FB0ERRnew = np.full(self.catalogue_len, np.nan)
             PBERR = self.catalogue['PB_ERR']
@@ -1806,7 +1800,7 @@ class QueryATNF(object):
 
         # set the references
         if 'PBDOT_REF' in self.columns:
-            FB1REFnew = np.full(self.catalogue_len, np.nan, dtype=np.str)
+            FB1REFnew = np.full(self.catalogue_len, '', dtype='U32')
             PBDOTREF = self.catalogue['PBDOT_REF']
             FB1REFnew[idx] = PBDOTREF[idx]
             self.update(FB1REFnew, name='FB1_REF')
@@ -2131,13 +2125,16 @@ class QueryATNF(object):
         R_LUM14[idx] = S1400[idx] * DIST[idx]**2
         self.update(R_LUM14, name='R_LUM14')
 
-    def get_pulsar(self, psr):
+    def get_pulsar(self, psr, selected=False):
         """
         Return the table row for a particular pulsar for all the catalogue
         parameters.
 
         Args:
             psr (str): The name of a pulsar to return.
+            selected (bool): If True then output return a table row containing
+                parameters specified by :meth:`~psrqpy.QueryATNF.query_params`,
+                otherwise return all parameters. Defaults to False.
 
         Returns:
             :class:`astropy.table.Table`: a table row
@@ -2153,23 +2150,32 @@ class QueryATNF(object):
             if namepar in self.columns:
                 names = self.catalogue[namepar]
                 if np.any(psr == names):
-                    return self.catalogue_table[(psr == names).tolist()]
+                    psrrow = self.catalogue_table[(psr == names).tolist()]
+                    if selected:
+                        return psrrow[self.query_params]
+                    else:
+                        return psrrow
 
         return None
 
-    def get_ephemeris(self, psr):
+    def get_ephemeris(self, psr, precision=15, selected=False):
         """
         Return the table row for a particular pulsar and output it as an
         ephemeris-style string output.
 
         Args:
             psr (str): The name of a pulsar to return.
+            precision (int): The precision (number of decimal places) at which
+                to output numbers. Defaults to 15.
+            selected (bool): If True only output the parameters specified by
+                :meth:`~psrqpy.QueryATNF.query_params`, otherwise output all
+                parameters. Defaults to False.
 
         Returns:
             str: an ephemeris
         """
 
-        psr = self.get_pulsar(psr)
+        psr = self.get_pulsar(psr, selected=selected)
 
         if psr is None:
             return None
@@ -2187,7 +2193,7 @@ class QueryATNF(object):
                 if not parval.mask[0]:
                     variables.append(par)
                     values.append(parval[0])
-            
+
                     if par+'_ERR' in psr.columns:
                         errval = psr[par+'_ERR']
 
@@ -2198,7 +2204,6 @@ class QueryATNF(object):
                     else:
                         errors.append(None)
 
-        precision = 15
         mkl = max([len(kn) for kn in variables])+2  # max key length for output alignment
         vlb = precision + 10  # allow extra space for minus sign/exponents
         outputstr = '{{name: <{0}}}{{value: <{1}}}\t{{error}}'.format(mkl, vlb)
@@ -2206,24 +2211,33 @@ class QueryATNF(object):
         for varname, varval, varerr in zip(variables, values, errors):
             outputdic = {}
             outputdic['name'] = varname
-            
+
             if isinstance(varval, float):
-                precstr = '{{0:.{}f}}'.format(precision) # print out float
+                if varval.is_integer():
+                    precstr = '{0:.0f}'  # print out an integer
+                else:
+                    precstr = '{{0:.{}f}}'.format(precision)  # print out float
+
                 if abs(varval) < 1e-6 or abs(varval) > 1e6:
                     # print out float in scientific notation
                     precstr = '{{0:.{}e}}'.format(precision)
 
-                precstre = '{{0:.{}f}}'.format(precision)  # print out float
+                if varerr is not None:
+                    if varerr.is_integer():
+                        precstre = '{0:.0f}'  # print out an integer
+                else:
+                    precstre = '{{0:.{}f}}'.format(precision)  # print out float
+
                 if varerr is not None:
                     if abs(varerr) < 1e-6 or abs(varerr) > 1e6:
                         # print out float in scientific notation
                         precstre = '{{0:.{}e}}'.format(precision)
-                
+
                 outputdic['value'] = precstr.format(varval)
                 outputdic['error'] = precstre.format(varerr) if varerr is not None else ''
             else:
                 outputdic['value'] = varval
-                
+
                 if isinstance(varerr, float):
                     precstre = '{{0:.{}f}}'.format(precision)  # print out float
                     if abs(varerr) < 1e-6 or abs(varerr) > 1e6:
@@ -2252,14 +2266,16 @@ class QueryATNF(object):
             self._pulsars = Pulsars()
 
             # add pulsars one by one
+            qparams = list(self.query_params)
+            if 'JNAME' not in qparams:
+                self.query_params = self.query_params + ['JNAME']
+
             psrtable = self.table
             for row in psrtable:
-                attrs = {}
-                for key in psrtable.colnames:
-                    attrs[key] = row[key]
-
-                P = Pulsar(attrs['JNAME'], **attrs)
+                P = Pulsar(row['JNAME'], query=self)
                 self._pulsars.add_pulsar(P)
+
+            self.query_params = qparams  # revert to previous query parameters
 
         return self._pulsars
 
@@ -2778,10 +2794,10 @@ class QueryATNF(object):
 
         # add text for characteristic age lines and magnetic field strength lines
         for l in tlines:
-            ttext = label_line(ax, tlines[l], l, color='k', fs=18, frachoffset=0.05)
+            _ = label_line(ax, tlines[l], l, color='k', fs=18, frachoffset=0.05)
 
         for l in Blines:
-            ttext = label_line(ax, Blines[l], l, color='k', fs=18, frachoffset=0.90)
+            _ = label_line(ax, Blines[l], l, color='k', fs=18, frachoffset=0.90)
 
         # return the figure
         return fig

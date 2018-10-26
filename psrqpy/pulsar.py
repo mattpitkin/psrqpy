@@ -20,14 +20,16 @@ class Pulsar(object):
 
     Args:
         psrname (str): a string containing a pulsar name
+        query (:class:`psrqpy.QueryATNF`): a query
 
     Additional keyword arguments are any of the valid queriable pulsar
     parameters.
 
     """
 
-    def __init__(self, psrname, **kwargs):
+    def __init__(self, psrname, query=None, **kwargs):
         self._name = psrname
+        self._query = query
 
         for key, value in iteritems(kwargs):
             setattr(self, key, value)
@@ -92,25 +94,27 @@ class Pulsar(object):
                                'parameter'.format(tkey))
             else:
                 # generate a query for the key and add it
-                try:
-                    from .search import QueryATNF
-                    q = QueryATNF(params=tkey, psrs=pulsarname,
-                                  include_errs=True)
-                except IOError:
-                    raise Exception('Problem querying ATNF catalogue')
+                if self._query is None:
+                    try:
+                        from .search import QueryATNF
+                        self._query = QueryATNF()
+                    except IOError:
+                        raise Exception('Problem querying ATNF catalogue')
 
-            if q.num_pulsars != 1:
-                raise Exception('Problem getting parameter "{}"'.format(tkey))
+            psrrow = self._query.get_pulsar(pulsarname)
 
-            param = q.table[ukey][0]     # required output parameter
+            if psrrow is None:
+                raise Exception('Pulsar "{}" is unknown'.format(pulsarname))
+
+            param = psrrow[ukey][0]     # required output parameter
             setattr(self, ukey, param)   # set output parameter value
 
             # set parameter value if an error value was requested
             if PSR_ALL[tkey]['err']:
                 if tkey != ukey:  # asking for error, so set actual value
-                    setattr(self, tkey, q.table[tkey][0])
+                    setattr(self, tkey, psrrow[tkey][0])
                 else:  # asking for value, so set error
-                    setattr(self, tkey+'_ERR', q.table[tkey+'_ERR'][0])
+                    setattr(self, tkey+'_ERR', psrrow[tkey+'_ERR'][0])
 
         return param
 
@@ -243,9 +247,9 @@ class Pulsars(object):
 
         else:
             # check for duplicates
-            for psrname in psrs:
+            for psrname in psr:
                 if psrname not in self._psrs.keys():  # don't add duplicates
-                    self._psrs[psrname] = psrs[psrname]
+                    self._psrs[psrname] = psr[psrname]
                     self._num_pulsars += 1
 
     def remove_pulsar(self, psrname):
