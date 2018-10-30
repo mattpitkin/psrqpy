@@ -2266,9 +2266,12 @@ class QueryATNF(object):
             self._pulsars = Pulsars()
 
             # add pulsars one by one
-            qparams = list(self.query_params)
-            if 'JNAME' not in qparams:
-                self.query_params = self.query_params + ['JNAME']
+            qparams = deepcopy(self.query_params)
+            if isinstance(qparams, list): 
+                if 'JNAME' not in qparams:
+                    self.query_params = self.query_params + ['JNAME']
+            else:
+                self.query_params = ['JNAME']
 
             psrtable = self.table
             for row in psrtable:

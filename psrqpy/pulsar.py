@@ -264,6 +264,7 @@ class Pulsars(object):
 
         if psrname in self._psrs:
             del self._psrs[psrname]
+            self._num_pulsars -= 1
 
     def pop(self, psrname):
         """
@@ -275,6 +276,7 @@ class Pulsars(object):
         assert isinstance(psrname, string_types), 'psrname is not a string'
 
         if psrname in self._psrs:
+            self._num_pulsars -= 1
             return self._psrs.pop(psrname)
         else:
             return None

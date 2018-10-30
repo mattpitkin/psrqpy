@@ -63,6 +63,34 @@ def test_crab(query):
 
     assert np.floor(f0) == 29.0
 
+    # try Crab's B-name
+    f0B = query.get_pulsar('B0531+21')['F0'][0]
+
+    assert f0 == f0B
+
+
+def test_get_pulsars(query):
+    """
+    Test the 'Pulsars' class.
+    """
+
+    psrs = query.get_pulsars()
+
+    assert len(psrs) == query.num_pulsars
+
+    # check Crab frequency
+    f01 = query.get_pulsar('J0534+2200')['F0'][0]
+    f02 = psrs['J0534+2200'].F0  # frequency attribute
+
+    assert f01 == f02
+
+    # test removing a pulsar
+    crab = psrs.pop('J0534+2200')
+
+    f03 = crab.F0
+    assert f03 == f01
+    assert len(psrs) == (query.num_pulsars - 1)
+
 
 def test_num_pulsars(query):
     """
