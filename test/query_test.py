@@ -92,6 +92,14 @@ def test_get_pulsars(query):
     assert len(psrs) == (query.num_pulsars - 1)
 
 
+def test_get_references(query):
+    """
+    Test getting the references.
+    """
+
+    query.get_references()
+
+
 def test_num_pulsars(query):
     """
     Test that the number of pulsars returned is as expected.

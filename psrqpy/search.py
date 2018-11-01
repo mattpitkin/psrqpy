@@ -217,6 +217,7 @@ class QueryATNF(object):
         self._useads = useads
         self._refs = None
         self._adsrefs = None
+        self._include_refs = True
 
         if self._useads:
             self._refs, self._adsrefs = get_references(self._useads,
