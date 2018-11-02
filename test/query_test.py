@@ -3,6 +3,7 @@ Test script.
 """
 
 import pytest
+import os
 from psrqpy import QueryATNF
 import numpy as np
 from pandas import Series
@@ -92,12 +93,28 @@ def test_get_pulsars(query):
     assert len(psrs) == (query.num_pulsars - 1)
 
 
-def test_get_references(query):
+def test_save_load_file(query):
     """
-    Test getting the references.
+    Test saving and reloading a query as a pickle file.
     """
 
-    query.get_references()
+    # test exception handling
+    testfilebad = '/jkshfdjfd/jkgsdfjkj/kgskfd.jhfd'
+
+    with pytest.raises(IOError):
+        query.save(testfilebad)
+
+    # test exception handling
+    with pytest.raises(IOError):
+        querynew = QueryATNF(loadquery=testfilebad)
+
+    testfile = os.path.join(os.getcwd(), 'query.pkl')
+    query.save(testfile)
+
+    # re-load in as a new query
+    querynew = QueryATNF(loadquery=testfile)
+
+    assert query.num_pulsars == querynew.num_pulsars
 
 
 def test_num_pulsars(query):
@@ -145,6 +162,14 @@ def test_num_columns(query):
 
     # number of columns should be 4
     assert len(query.table.columns) == 4
+
+
+def test_get_references(query):
+    """
+    Test getting the references.
+    """
+
+    query.get_references()
 
 
 def test_update(query):

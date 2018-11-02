@@ -131,7 +131,6 @@ class QueryATNF(object):
         self.__dataframe = DataFrame()
         self.include_errs = include_errs
         self._include_refs = include_refs
-        self._adsref = adsref
         self._savefile = None  # file to save class to
         self._loadfile = None  # file class loaded from
         self.condition = condition
@@ -411,6 +410,21 @@ class QueryATNF(object):
         # return astropy table column
         return self.table[key]
 
+    def __getstate__(self):
+        """
+        Define to allow pickling of whole object.
+        See, e.g., https://stackoverflow.com/a/2050357/1862861.
+        """
+        
+        return self.__dict__
+    
+    def __setstate__(self, d):
+        """
+        Define to allow pickling.
+        """
+
+        self.__dict__.update(d)
+
     def save(self, fname):
         """
         Output the :class:`~psrqpy.search.QueryATNF` instance to a pickle file
@@ -422,12 +436,11 @@ class QueryATNF(object):
 
         try:
             fp = open(fname, 'wb')
-            self._savefile = fname
-            pickle.dump(self.__dict__, fp, 2)
+            pickle.dump(self, fp, 2)
             fp.close()
             self._savefile = fname
         except IOError:
-            raise Exception("Error outputing class to pickle file")
+            raise IOError("Error outputing class to pickle file")
 
     def load(self, fname):
         """
@@ -439,13 +452,13 @@ class QueryATNF(object):
 
         try:
             fp = open(fname, 'rb')
-            tmp_dict = pickle.load(fp)
+            tmpdict = pickle.load(fp)
             fp.close()
             self.__dict__.clear()  # clear current self
-            self.__dict__.update(tmp_dict)
+            self.__dict__.update(tmpdict.__dict__)
             self._loadfile = fname
         except IOError:
-            raise Exception("Error reading in pickle")
+            raise IOError("Error reading in pickle")
 
     def as_array(self):
         """

@@ -141,6 +141,20 @@ class Pulsar(object):
                 except KeyError:
                     raise AttributeError(key)
 
+    def __getstate__(self):
+        """
+        Define to allow pickling.
+        """
+        
+        return self.__dict__
+    
+    def __setstate__(self, d):
+        """
+        Define to allow pickling.
+        """
+
+        self.__dict__.update(d)
+
     def __dir__(self):
         """
         Set this to what is returned for ipython's autocomplete (otherwise the
@@ -220,6 +234,20 @@ class Pulsars(object):
             return self._psrs[key]
         else:
             return None
+
+    def __getstate__(self):
+        """
+        Define to allow pickling.
+        """
+        
+        return self.__dict__
+    
+    def __setstate__(self, d):
+        """
+        Define to allow pickling.
+        """
+
+        self.__dict__.update(d)
 
     def __len__(self):
         """
