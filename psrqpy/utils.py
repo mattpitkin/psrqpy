@@ -510,7 +510,7 @@ def get_references(useads=False, cache=True):
         except ImportError:
             warnings.warn('Could not import ADS module, so no ADS information '
                           'will be included', UserWarning)
-        return refdic, None
+            return refdic, None
 
     adsrefs = {}
 
@@ -579,7 +579,10 @@ def get_references(useads=False, cache=True):
                           'information will be included', UserWarning)
             continue
 
-        adsrefs[reftag] = ADS_URL.format(list(article)[0].bibcode)
+        try:
+            adsrefs[reftag] = ADS_URL.format(list(article)[0].bibcode)
+        except IndexError:
+            pass
 
     return refdic, adsrefs
 

@@ -264,7 +264,7 @@ class QueryATNF(object):
                                      psrs=self.psrs,
                                      include_errs=self._include_errs,
                                      include_refs=self._include_refs,
-                                     adsref=self._adsref, cache=False,
+                                     adsref=self._useads, cache=False,
                                      coord1=self._coord1, coord2=self._cord2,
                                      radius=self._radius,
                                      frompandas=dbtable)
@@ -866,7 +866,7 @@ class QueryATNF(object):
                     if PSR_ALL[par]['ref'] and self._include_refs:
                         retpars.append(par+'_REF')
 
-                        if self._useads and self._adsref is not None:
+                        if self._useads and self._adsrefs is not None:
                             retpars.append(par+'_REFURL')
 
             retpars = list(set(retpars))  # remove duplicates
@@ -882,8 +882,9 @@ class QueryATNF(object):
                         if reftag in self._refs:
                             dftable.loc[i, par] = self._refs[reftag]
 
-                            if self._useads and reftag in self._adsref:
-                                dftable[par+'_REFURL'] = self._adsref[reftag]
+                            if self._adsrefs is not None and self._useads:
+                                if reftag in self._adsrefs:
+                                    dftable[par+'_REFURL'] = self._adsrefs[reftag]
 
         # reset the indices to zero in the dataframe
         return dftable.reset_index(drop=True)
