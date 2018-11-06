@@ -128,7 +128,7 @@ def test_condition(query):
     psrs = query.table
     f0s = psrs['F0']
 
-    assert np.any(f0s < 100.)
+    assert not np.any(f0s < 100.)
 
     # test that we only return pulsars with F0 > 100 Hz in binary systems
     query.condition = 'F0 > 100 && type(binary)'

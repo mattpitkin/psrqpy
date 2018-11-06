@@ -360,9 +360,8 @@ def get_glitch_catalogue(psr=None):
     # get webpage
     try:
         gt = requests.get(GLITCH_URL)
-    except RuntimeError:
-        warnings.warn("Count not query the glitch catalogue.", UserWarning)
-        return None
+    except Exception as e:
+        raise RuntimeError("Error downloading glitch catalogue: {}".format(str(e)))
 
     if gt.status_code != 200:
         warnings.warn("Count not query the glitch catalogue.", UserWarning)
@@ -371,8 +370,8 @@ def get_glitch_catalogue(psr=None):
     # parse HTML
     try:
         soup = BeautifulSoup(gt.content, 'html.parser')
-    except RuntimeError:
-        warnings.warn("Count not parse the glitch catalogue.", UserWarning)
+    except Exception as e:
+        warnings.warn("Count not parse the glitch catalogue: {}".format(str(e)), UserWarning)
         return None
 
     # get table rows
