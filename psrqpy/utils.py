@@ -6,7 +6,7 @@ from __future__ import print_function, division
 
 import warnings
 import re
-import datetime
+import os
 import numpy as np
 import requests
 import tarfile
@@ -466,6 +466,9 @@ def get_references(useads=False, cache=True):
         dict: a dictionary of references.
     """
 
+    import tempfile
+    import json
+
     # get the tarball
     try:
         dbtarfile = download_file(ATNF_TARBALL, cache=cache)
@@ -496,6 +499,8 @@ def get_references(useads=False, cache=True):
             thisname = thisline.split()[0].strip('***')
             thisref += thisline[thisline.find(':')+1:]
         else:
+            # make sure there is a space so words don't get concatenated
+            thisref += ' '
             thisref += thisline.strip()
 
     reffile.close()
@@ -507,12 +512,40 @@ def get_references(useads=False, cache=True):
     else:
         try:
             import ads
+            from ads.exceptions import APIResponseError
         except ImportError:
             warnings.warn('Could not import ADS module, so no ADS information '
                           'will be included', UserWarning)
             return refdic, None
 
-    adsrefs = {}
+
+    # try getting cached references
+    if not cache:
+        adsrefs = {}
+    else:
+        from astropy.utils.data import is_url_in_cache
+
+        tmpdir = tempfile.gettempdir()  # get system "temporary" directory
+        dummyurl = 'file://{}/ads_cache'.format(tmpdir)
+        dummyfile = os.path.join('{}'.format(tmpdir), 'ads_cache')
+
+        # check if cached ADS refs list exists (using dummy URL)
+        if is_url_in_cache(dummyurl):
+            adsfile = download_file(dummyurl, cache=True, show_progress=False)
+
+            try:
+                fp = open(adsfile, 'r')
+            except IOError:
+                warnings.warn('Could not load ADS URL cache for references',
+                              UserWarning)
+                return refdic, None
+
+            adsrefs = json.load(fp)
+            fp.close()
+
+            return refdic, adsrefs
+        else:
+            adsrefs = {}
 
     # loop over references
     j = 0
@@ -549,8 +582,18 @@ def get_references(useads=False, cache=True):
         # get the authors (remove line breaks/extra spaces and final full-stop)
         authors = spl[0].strip().strip('.')
 
+        # remove " Jr." from any author names (as it causes issues!)
+        authors = authors.replace(' Jr.', '')
+
         # separate out authors
         sepauthors = authors.split('.,')[:-1]
+
+        if len(sepauthors) == 0:
+            # no authors were parsed
+            continue
+
+        # remove any "'s for umlauts in author names
+        sepauthors = [a.replace(r'"', '') for a in sepauthors]
 
         # split any authors that are seperated by an ampersand
         if '&' in sepauthors[-1] or 'and' in sepauthors[-1]:
@@ -574,15 +617,31 @@ def get_references(useads=False, cache=True):
         try:
             article = ads.SearchQuery(year=year, first_author=sepauthors[0],
                                       title=title)
-        except IOError:
+        except APIResponseError:
             warnings.warn('Could not get reference information, so no ADS '
                           'information will be included', UserWarning)
             continue
 
         try:
             adsrefs[reftag] = ADS_URL.format(list(article)[0].bibcode)
-        except IndexError:
+        except (IndexError, APIResponseError):
             pass
+
+    if cache:
+        # output adsrefs to cache file
+        try:
+            # output to dummy temporary file and then "download" to cache
+            fp = open(dummyfile, 'w')
+            json.dump(adsrefs, fp, indent=2)
+            fp.close()
+        except IOError:
+            raise IOError("Could not output the ADS references to a file")
+
+        # cache the file
+        _ = download_file(dummyurl, cache=True, show_progress=False)
+
+        # remove the temporary file
+        os.remove(dummyfile)
 
     return refdic, adsrefs
 
