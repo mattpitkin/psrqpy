@@ -727,6 +727,9 @@ def condition(table, expression, exactMatch=False):
     from astropy.table import Table
     from pandas import DataFrame
 
+    if expression is None:
+        return table
+
     # check if expression is just a boolean array
     if isinstance(expression, np.ndarray):
         if expression.dtype != np.bool:
@@ -738,6 +741,9 @@ def condition(table, expression, exactMatch=False):
     else:
         if not isinstance(expression, string_types):
             raise TypeError("Expression must be a boolean array or a string")
+        else:
+            if len(expression) == 0:
+                return table
 
     # parse the expression string and split into tokens
     reg = re.compile(LOGEXPRS)

@@ -176,8 +176,8 @@ class QueryATNF(object):
         condparse = self.parse_conditions(psrtype=psrtype, assoc=assoc,
                                           bincomp=bincomp)
         if len(condparse) > 0:
-            if self._condition is None:
-                self._condition = condparse
+            if self.condition is None:
+                self.condition = condparse
             else:
                 self._condition += ' && {}'.format(condparse)
 
@@ -621,8 +621,8 @@ class QueryATNF(object):
 
             # return given the condition
             expression = None
-            if usecondition is True and isinstance(self._condition, string_types):
-                expression = self._condition
+            if usecondition is True and isinstance(self.condition, string_types):
+                expression = self.condition
             elif isinstance(usecondition, string_types):
                 expression = usecondition
 
@@ -866,17 +866,18 @@ class QueryATNF(object):
                     if PSR_ALL[par]['ref'] and self._include_refs:
                         retpars.append(par+'_REF')
 
-                        if self._useads and self._adsrefs is not None:
-                            retpars.append(par+'_REFURL')
-
             retpars = list(set(retpars))  # remove duplicates
 
             dftable = dftable[retpars]
 
         # convert reference tags to reference strings
         if self._include_refs and isinstance(self._refs, dict):
-            for par in dftable.columns:
+            for par in list(dftable.columns):
                 if par[-4:] == '_REF':
+                    if self._adsrefs is not None and self._useads:
+                        adsrefcol = np.full(len(dftable), '',
+                                            dtype='U64')
+
                     for i in dftable[par].index.values:
                         reftag = dftable[par][i]
                         if reftag in self._refs:
@@ -884,7 +885,11 @@ class QueryATNF(object):
 
                             if self._adsrefs is not None and self._useads:
                                 if reftag in self._adsrefs:
-                                    dftable[par+'_REFURL'] = self._adsrefs[reftag]
+                                    adsrefcol[i] = self._adsrefs[reftag]
+
+                    if self._adsrefs is not None and self._useads:
+                        # add column with ADS reference URL
+                        dftable.loc[:, par[:-4]+'_REFURL'] = adsrefcol
 
         # reset the indices to zero in the dataframe
         return dftable.reset_index(drop=True)
