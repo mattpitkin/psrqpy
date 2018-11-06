@@ -117,6 +117,32 @@ def test_save_load_file(query):
     assert query.num_pulsars == querynew.num_pulsars
 
 
+def test_condition(query):
+    """
+    Test the parsing of logical conditions.
+    """
+
+    # test that we only return pulsars with F0 > 100 Hz
+    query.condition = 'F0 > 100'
+
+    psrs = query.table
+    f0s = psrs['F0']
+
+    assert np.any(f0s < 100.)
+
+    # test that we only return pulsars with F0 > 100 Hz in binary systems
+    query.condition = 'F0 > 100 && type(binary)'
+
+    psrs = query.table
+    f0s = psrs['F0']
+    binary = psrs['BINARY']
+
+    assert not np.any(f0s < 100.) and not np.any(binary.mask)
+
+    # reset condition
+    query.condition = None
+
+
 def test_num_pulsars(query):
     """
     Test that the number of pulsars returned is as expected.
@@ -166,7 +192,7 @@ def test_num_columns(query):
 
 def test_get_references(query):
     """
-    Test getting the references.
+    Test getting the references (without wanting ADS urls).
     """
 
     query.get_references()
@@ -235,6 +261,18 @@ def test_ppdot_diagram(query):
     """
 
     fig = query.ppdot(showtypes='BINARY', showGCs=True)
+
+
+def test_glitch_table():
+    """
+    Try downloading the glitch table for the Crab.
+    """
+
+    from psrqpy.utils import get_glitch_catalogue
+
+    table = get_glitch_catalogue(psr='J0534+2200')
+
+    assert len(table) > 1
 
 
 # TEST DERIVED PARAMETERS #
@@ -585,6 +623,18 @@ def test_download_db():
 
     with pytest.raises(RuntimeError):
         query = QueryATNF(checkupdate=True)
+
+
+@pytest.mark.disable_socket
+def test_download_glitch_table():
+    """
+    Try downloading the glitch table with the socket disabled.
+    """
+
+    from psrqpy.utils import get_glitch_catalogue
+
+    with pytest.raises(RuntimeError):
+        table = get_glitch_catalogue()
 
 
 def test_sort_exception(query):
