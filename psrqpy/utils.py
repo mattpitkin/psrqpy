@@ -485,7 +485,6 @@ def get_references(useads=False, cache=True):
                           'will be included', UserWarning)
             return refdic, None
 
-
     # try getting cached references
     if not cache:
         adsrefs = {}

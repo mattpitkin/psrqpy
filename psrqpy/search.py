@@ -415,9 +415,9 @@ class QueryATNF(object):
         Define to allow pickling of whole object.
         See, e.g., https://stackoverflow.com/a/2050357/1862861.
         """
-        
+
         return self.__dict__
-    
+
     def __setstate__(self, d):
         """
         Define to allow pickling.
@@ -1126,7 +1126,8 @@ class QueryATNF(object):
             idxa = ~((DIST <= DIST_AMX) & (DIST >= DIST_AMN))
             idxa1 = ~((DIST1 <= DIST_AMX) & (DIST1 >= DIST_AMN))
 
-            DIST[idxa & idxdist & (DIST >= DIST_AMX)] = DIST_AMX[idxa & idxdist & (DIST >= DIST_AMX)]
+            DIST[idxa & idxdist & (DIST >= DIST_AMX)] = DIST_AMX[idxa & idxdist &
+                                                                 (DIST >= DIST_AMX)]
             DIST1[idxa1 & idxdist1 & (DIST1 >= DIST_AMX)] = DIST_AMX[(idxa1 & idxdist1
                                                                       & (DIST1 >= DIST_AMX))]
 
@@ -1451,7 +1452,7 @@ class QueryATNF(object):
                 # convert to metres
                 A1ERR = self.catalogue['A1_ERR'].values.copy()*c.value
                 # convert to seconds
-                PBERR = self.catalogue['PB_ERR'].values.copy()*86400.  
+                PBERR = self.catalogue['PB_ERR'].values.copy()*86400. 
 
                 idx = (np.isfinite(MASSFN) & np.isfinite(A1ERR) &
                        np.isfinite(PBERR))
@@ -2296,7 +2297,7 @@ class QueryATNF(object):
 
             # add pulsars one by one
             qparams = deepcopy(self.query_params)
-            if isinstance(qparams, list): 
+            if isinstance(qparams, list):
                 if 'JNAME' not in qparams:
                     self.query_params = self.query_params + ['JNAME']
             else:
@@ -2315,7 +2316,7 @@ class QueryATNF(object):
     def get_version(self):
         """
         Return a string with the ATNF version number, or None if not found.
-        
+
         Returns:
             str: the ATNF version number.
         """

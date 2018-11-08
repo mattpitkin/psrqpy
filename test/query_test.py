@@ -225,9 +225,9 @@ def test_update(query):
     numcols = len(query.columns)
     newname = "TEST2"
     newseries = Series(np.full(query.catalogue_len, 0.5), name=newname)
-    
+
     assert newname not in query.columns
-    
+
     query.update(newseries)
 
     assert newname in query.columns

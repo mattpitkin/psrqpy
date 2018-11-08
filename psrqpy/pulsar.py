@@ -144,9 +144,9 @@ class Pulsar(object):
         """
         Define to allow pickling.
         """
-        
+
         return self.__dict__
-    
+
     def __setstate__(self, d):
         """
         Define to allow pickling.
@@ -238,9 +238,9 @@ class Pulsars(object):
         """
         Define to allow pickling.
         """
-        
+
         return self.__dict__
-    
+
     def __setstate__(self, d):
         """
         Define to allow pickling.
