@@ -1452,7 +1452,7 @@ class QueryATNF(object):
                 # convert to metres
                 A1ERR = self.catalogue['A1_ERR'].values.copy()*c.value
                 # convert to seconds
-                PBERR = self.catalogue['PB_ERR'].values.copy()*86400. 
+                PBERR = self.catalogue['PB_ERR'].values.copy()*86400.
 
                 idx = (np.isfinite(MASSFN) & np.isfinite(A1ERR) &
                        np.isfinite(PBERR))
