@@ -456,7 +456,11 @@ def get_references(useads=False, cache=True):
     thisref = ''
 
     for line in reffile.readlines():
-        thisline = line.decode()
+        if isinstance(line, string_types):
+            thisline = line
+        else:            
+            thisline = line.decode()
+
         if thisline[0:3] == '***':
             if refidx > 0:
                 # return reference making sure to only have single spaces
