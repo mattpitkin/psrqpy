@@ -10,7 +10,6 @@ import warnings
 from six import string_types, iteritems
 
 from .config import PSR_ALL_PARS, PSR_ALL
-from .utils import get_version
 
 
 class Pulsar(object):

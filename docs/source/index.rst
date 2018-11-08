@@ -38,13 +38,11 @@ Requirements
 
 The requirements for installing the code are:
 
- * :mod:`six`
  * :mod:`requests`
  * :mod:`bs4`
  * :mod:`numpy`
  * :mod:`astropy` (for Python 2 astropy versions before `3.0 <http://docs.astropy.org/en/latest/whatsnew/3.0.html#whatsnew-3-0-python3>`_ must be used)
- * :mod:`datetime`
- * :mod: `pandas`
+ * :mod:`pandas`
 
 The :mod:`ads` module and :mod:`matplotlib` are optional requirements to get the full functionality.
 
@@ -74,9 +72,9 @@ catalogue. This could be done with
     >>> query = QueryATNF(params=['F0'])
 
 where the parameter names are case insensitive. This will also automatically include the
-database uncertainty on 'F0', stored as a variable called 'F0_ERR' (parameter uncertainties
-will always be stored using the uppercase version of the parameter name, with `_ERR` appended).
-Again, the table, now only containing 'F0' and 'F0_ERR', can be accessed with
+database uncertainty on ``'F0'``, stored as a variable called ``'F0_ERR'`` (parameter uncertainties
+will always be stored using the uppercase version of the parameter name, with ``_ERR`` appended).
+Again, the table, now only containing ``'F0'`` and ``'F0_ERR'``, can be accessed with
 
     >>> table = query.table
 
@@ -85,7 +83,7 @@ Note, that the full catalogue is still stored in the :class:`psrqpy.QueryATNF`
 
     >>> catalogue = query.catalogue
 
-Other parameters could be selected using the same `query` object with, e.g.,
+Other parameters could be selected using the same ``query`` object with, e.g.,
 
     >>> query.query_params = ['F1', 'RAJ']
     >>> print(query.table)
@@ -113,6 +111,15 @@ The number of pulsars can easily be accessed, e.g.,
    >>> numstring = 'Version {} of the ATNF catalogue contains {} pulsars'
    >>> print(numstring.format(query.get_version, query.num_pulsars))
    Version 1.59 of the ATNF catalogue contains 2659 pulsars
+
+.. note::
+    The cartesian galactic coordinates returned by :class:`psrqpy.QueryATNF`
+    (``XX``, ``YY``, and ``ZZ``) *do
+    not* match those returned by the ATNF Pulsar Catalogue and the
+    ``psrcat`` software. They are defined using the conventions in the
+    :class:`astropy.coordinates.Galactocentric` class. This uses a
+    Galactic centre distance of 8.3 kpc compared to 8.5 kpc in ``psrcat``
+    and rotated 90 degrees anticlockwise compared to ``psrcat``.
 
 More complex queries
 --------------------
@@ -145,7 +152,7 @@ use, e.g., if using a previous ``query`` we had done:
 
 Then we could reload this with
 
-    >>> oldquery = QueryATNF(loadfromfile='atnfquery.pkl')
+    >>> oldquery = QueryATNF(loadquery='atnfquery.pkl')
 
 **Query specific pulsars**
 
@@ -210,8 +217,9 @@ We can also get the whole ephemeris for the Crab with
     DIST_DM   1.310000000000000
     ...
 
-Note that this is not completely equivalent to the pulsar ephemerides returned by the
-`ATNF Pulsar Catalogue <http://www.atnf.csiro.au/people/pulsar/psrcat/psrcat_help.html#boundary>`_.
+.. note::
+    This style of ephemeris is not completely equivalent to the pulsar ephemerides returned by the
+    `ATNF Pulsar Catalogue <http://www.atnf.csiro.au/people/pulsar/psrcat/psrcat_help.html#boundary>`_.
 
 **Query pulsars within a circular boundary**
 

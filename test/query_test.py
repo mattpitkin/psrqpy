@@ -324,8 +324,9 @@ def test_derived_f0_f1(query_derived, query_atnf):
 
 def test_derived_galactic(query_derived, query_atnf):
     """
-    Test the derived galactic longitude and latitude and galactic
-    cartesian coordinates.
+    Test the derived galactic longitude and latitude. The galactic
+    cartesian coordinates are defined differently between astropy
+    and psrcat, so these cannot be directly compared.
     """
 
     gb = query_derived.get_pulsar('TEST1')['GB'][0]
@@ -341,19 +342,6 @@ def test_derived_galactic(query_derived, query_atnf):
     dmsinbatnf = query_atnf.get_pulsar('TEST1')['DMSINB'][0]
 
     assert abs(dmsinb-dmsinbatnf) < sf_scale(dmsinbatnf)
-
-    # xx = query_derived.get_pulsar('TEST1')['XX'][0]
-    # xxatnf = query_atnf.get_pulsar('TEST1')['XX'][0]
-
-    # yy = query_derived.get_pulsar('TEST1')['YY'][0]
-    # yyatnf = query_atnf.get_pulsar('TEST1')['YY'][0]
-
-    # zz = query_derived.get_pulsar('TEST1')['ZZ'][0]
-    # zzatnf = query_atnf.get_pulsar('TEST1')['ZZ'][0]
-
-    # assert abs(xx-xxatnf) < sf_scale(xxatnf)
-    # assert abs(yy-yyatnf) < sf_scale(yyatnf)
-    # assert abs(zz-zzatnf) < sf_scale(zzatnf)
 
 
 def test_derived_ecliptic(query_derived, query_atnf):
@@ -611,7 +599,7 @@ def test_bad_database():
     """
 
     baddbfile = 'sdhfjjdf'  # bad database file
-    with pytest.raises(IOError):
+    with pytest.raises(RuntimeError):
         query = QueryATNF(loadfromdb=baddbfile)
 
 

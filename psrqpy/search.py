@@ -24,7 +24,7 @@ from pandas import DataFrame, Series
 from copy import deepcopy
 
 from .config import ATNF_BASE_URL, PSR_ALL, PSR_ALL_PARS, PSR_TYPE, PSR_ASSOC_TYPE, PSR_BINARY_TYPE
-from .utils import get_version, condition, age_pdot, B_field_pdot
+from .utils import condition, age_pdot, B_field_pdot
 
 
 class QueryATNF(object):
@@ -252,8 +252,8 @@ class QueryATNF(object):
         try:
             dbtable = get_catalogue(path_to_db=path_to_db, cache=cache,
                                     update=update, pandas=True)
-        except RuntimeError:
-            raise RuntimeError("Problem getting catalogue")
+        except Exception as e:
+            raise RuntimeError("Problem getting catalogue: {}".format(str(e)))
 
         if not overwrite:
             newcatalogue = QueryATNF(params=self.query_params,
@@ -272,10 +272,10 @@ class QueryATNF(object):
 
         # update current catalogue
         self.__dataframe = DataFrame(dbtable)
+        self.__dataframe.version = dbtable.version
         self._dbfile = path_to_db
         self._checkupdate = update
         self._cache = cache
-        self._atnf_version = dbtable.version
 
         # calculate derived parameters
         self.set_derived()
@@ -878,14 +878,14 @@ class QueryATNF(object):
                         adsrefcol = np.full(len(dftable), '',
                                             dtype='U64')
 
-                    for i in dftable[par].index.values:
+                    for j, i in enumerate(dftable[par].index.values):
                         reftag = dftable[par][i]
                         if reftag in self._refs:
                             dftable.loc[i, par] = self._refs[reftag]
 
                             if self._adsrefs is not None and self._useads:
                                 if reftag in self._adsrefs:
-                                    adsrefcol[i] = self._adsrefs[reftag]
+                                    adsrefcol[j] = self._adsrefs[reftag]
 
                     if self._adsrefs is not None and self._useads:
                         # add column with ADS reference URL
@@ -1287,6 +1287,15 @@ class QueryATNF(object):
     def define_galactic(self):
         """
         Calculate the galactic longitude, latitude and position.
+
+        .. note::
+            The cartesian galactic coordinates returned by this function *do
+            not* match those returned by the ATNF Pulsar Catalogue and the
+            ``psrcat`` software. They are defined using the conventions in the
+            :class:`astropy.coordinates.Galactocentric` class. This uses a
+            Galactic centre distance of 8.3 kpc compared to 8.5 kpc in
+            ``psrcat`` and rotated 90 degrees anticlockwise compared to
+            ``psrcat``.
         """
 
         galpars = ['GL', 'GB', 'ZZ', 'XX', 'YY', 'DMSINB']
@@ -2305,15 +2314,13 @@ class QueryATNF(object):
     @property
     def get_version(self):
         """
+        Return a string with the ATNF version number, or None if not found.
+        
         Returns:
-            str: seturn a string with the ATNF version number, or the default giving in
-                :attr:`~psrqpy.config.ATNF_VERSION` if not found.
+            str: the ATNF version number.
         """
 
-        if self._atnf_version is None:
-            self._atnf_version = get_version()
-
-        return self._atnf_version
+        return self.catalogue.version
 
     def parse_conditions(self, psrtype=None, assoc=None, bincomp=None):
         """

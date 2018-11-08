@@ -22,7 +22,7 @@ import astropy.units as aunits
 from astropy.utils.data import download_file, clear_download_cache
 from pandas import DataFrame
 
-from .config import (ATNF_BASE_URL, ATNF_VERSION, ADS_URL, ATNF_TARBALL,
+from .config import (ATNF_BASE_URL, ADS_URL, ATNF_TARBALL,
                      PSR_ALL, PSR_ALL_PARS, GLITCH_URL)
 
 
@@ -57,7 +57,7 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
             :class:`~astropy.table.Table`.
 
     Returns:
-        :class:`~astropy.table.Table` or :class:`p~andas.DataFrame`: a table
+        :class:`~astropy.table.Table` or :class:`~pandas.DataFrame`: a table
             containing the entire catalogue.
 
     """
@@ -278,38 +278,6 @@ def check_update():
     else:
         # an update can be obtained
         return True
-
-
-def get_version():
-    """
-    Return a string with the ATNF catalogue version number, or default to that
-    defined in `ATNF_VERSION`.
-
-    Returns:
-        str: the ATNF catalogue version number.
-    """
-
-    site = requests.get(ATNF_BASE_URL)
-
-    if site.status_code != 200:
-        warnings.warn("Could not get ATNF version number, defaulting to {}"
-                      .format(ATNF_VERSION), UserWarning)
-        atnfversion = ATNF_VERSION
-    else:
-        # parse the site content with BeautifulSoup
-        vsoup = BeautifulSoup(site.content, 'html.parser')
-
-        try:
-            vsoup = BeautifulSoup(site.content, 'html.parser')
-
-            version = vsoup.find(attrs={'name': 'version'})
-            atnfversion = version['value']
-        except IOError:
-            warnings.warn("Could not get ATNF version number, defaulting to {}"
-                          .format(ATNF_VERSION), UserWarning)
-            atnfversion = ATNF_VERSION
-
-    return atnfversion
 
 
 def get_glitch_catalogue(psr=None):

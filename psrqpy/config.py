@@ -6,8 +6,6 @@ URLs used for queries.
 import itertools
 from collections import OrderedDict
 
-#: The default ATNF catalogue version.
-ATNF_VERSION = '1.59'
 
 #: The ATNF pulsar catalogue base URL.
 ATNF_BASE_URL = r'http://www.atnf.csiro.au/people/pulsar/psrcat/'
