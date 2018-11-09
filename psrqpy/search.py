@@ -416,6 +416,16 @@ class QueryATNF(object):
         See, e.g., https://stackoverflow.com/a/2050357/1862861.
         """
 
+        # Pulsars() object can cause pickling issues (in Python 2.7), so have
+        # workaround
+        from .pulsar import Pulsars
+        if isinstance(self._pulsars, Pulsars):
+            del self._pulsars
+            self._pulsars = True
+
+        # save ATNF version information from DataFrame separately
+        self._atnf_version = self.catalogue.version
+
         return self.__dict__
 
     def __setstate__(self, d):
@@ -424,6 +434,19 @@ class QueryATNF(object):
         """
 
         self.__dict__.update(d)
+
+        # restore ATNF version info to catalogue
+        self.__dataframe.version = self._atnf_version
+
+        # Pulsars() object can cause pickling issues (in Python 2.7), so have
+        # workaround
+        if isinstance(self._pulsars, bool):
+            from .pulsar import Pulsars
+
+            if self._pulsars:
+                # get the Pulsars() object
+                self._pulsars = None
+                _ = self.get_pulsars()
 
     def save(self, fname):
         """
