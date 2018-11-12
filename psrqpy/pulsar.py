@@ -177,11 +177,8 @@ class Pulsar(object):
 
         if not isinstance(other, Pulsar):
             return False
-        else:
-            if self.name == other.name:
-                return True
-            else:
-                return False
+
+        return bool(self.name == other.name)
 
     def __ne__(self, other):
         """
@@ -190,10 +187,7 @@ class Pulsar(object):
 
         assert isinstance(other, Pulsar), "You are not comparing two Pulsar types!"
 
-        if self.name == other.name:
-            return False
-        else:
-            return True
+        return bool(self.name != other.name)
 
     def __copy__(self):
         """
@@ -231,8 +225,8 @@ class Pulsars(object):
 
         if key in self._psrs.keys():
             return self._psrs[key]
-        else:
-            return None
+
+        return None
 
     def __getstate__(self):
         """
@@ -265,7 +259,7 @@ class Pulsars(object):
                 object
         """
 
-        assert isinstance(psr, Pulsar) or isinstance(psr, Pulsars), 'psr is not a Pulsar type'
+        assert isinstance(psr, (Pulsar, Pulsars)), 'psr is not a Pulsar type'
 
         if isinstance(psr, Pulsar):
             if psr.name not in self._psrs:
@@ -305,8 +299,8 @@ class Pulsars(object):
         if psrname in self._psrs:
             self._num_pulsars -= 1
             return self._psrs.pop(psrname)
-        else:
-            return None
+
+        return None
 
     def __str__(self):
         """
