@@ -143,10 +143,9 @@ class QueryATNF(object):
         self._coord1 = coord1
         self._coord2 = coord2
         self._radius = radius
-        if (isinstance(circular_boundary, list) or
-                isinstance(circular_boundary, tuple)):
+        if isinstance(circular_boundary, (list, tuple)):
             if len(circular_boundary) != 3:
-                raise Exception("Circular boundary must contain three values")
+                raise ValueError("Circular boundary must contain three values")
             self._coord1 = circular_boundary[0]
             self._coord2 = circular_boundary[1]
             self._radius = circular_boundary[2]
@@ -157,11 +156,11 @@ class QueryATNF(object):
         else:
             if (not isinstance(self._coord1, string_types)
                     or not isinstance(self._coord2, string_types)):
-                raise Exception("Circular boundary centre coordinates must "
-                                "be strings")
+                raise ValueError("Circular boundary centre coordinates must "
+                                 "be strings")
             if not isinstance(self._radius, float) and not isinstance(self._radius, int):
-                raise Exception("Circular boundary radius must be a float or "
-                                "int")
+                raise ValueError("Circular boundary radius must be a float or "
+                                 "int")
 
         self._coord = None
         if self._coord1 and self._coord2 and self._radius != 0.:
@@ -265,7 +264,7 @@ class QueryATNF(object):
                                      include_errs=self._include_errs,
                                      include_refs=self._include_refs,
                                      adsref=self._useads, cache=False,
-                                     coord1=self._coord1, coord2=self._cord2,
+                                     coord1=self._coord1, coord2=self._coord2,
                                      radius=self._radius,
                                      frompandas=dbtable)
             return newcatalogue
@@ -319,20 +318,20 @@ class QueryATNF(object):
 
         if colname is not None:
             if colname in self.columns:
-                if isinstance(column, Series):
+                if not isinstance(column, Series):
+                    column = Series(column, name=colname)
+
+                if column.dtype == self.__dataframe[colname].dtype:               
                     self.__dataframe.update(column, overwrite=overwrite)
                 else:
-                    try:
-                        self.__dataframe.update(Series(column, name=colname),
-                                                overwrite=overwrite)
-                    except ValueError:
-                        raise ValueError("Could not update table with "
-                                         "supplied column")
+                    raise ValueError("Could not update table with "
+                                     "supplied column")
             else:
                 try:
                     self.catalogue[colname] = column
-                except ValueError:
-                    raise ValueError("Could not add supplied columns to table")
+                except Exception as e:
+                    raise ValueError("Could not add supplied columns to "
+                                     "table: {}".format(str(e)))
         else:
             raise ValueError("No column name given")
 
@@ -369,7 +368,7 @@ class QueryATNF(object):
 
         Returns:
             :class:`~pandas.DataFrame`: a table containing the sorted
-                catalogue.
+            catalogue.
         """
 
         if sort_attr is not None:
@@ -617,8 +616,8 @@ class QueryATNF(object):
                 all pulsars will be returned.
 
         Returns:
-             :class:`astropy.table.Table`: a table of the pulsar data returned
-                 by the query.
+            :class:`astropy.table.Table`: a table of the pulsar data returned
+            by the query.
         """
 
         if not self.empty:  # convert to Table if DataFrame is not empty
@@ -1206,7 +1205,6 @@ class QueryATNF(object):
         self.update(DECJnew, name='DECJ')
 
         # set references
-        reqpars = ['RAJ_REF', 'DECJ_REF', 'ELONG_REF']
         if 'ELONG_REF' in self.columns:
             RAJREFnew = np.full(self.catalogue_len, '', dtype='U32')
             DECJREFnew = np.full(self.catalogue_len, '', dtype='U32')
@@ -1320,6 +1318,18 @@ class QueryATNF(object):
             Galactic centre distance of 8.3 kpc compared to 8.5 kpc in
             ``psrcat`` and rotated 90 degrees anticlockwise compared to
             ``psrcat``.
+
+            The Galactic coordinate proper motions returned by this function
+            *do not* match those returned by the ATNF Pulsar Catalogue and the
+            ``psrcat`` software. The values returned here convert the observed
+            proper motions in right ascension and declination (or elliptic
+            longitude and latitude) into equivalent values in the Galactic
+            coordinate system (via the :class:`astropy.coordinates.Galactic`
+            class). However, the values returned by the ATNF Pulsar Catalogue
+            and the ``psrcat`` software are in the Galactic cooridinate system,
+            but additionally have the local solar system velocity and Galactic
+            rotation of the pulsar removed from them as described in Section 3
+            of `Harrison, Lyne & Anderson (1993) <https://ui.adsabs.harvard.edu/?#abs/1993MNRAS.261..113H>`_.
         """
 
         galpars = ['GL', 'GB', 'ZZ', 'XX', 'YY', 'DMSINB']
@@ -1384,7 +1394,7 @@ class QueryATNF(object):
 
             self.update(DMSINB, name='DMSINB')
 
-        # galactic proper motion
+        # galactic proper motion (in the Local Standard of Rest)
         if not np.all([p in self.columns for p in ['PMB', 'PML']]):
             reqpar = ['PMRA', 'PMDEC']
             if np.all([p in self.columns for p in reqpar]):
@@ -1899,8 +1909,12 @@ class QueryATNF(object):
 
     def derived_age(self):
         """
-        Calculate the characteristic age.
+        Calculate the characteristic age in years (see
+        :func:`~psrqpy.utils.characteristic_age`, with an assumed braking index
+        of n=3).
         """
+
+        from .utils import characteristic_age
 
         if not np.all([p in self.columns for p in ['P0', 'P1']]):
             return
@@ -1908,17 +1922,16 @@ class QueryATNF(object):
         # get period and period derivative
         P0 = self.catalogue['P0']
         P1 = self.catalogue['P1']
-
-        AGE = np.full(self.catalogue_len, np.nan)
-        idx = (P1 > 0.) & (P0 > 0.) & np.isfinite(P0) & np.isfinite(P1)
-        AGE[idx] = 0.5 * (P0[idx] / P1[idx]) / (60.0 * 60.0 * 24.0 * 365.25)
+        AGE = characteristic_age(P0, P1)
         self.update(AGE, name='AGE')
 
     def derived_age_i(self):
         """
-        Calculate the characteristic age, dervied from period and intrinsic
-        period derivative.
+        Calculate the characteristic age (in years), dervied from period and
+        intrinsic period derivative.
         """
+
+        from .utils import characteristic_age
 
         if 'P1_I' not in self.columns:
             self.derived_p1_i()
@@ -1929,16 +1942,16 @@ class QueryATNF(object):
         # get period and period derivative
         P0 = self.catalogue['P0']
         P1_I = self.catalogue['P1_I']
-
-        AGEI = np.full(self.catalogue_len, np.nan)
-        idx = (P1_I > 0.) & (P0 > 0.) & np.isfinite(P1_I) & np.isfinite(P0)
-        AGEI[idx] = 0.5 * (P0[idx] / P1_I[idx]) / (60.0 * 60.0 * 24.0 * 365.25)
+        AGEI = characteristic_age(P0, P1_I)
         self.update(AGEI, name='AGE_I')
 
     def derived_bsurf(self):
         """
-        Calculate the surface magnetic field strength.
+        Calculate the surface magnetic field strength (see
+        :func:`~psrqpy.utils.B_field`).
         """
+
+        from .utils import B_field
 
         if not np.all([p in self.columns for p in ['P0', 'P1']]):
             return
@@ -1946,10 +1959,7 @@ class QueryATNF(object):
         # get period and period derivative
         P0 = self.catalogue['P0']
         P1 = self.catalogue['P1']
-
-        BSURF = np.full(self.catalogue_len, np.nan)
-        idx = (P1 > 0.) & np.isfinite(P1) & np.isfinite(P0)
-        BSURF[idx] = 3.2e19 * np.sqrt(np.abs(P0[idx] * P1[idx]))
+        BSURF = B_field(P0, P1)
         self.update(BSURF, name='BSURF')
 
     def derived_bsurf_i(self):
@@ -1958,6 +1968,8 @@ class QueryATNF(object):
         intrinsic period derivative.
         """
 
+        from .utils import B_field
+
         if 'P1_I' not in self.columns:
             self.derived_p1_i()
 
@@ -1967,10 +1979,7 @@ class QueryATNF(object):
         # get period and period derivative
         P0 = self.catalogue['P0']
         P1_I = self.catalogue['P1_I']
-
-        BSURFI = np.full(self.catalogue_len, np.nan)
-        idx = (P1_I > 0.) & np.isfinite(P1_I) & np.isfinite(P0)
-        BSURFI[idx] = 3.2e19 * np.sqrt(np.abs(P0[idx] * P1_I[idx]))
+        BSURFI = B_field(P0, P1_I)
         self.update(BSURFI, name='BSURF_I')
 
     def derived_b_lc(self):
@@ -2373,7 +2382,7 @@ class QueryATNF(object):
 
         Returns:
             str: a string with the format required for use in
-                :attr:`~psrqpy.config.QUERY_URL`
+            :attr:`~psrqpy.config.QUERY_URL`
 
         """
 
@@ -2586,8 +2595,8 @@ class QueryATNF(object):
             import matplotlib as mpl
             from matplotlib import pyplot as pl
         except ImportError:
-            raise Exception('Cannot produce P-Pdot plot as Matplotlib is not '
-                            'available')
+            raise ImportError('Cannot produce P-Pdot plot as Matplotlib is '
+                              'not available')
 
         from .utils import death_line, label_line
 

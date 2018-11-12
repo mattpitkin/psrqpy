@@ -62,8 +62,8 @@ or as a :class:`pandas.DataFrame` via
 
     >>> df = query.pandas
 
-You can also specifically limit the query to any combination of the pulsar parameters listed
-`here <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=expert#par_list>`_.
+You can also specifically limit the query to any combination of the pulsar parameters
+`listed here <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=expert#par_list>`_.
 
 A simple example of such a limited query is to get the frequency 'F0' for all pulsars in the
 catalogue. This could be done with
@@ -78,7 +78,7 @@ Again, the table, now only containing ``'F0'`` and ``'F0_ERR'``, can be accessed
 
     >>> table = query.table
 
-Note, that the full catalogue is still stored in the :class:`psrqpy.QueryATNF`
+Note that the full catalogue is still stored in the :class:`psrqpy.QueryATNF`
 (as a :class:`pandas.DataFrame`) and can accessed with
 
     >>> catalogue = query.catalogue
@@ -111,15 +111,6 @@ The number of pulsars can easily be accessed, e.g.,
    >>> numstring = 'Version {} of the ATNF catalogue contains {} pulsars'
    >>> print(numstring.format(query.get_version, query.num_pulsars))
    Version 1.59 of the ATNF catalogue contains 2659 pulsars
-
-.. note::
-    The cartesian galactic coordinates returned by :class:`psrqpy.QueryATNF`
-    (``XX``, ``YY``, and ``ZZ``) *do
-    not* match those returned by the ATNF Pulsar Catalogue and the
-    ``psrcat`` software. They are defined using the conventions in the
-    :class:`astropy.coordinates.Galactocentric` class. This uses a
-    Galactic centre distance of 8.3 kpc compared to 8.5 kpc in ``psrcat``
-    and rotated 90 degrees anticlockwise compared to ``psrcat``.
 
 More complex queries
 --------------------
@@ -171,7 +162,7 @@ You can also access these pulsars using the :class:`psrqpy.pulsar.Pulsars` class
 will create a dictionary of :class:`psrqpy.pulsar.Pulsar` objects keyed on the pulsar
 names. The attributes of the :class:`~psrqpy.pulsar.Pulsar` objects are the parameters
 that have been retrieved by the query. But, the  :class:`~psrqpy.pulsar.Pulsar` objects
-themselves can query the ATNF catalogue if you request a parameter that they don't already
+themselves can query the ATNF Pulsar Catalogue if you request a parameter that they don't already
 contain. E.g., so first lets get the :class:`psrqpy.pulsar.Pulsars`:
 
     >>> psrs = query.get_pulsars()
@@ -218,8 +209,8 @@ We can also get the whole ephemeris for the Crab with
     ...
 
 .. note::
-    This style of ephemeris is not completely equivalent to the pulsar ephemerides returned by the
-    `ATNF Pulsar Catalogue <http://www.atnf.csiro.au/people/pulsar/psrcat/psrcat_help.html#boundary>`_.
+    This style of ephemeris is not completely equivalent to the pulsar ephemerides returned by
+    `the ATNF Pulsar Catalogue <http://www.atnf.csiro.au/people/pulsar/psrcat/psrcat_help.html#boundary>`_.
 
 **Query pulsars within a circular boundary**
 
@@ -250,6 +241,10 @@ For example we could get the reference for the orbital period of J0737-3039A wit
     >>> print(query.table['PB_REFURL'][0])
     https://ui.adsabs.harvard.edu/#abs/2006Sci...314...97K/
 
+.. note::
+    To use this feature you need to have an API key from NASA ADS labs. Getting this
+    is described `here <https://ads.readthedocs.io/en/latest/#getting-started>`_.
+
 .. _make-p-pdot-diagram:
 
 **Make a P-Pdot diagram**
@@ -265,6 +260,32 @@ where this shows all pulsar types and pulsars in supernova remnants, to give
 
 .. figure::  images/ppdot.png
    :align:   center
+
+
+Differences with the ATNF Pulsar Catalogue
+==========================================
+
+There are differences between some of the values returned by psrqpy and those
+calculated by the ``psrcat`` software used to generation the ATNF Pulsar
+Catalogue results. These are listed below:
+
+ * The cartesian Galactic coordinates returned by :class:`psrqpy.QueryATNF`
+   (``XX``, ``YY``, and ``ZZ``) *do not* match those returned by the ATNF
+   Pulsar Catalogue and the ``psrcat`` software. The values returned by psrqpy
+   are defined using the conventions in the :class:`astropy.coordinates.Galactocentric`
+   class. This uses a Galactic centre distance of 8.3 kpc compared to 8.5 kpc in ``psrcat``
+   and is rotated 90 degrees anticlockwise compared to ``psrcat``.
+
+ * The Galactic coordinate proper motions returned by :class:`psrqpy.QueryATNF`
+   (``PML`` and ``PMB``) *do not* match those returned by the ATNF
+   Pulsar Catalogue and the ``psrcat`` software. The values returned by psrqpy
+   purely convert the observed proper motions in right ascension and declination
+   (or elliptic longitude and latitude) into equivalent values in the Galactic
+   coordinate system (via the :class:`astropy.coordinates.Galactic` class).
+   However, the values returned by the ATNF Pulsar Catalogue and the ``psrcat``
+   software are in the Galactic cooridinate system, but additionally have the
+   local solar system velocity and Galactic rotation of the pulsar removed
+   from them as described in Section 3 of [2]_.
 
 Development and Support
 =======================
@@ -296,7 +317,7 @@ Regarding the use of the catalogue and software behind it, the `following statem
 
     The programs and databases remain the property of the Australia Telescope National Facility, CSIRO, and are covered by the `CSIRO Legal Notice and Disclaimer <http://www.csiro.au/en/About/Footer/Legal-notice>`_.
 
-    If you make use of information from the ATNF Pulsar Catalogue in a publication, we would appreciate acknowledgement by reference to the publication "`The ATNF Pulsar Catalogue <http://adsabs.harvard.edu/abs/2005AJ....129.1993M>`_", R. N. Manchester, G. B. Hobbs, A. Teoh & M. Hobbs, Astronomical Journal, 129, 1993-2006 (2005) and by quoting the web address http://www.atnf.csiro.au/research/pulsar/psrcat for updated versions.
+    If you make use of information from the ATNF Pulsar Catalogue in a publication, we would appreciate acknowledgement by reference to the publication "*The ATNF Pulsar Catalogue*", R. N. Manchester, G. B. Hobbs, A. Teoh & M. Hobbs, Astronomical Journal, 129, 1993-2006 (2005) and by quoting the web address http://www.atnf.csiro.au/research/pulsar/psrcat for updated versions.
 
 .. _copyright-license-for-psrqpy:
 
@@ -305,7 +326,7 @@ Copyright & license for psrqpy
 
 This code is licensed under the `MIT License <http://opensource.org/licenses/MIT>`_.
 
-If making use of this code to access the catalogue, or produce plots, I would be grateful if (as well as citing the ATNF pulsar catalogue `paper <http://adsabs.harvard.edu/abs/2005AJ....129.1993M>`_ and `URL <http://www.atnf.csiro.au/research/pulsar/psrcat>`_ given above) you consider citing the `JOSS <http://joss.theoj.org/>`_ `paper <https://doi.org/10.21105/joss.00538>`_ for this software:
+If making use of this code to access the catalogue, or produce plots, I would be grateful if (as well as citing the `ATNF pulsar catalogue paper <http://adsabs.harvard.edu/abs/2005AJ....129.1993M>`_ and `URL <http://www.atnf.csiro.au/research/pulsar/psrcat>`_ given above) you consider citing the `JOSS <http://joss.theoj.org/>`_ `paper <https://doi.org/10.21105/joss.00538>`_ for this software:
 
 .. code-block:: tex
 
@@ -328,3 +349,6 @@ References
 ----------
 
 .. [1] Manchester, Hobbs, Teoh & Hobbs, *AJ*, **129**, 1993-2006 (2005), `arXiv:astro-ph/0412641 <https://arxiv.org/abs/astro-ph/0412641>`_
+
+.. [2] `Harrison, Lyne & Anderson <https://ui.adsabs.harvard.edu/?#abs/1993MNRAS.261..113H>`_,
+ *MNRAS*, **261**, 113-124 (1993)

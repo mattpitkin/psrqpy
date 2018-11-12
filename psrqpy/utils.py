@@ -58,7 +58,7 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
 
     Returns:
         :class:`~astropy.table.Table` or :class:`~pandas.DataFrame`: a table
-            containing the entire catalogue.
+        containing the entire catalogue.
 
     """
 
@@ -171,7 +171,7 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
     # add RA and DEC in degs and JNAME/BNAME
     for i, psr in enumerate(list(psrlist)):
         if 'RAJ' in psr.keys() and 'DECJ' in psr.keys():
-            # check if the string can ber converted to a float (there are a few
+            # check if the string can be converted to a float (there are a few
             # cases where the position is just a decimal value)
             try:
                 rad = float(psr['RAJ'])
@@ -307,7 +307,7 @@ def get_glitch_catalogue(psr=None):
 
     Returns:
         :class:`~astropy.table.Table`: a table containing the entire glitch
-            catalogue.
+        catalogue.
 
     Example:
         An example of using this to extract the glitches for the Crab Pulsar
@@ -359,7 +359,7 @@ def get_glitch_catalogue(psr=None):
     tabledict['Reference'] = []
 
     # loop through rows: rows with glitches have their first column as an index
-    for i, row in enumerate(rows):
+    for row in rows:
         tds = row.find_all('td')
 
         if tds[0].contents[0].string is None:
@@ -668,9 +668,9 @@ def condition(table, expression, exactMatch=False):
 
     Returns:
         :class:`astropy.table.Table` or :class:`pandas.DataFrame`: the table of
-            values conforming to the input condition. Depending on the type of
-            input table the returned table will either be a
-            :class:`astropy.table.Table` or :class:`pandas.DataFrame`.
+        values conforming to the input condition. Depending on the type of
+        input table the returned table will either be a
+        :class:`astropy.table.Table` or :class:`pandas.DataFrame`.
 
     Example:
         Some examples of this might are:
@@ -735,10 +735,10 @@ def condition(table, expression, exactMatch=False):
     newtokens = []
     i = 0
     while i < ntokens:
-        if tokens[i] in [r'&&', r'AND']:
+        if tokens[i] in [r'&&', r'AND', r'and']:
             # replace synonyms for '&' or 'and'
             newtokens.append(r'&')
-        elif tokens[i] in [r'||', r'OR']:
+        elif tokens[i] in [r'||', r'OR', r'or']:
             # replace synonyms for '|' or 'or'
             newtokens.append(r'|')
         elif tokens[i] in [r'!', r'NOT', r'not']:
@@ -770,7 +770,7 @@ def condition(table, expression, exactMatch=False):
                             warnings.warn("'BINARY' parameter not in table: "
                                           "ignoring in query", UserWarning)
                         else:
-                            binary = ~table['BINARY'].isna()
+                            binary = ~tab['BINARY'].isna()
                             newtokens.append(r'(@binary)')
                             i += 1
                     else:
@@ -798,10 +798,10 @@ def condition(table, expression, exactMatch=False):
                         warnings.warn("'{}' does not exist for any pulsar".format(tokens[i+2]),
                                       UserWarning)
                         # create an empty DataFrame
-                        tab = DataFrame(columns=table.columns)
+                        tab = DataFrame(columns=tab.columns)
                         break
                     else:
-                        exists = ~table[tokens[i+2].upper()].isna()
+                        exists = ~tab[tokens[i+2].upper()].isna()
                         newtokens.append(r'(@exists)')
                         i += 1
                 elif tokens[i].upper() == 'ERROR':
@@ -838,38 +838,49 @@ def condition(table, expression, exactMatch=False):
 def characteristic_age(period, pdot, braking_idx=3.):
     """
     Function defining the characteristic age of a pulsar. Returns the
-    characteristic age in using
+    characteristic age in years using
 
     .. math::
 
        \\tau = \\frac{P}{\\dot{P}(n-1)}
 
+    NaNs are returned for any negative period derivates, or NaN imput values.
+
     Args:
-        period (float): the pulsar period in seconds
-        pdot (float): the pulsar period derivative
+        period (float, array_like): the pulsar period in seconds
+        pdot (float, array_like): the pulsar period derivative
         braking_idx (float): the pulsar braking index (defaults to :math:`n=3`)
 
     Returns:
         float: the characteristic age in years
     """
 
+    # try converting period and pdot to numpy arrays
+    try:
+        periodarr = np.array(period).flatten()
+        pdotarr = np.array(pdot).flatten()
+    except Exception as e:
+        raise ValueError("Could not convert period/pdot to "
+                         "array: {}".format(str(e)))
+
+    assert periodarr.dtype == np.float, "Periods must be floats"
+    assert pdotarr.dtype == np.float, "Period derivatives must be floats"
+    assert len(periodarr) == len(pdotarr), "Period and derivative arrays must be equal lengths"
+    assert braking_idx > 1., "Braking index must be greater than 1"
+
     # check everything is positive, otherwise return NaN
-    if period < 0.:
-        warnings.warn("The period must be positive to define a characteristic age",
-                      UserWarning)
-        return np.nan
+    age = np.full(len(periodarr), np.nan)
+    with np.errstate(invalid='ignore'):
+        idx = np.isfinite(pdotarr) & np.isfinite(periodarr) & (pdotarr > 0.)
 
-    if pdot < 0.:
-        warnings.warn("The period derivative must be positive to define a characteristic age",
-                      UserWarning)
-        return np.nan
+    age[idx] = (periodarr[idx]/(pdotarr[idx] * (braking_idx - 1.))) / (365.25*86400.)
 
-    if braking_idx < 0.:
-        warnings.warn("The braking index must be positive to define a characteristic age",
-                      UserWarning)
-        return np.nan
+    # if period and period derivates were just floats return values rather
+    # than arrays
+    if isinstance(pdot, float) and isinstance(period, float):
+        return age[0]
 
-    return (period/(pdot * (braking_idx - 1.)))/(365.25*86400.)
+    return age
 
 
 def age_pdot(period, tau=1e6, braking_idx=3.):
@@ -912,6 +923,8 @@ def B_field(period, pdot):
 
        B = 3.2\\!\\times\\!10^{19} \\sqrt{P\\dot{P}}
 
+    NaNs are returned for any negative period derivates, or NaN imput values.
+
     Args:
         period (float): a pulsar period (s)
         pdot (float): a period derivative
@@ -920,23 +933,30 @@ def B_field(period, pdot):
         float: the magnetic field strength in gauss.
     """
 
-    assert isinstance(period, float) or isinstance(period, int), \
-        "Period '{}' must be a number".format(period)
-    assert isinstance(pdot, float) or isinstance(pdot, int), \
-        "Period derivtaive '{}' must be a number".format(pdot)
+    # try converting period and pdot to numpy arrays
+    try:
+        periodarr = np.array(period).flatten()
+        pdotarr = np.array(pdot).flatten()
+    except Exception as e:
+        raise ValueError("Could not convert period/pdot to "
+                         "array: {}".format(str(e)))
 
-    # check everything is positive, otherwise return 0
-    if period < 0.:
-        warnings.warn("The period must be positive to define a magnetic field strength",
-                      UserWarning)
-        return 0.
+    assert periodarr.dtype == np.float, "Periods must be floats"
+    assert pdotarr.dtype == np.float, "Period derivatives must be floats"
+    assert len(periodarr) == len(pdotarr), "Period and derivative arrays must be equal lengths"
 
-    if pdot < 0.:
-        warnings.warn("The period derivative must be positive to define a magnetic field strength",
-                      UserWarning)
-        return 0.
+    # check pdot is positive, otherwise return NaN
+    bfield = np.full(len(periodarr), np.nan)
+    with np.errstate(invalid='ignore'):
+        idx = np.isfinite(pdotarr) & np.isfinite(periodarr) & (pdotarr > 0.)
+    bfield[idx] = 3.2e19 * np.sqrt(periodarr[idx] * pdotarr[idx])
 
-    return 3.2e19 * np.sqrt(period * pdot)
+    # if period and period derivates were just floats return values rather
+    # than arrays
+    if isinstance(pdot, float) and isinstance(period, float):
+        return bfield[0]
+
+    return bfield
 
 
 def B_field_pdot(period, Bfield=1e10):
@@ -1054,7 +1074,7 @@ def label_line(ax, line, label, color='k', fs=14, frachoffset=0.1):
 
     Returns:
         :class:`matplotlib.text.Text`: an object containing the label
-            information
+        information
 
     """
     xdata, ydata = line.get_data()

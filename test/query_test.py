@@ -8,6 +8,7 @@ from psrqpy import QueryATNF
 import numpy as np
 from pandas import Series
 import pytest_socket
+from six import string_types
 
 
 def sf_scale(value):
@@ -70,6 +71,21 @@ def test_crab(query):
     assert f0 == f0B
 
 
+def test_catalogue_shape(query):
+    """
+    Test the catalogue for shape consistency
+    """
+
+    length = query.catalogue_len
+    shape = query.catalogue_shape
+    rows = query.catalogue_nrows
+    cols = query.catalogue_ncols
+    colnames = query.columns
+
+    assert length == rows and length == shape[0]
+    assert cols == len(colnames) and cols == shape[1]
+
+
 def test_get_pulsars(query):
     """
     Test the 'Pulsars' class.
@@ -91,6 +107,21 @@ def test_get_pulsars(query):
     f03 = crab.F0
     assert f03 == f01
     assert len(psrs) == (query.num_pulsars - 1)
+
+    # get the ephemeris string for the Crab pulsar
+    crabeph = query.get_ephemeris('J0534+2200AB')  # wrong name
+    assert crabeph is None
+
+    crabeph = query.get_ephemeris('J0534+2200')
+
+    assert isinstance(crabeph, string_types)
+
+    for line in crabeph.split('\n'):
+        if line.split()[0].strip() == 'F0':
+            f0str = line.split()[1].strip()
+            break
+
+    assert f01 == float(f0str)
 
 
 def test_save_load_file(query):
@@ -122,6 +153,10 @@ def test_condition(query):
     Test the parsing of logical conditions.
     """
 
+    with pytest.raises(TypeError):
+        # test for error if condition is not a string
+        query.condition = 2.3
+
     # test that we only return pulsars with F0 > 100 Hz
     query.condition = 'F0 > 100'
 
@@ -138,6 +173,58 @@ def test_condition(query):
     binary = psrs['BINARY']
 
     assert not np.any(f0s < 100.) and not np.any(binary.mask)
+
+    # test 'OR'
+    query.condition = 'F0 > 100 || type(binary)'
+
+    psrs = query.table
+    f0s = psrs['F0']
+    binary = psrs['BINARY']
+
+    assert np.all(~binary[f0s < 100.].mask)
+
+    # test 'NOT'
+    query.condition = 'F0 > 100 and not type(binary)'
+
+    psrs = query.table
+    f0s = psrs['F0']
+    binary = psrs['BINARY']
+
+    assert not np.any(f0s < 100) and np.all(binary.mask)
+
+    # test type (not binary)
+    query.condition = 'type(HE)'
+
+    psrs = query.table
+    types = psrs['TYPE']
+
+    assert np.all(['HE' in ttype for ttype in types])
+
+    # test associations
+    query.condition = 'assoc(GC)'
+
+    psrs = query.table
+    assocs = psrs['ASSOC']
+
+    assert np.all(['GC' in assoc for assoc in assocs])
+
+    # test binary companion
+    query.condition = 'bincomp(MS)'
+
+    psrs = query.table
+    bincomps = psrs['BINCOMP']
+
+    assert np.all(['MS' in bincomp for bincomp in bincomps])
+
+    # test exists
+    query.condition = None
+    allpsrs = query.table
+    query.condition = 'exist(PMRA)'
+
+    psrs = query.table
+    pmras = psrs['PMRA']
+
+    assert len(pmras) == np.sum(~allpsrs['PMRA'].mask)
 
     # reset condition
     query.condition = None
@@ -168,6 +255,17 @@ def test_num_columns(query):
     """
     Test that the number of columns if correct.
     """
+
+    query.query_params = []
+    assert len(query.query_params) == 0
+
+    with pytest.raises(TypeError):
+        # test error for non-string parameter
+        query.query_params = 1.2
+
+    with pytest.raises(TypeError):
+        # test error for non-string parameter in list
+        query.query_params = ['F0', 1.3]
 
     query.query_params = 'F0'
     query.include_errs = False
@@ -207,6 +305,9 @@ def test_update(query):
     column = 1
     with pytest.raises(ValueError):
         query.update(column)
+
+    with pytest.raises(ValueError):
+        query.update('dummystring', name='F0')
 
     # add an additional column using a numpy array
     newcol = np.ones(query.catalogue_len)
@@ -260,7 +361,10 @@ def test_ppdot_diagram(query):
     Test the creation of the P-Pdot diagram
     """
 
-    fig = query.ppdot(showtypes='BINARY', showGCs=True)
+    from matplotlib.figure import Figure
+
+    fig = query.ppdot(showtypes='ALL', showGCs=True, intrinsicpdot=True)
+    assert isinstance(fig, Figure)
 
 
 def test_glitch_table():
@@ -559,15 +663,19 @@ def test_derived_proper_motion(query_derived, query_atnf):
     assert abs(vtrans - vtransatnf) < sf_scale(vtransatnf)
 
     # proper motion in galactic coordinates
-    # pml = query_derived.get_pulsar('TEST1')['PML'][0]
-    # pmlatnf = query_atnf.get_pulsar('TEST1')['PML'][0]
+    # NOTE: these are currently left out of the test as psrcat performs an
+    # additional velocity correction to their local standard of rest by
+    # removing both the solar system velocity and their local galactic
+    # rotation
+    #pml = query_derived.get_pulsar('TEST1')['PML'][0]
+    #pmlatnf = query_atnf.get_pulsar('TEST1')['PML'][0]
 
-    # assert abs(pml - pmlatnf) < sf_scale(pmlatnf)
+    #assert abs(pml - pmlatnf) < sf_scale(pmlatnf)
 
-    # pmb = query_derived.get_pulsar('TEST1')['PMB'][0]
-    # pmbatnf = query_atnf.get_pulsar('TEST1')['PMB'][0]
+    #pmb = query_derived.get_pulsar('TEST1')['PMB'][0]
+    #pmbatnf = query_atnf.get_pulsar('TEST1')['PMB'][0]
 
-    # assert abs(pmb - pmbatnf) < sf_scale(pmbatnf)
+    #assert abs(pmb - pmbatnf) < sf_scale(pmbatnf)
 
 
 def test_derived_pb_pbdot(query_derived, query_atnf):
@@ -634,6 +742,10 @@ def test_sort_exception(query):
     sortval = 'kgsdkfkfd'  # random sort parameter
     with pytest.raises(KeyError):
         query.sort(sort_attr=sortval)
+
+    sort_key = 1.2  # non-string sort key
+    with pytest.raises(ValueError):
+        query.sort_key = sort_key
 
     # reset sort key
     query.sort_key = curkey

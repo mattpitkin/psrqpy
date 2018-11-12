@@ -270,7 +270,7 @@ Each parameter name key gives a dictionary containing the keys:
 * ``ref`` (bool) - True if the parameter has an associated reference with it
 * ``err`` (bool) - True if the parameter has an associated error value
 * ``units`` (str) - a string with the parameters units that can be parsed by
-  :class:`~astropy.units.core.Unit`
+  :class:`~astropy.units.Unit`
 
 The allowed parameters and their units are given
 `here <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=normal#par_list>`_.
@@ -287,8 +287,8 @@ PSR_TYPE = [
     'RRAT',   # Pulsars with intermittently pulsed radio emission
     'XINS'  # Isolated neutron stars with pulsed X-ray emission but no detectable radio emission
     ]
-""": Allowed pulsar
-`types <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#psr_types>`_
+""": Allowed
+`pulsar types <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#psr_types>`_
 for use in ``type()`` when setting logical conditions.
 """
 
@@ -299,8 +299,8 @@ PSR_BINARY_TYPE = [
     'He',   # Helium White Dwarf
     'UL'   # Ultra-light companion or planet (mass < 0.08 solar masses)
     ]
-""": Binary companion
-`types <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=normal#bincomp_type>`_
+""": `Binary companion
+types <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=normal#bincomp_type>`_
 for use in ``bincomp()`` when setting logical conditions.
 """
 
