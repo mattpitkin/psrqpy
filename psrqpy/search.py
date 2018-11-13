@@ -948,7 +948,6 @@ class QueryATNF(object):
             ASSOCREFnew = Series(np.full(self.catalogue_len, '',
                                          dtype='U64'),
                                  name='ASSOC_REF')
-            self.update(ASSOCREFnew, name='ASSOC_REF')
         else:
             ASSOCREFnew = self.catalogue['ASSOC_REF'].copy()
 
@@ -984,7 +983,6 @@ class QueryATNF(object):
             TYPEREFnew = Series(np.full(self.catalogue_len, '',
                                         dtype='U64'),
                                 name='TYPE_REF')
-            self.update(TYPEREFnew, 'TYPE_REF')
         else:
             TYPEREFnew = self.catalogue['TYPE_REF'].copy()
 
@@ -1020,7 +1018,6 @@ class QueryATNF(object):
             BINCOMPREFnew = Series(np.full(self.catalogue_len, '',
                                            dtype='U64'),
                                    name='BINCOMP_REF')
-            self.update(BINCOMPREFnew)
         else:
             BINCOMPREFnew = self.catalogue['BINCOMP_REF'].copy()
 
