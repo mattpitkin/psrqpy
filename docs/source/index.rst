@@ -307,6 +307,17 @@ API interface
    config
    utils
 
+Test suite
+==========
+
+There are tests supplied that cover many of the functions within PSRQpy. These can be run from the
+base directory of the repository (after installing the `pytest <https://docs.pytest.org/en/latest/>`_ and
+`pytest-socket <https://pypi.org/project/pytest-socket/>`_ modules, e.g., with ``pip``) by just calling:
+
+    pytest
+
+These tests are not included in the ``pip`` installed version of the code.
+
 Copyright and referencing for the catalogue
 -------------------------------------------
 

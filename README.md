@@ -151,6 +151,18 @@ Any contributions can be made via a [fork and pull request](https://help.github.
 from that repository, and must adhere to the [MIT license](#License). Any problems with the code
 or support requests can be submitted via the repository's [Issue tracker](https://github.com/mattpitkin/psrqpy/issues).
 
+## Test suite
+
+There are tests supplied that cover many of the functions within PSRQpy. These can be run from the
+base directory of the repository (after installing the [`pytest`](https://docs.pytest.org/en/latest/) and
+[`pytest-socket`](https://pypi.org/project/pytest-socket/) modules, e.g., with `pip`) by just calling:
+
+```bash
+pytest
+```
+
+These tests are not included in the `pip` installed version of the code.
+
 ## Copyright and referencing for the catalogue
 
 Regarding the use of the catalogue and software behind it, the [following statements](http://www.atnf.csiro.au/research/pulsar/psrcat/download.html) apply:
