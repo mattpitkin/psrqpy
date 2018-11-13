@@ -1,8 +1,6 @@
 # PSRQpy
 
-This module aims to provide a python interface for querying the [ATNF pulsar catalogue](http://www.atnf.csiro.au/people/pulsar/psrcat/).
-It is inspired by, and has some minor similarities to, the [`ads`](https://ads.readthedocs.io) module for interfacing with the
-[NASA ADS](https://ui.adsabs.harvard.edu/) [API](https://github.com/adsabs/adsabs-dev-api). It is an unofficial
+This module aims to provide a python interface for querying the [ATNF pulsar catalogue](http://www.atnf.csiro.au/people/pulsar/psrcat/). It is an unofficial
 package and is not endorsed by or affiliated with the ATNF.
 
 Full documentation of the module can be found [here](http://psrqpy.readthedocs.io/).
@@ -35,14 +33,16 @@ pip install psrqpy
 
 The [requirements](requirements.txt) for installing the code are:
 
- * `six`
- * `requests`
- * `beautifulsoup4`
- * `numpy`
- * `astropy` (for Python 2 astropy versions before [3.0](http://docs.astropy.org/en/latest/whatsnew/3.0.html#whatsnew-3-0-python3) must be used)
- * `datetime`
+ * [`six`](https://six.readthedocs.io/)
+ * [`requests`](http://docs.python-requests.org/en/master/)
+ * [`beautifulsoup4`](https://www.crummy.com/software/BeautifulSoup/bs4/doc/)
+ * [`numpy`](http://www.numpy.org/)
+ * [`scipy`](https://www.scipy.org/)
+ * [`astropy`](http://www.astropy.org/) (for Python 2 astropy versions before [3.0](http://docs.astropy.org/en/latest/whatsnew/3.0.html#whatsnew-3-0-python3) must be used)
+ * [`pandas`](https://pandas.pydata.org/)
 
-The `ads` module is an optional requirement that is needed to get ADS URLs for references.
+The [`ads`](https://ads.readthedocs.io/en/latest/) module is an optional requirement that is needed to get ADS URLs for references,
+and [`matplotlib`](https://matplotlib.org/) is required for making period-period derivative plots.
 
 ## Examples
 

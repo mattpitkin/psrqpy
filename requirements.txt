@@ -6,4 +6,3 @@ scipy
 pandas>0.13
 astropy<3.0; python_version <= '2.7'
 astropy; python_version > '3.4'
-datetime
