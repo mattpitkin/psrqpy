@@ -458,7 +458,7 @@ def get_references(useads=False, cache=True):
     for line in reffile.readlines():
         if isinstance(line, string_types):
             thisline = line
-        else:            
+        else:
             thisline = line.decode()
 
         if thisline[0:3] == '***':

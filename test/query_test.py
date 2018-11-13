@@ -667,15 +667,15 @@ def test_derived_proper_motion(query_derived, query_atnf):
     # additional velocity correction to their local standard of rest by
     # removing both the solar system velocity and their local galactic
     # rotation
-    #pml = query_derived.get_pulsar('TEST1')['PML'][0]
-    #pmlatnf = query_atnf.get_pulsar('TEST1')['PML'][0]
+    # pml = query_derived.get_pulsar('TEST1')['PML'][0]
+    # pmlatnf = query_atnf.get_pulsar('TEST1')['PML'][0]
 
-    #assert abs(pml - pmlatnf) < sf_scale(pmlatnf)
+    # assert abs(pml - pmlatnf) < sf_scale(pmlatnf)
 
-    #pmb = query_derived.get_pulsar('TEST1')['PMB'][0]
-    #pmbatnf = query_atnf.get_pulsar('TEST1')['PMB'][0]
+    # pmb = query_derived.get_pulsar('TEST1')['PMB'][0]
+    # pmbatnf = query_atnf.get_pulsar('TEST1')['PMB'][0]
 
-    #assert abs(pmb - pmbatnf) < sf_scale(pmbatnf)
+    # assert abs(pmb - pmbatnf) < sf_scale(pmbatnf)
 
 
 def test_derived_pb_pbdot(query_derived, query_atnf):

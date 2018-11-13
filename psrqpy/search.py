@@ -321,7 +321,7 @@ class QueryATNF(object):
                 if not isinstance(column, Series):
                     column = Series(column, name=colname)
 
-                if column.dtype == self.__dataframe[colname].dtype:               
+                if column.dtype == self.__dataframe[colname].dtype:
                     self.__dataframe.update(column, overwrite=overwrite)
                 else:
                     raise ValueError("Could not update table with "
