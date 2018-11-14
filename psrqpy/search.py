@@ -297,7 +297,7 @@ class QueryATNF(object):
         be added to the table.
 
         Args:
-            column (:class:`pandas.Series`): a named columns of values.
+            column (:class:`pandas.Series`): a named column of values.
             name (str): the name of the column (required if `column` is not a
                 :class:`pandas.Series`, or to overwrite the current column
                 name)
@@ -945,8 +945,7 @@ class QueryATNF(object):
 
         # Set references first
         if 'ASSOC_REF' not in self.columns:
-            ASSOCREFnew = Series(np.full(self.catalogue_len, '',
-                                         dtype='U64'),
+            ASSOCREFnew = Series(np.full(self.catalogue_len, '', dtype='U64'),
                                  name='ASSOC_REF')
         else:
             ASSOCREFnew = self.catalogue['ASSOC_REF'].copy()
@@ -958,8 +957,8 @@ class QueryATNF(object):
         # Set values
         ASSOCnew[idxassoc] = ASSOCnew[idxassoc].apply(lambda x: re.split(r'\[|,|\(|:', x)[0])
 
-        self.update(ASSOCnew)
-        self.update(ASSOCREFnew)
+        self.update(ASSOCnew, overwrite=True)
+        self.update(ASSOCREFnew, overwrite=True)
 
     def parse_type(self):
         """
@@ -980,8 +979,7 @@ class QueryATNF(object):
 
         # Set references first
         if 'TYPE_REF' not in self.columns:
-            TYPEREFnew = Series(np.full(self.catalogue_len, '',
-                                        dtype='U64'),
+            TYPEREFnew = Series(np.full(self.catalogue_len, '', dtype='U64'),
                                 name='TYPE_REF')
         else:
             TYPEREFnew = self.catalogue['TYPE_REF'].copy()
@@ -993,8 +991,8 @@ class QueryATNF(object):
         # Set values
         TYPEnew[idxtype] = TYPEnew[idxtype].apply(lambda x: re.split(r'\[|,|\(|:', x)[0])
 
-        self.update(TYPEnew)
-        self.update(TYPEREFnew)
+        self.update(TYPEnew, overwrite=True)
+        self.update(TYPEREFnew, overwrite=True)
 
     def parse_bincomp(self):
         """
@@ -1015,8 +1013,7 @@ class QueryATNF(object):
 
         # Set references first
         if 'BINCOMP_REF' not in self.columns:
-            BINCOMPREFnew = Series(np.full(self.catalogue_len, '',
-                                           dtype='U64'),
+            BINCOMPREFnew = Series(np.full(self.catalogue_len, '', dtype='U64'),
                                    name='BINCOMP_REF')
         else:
             BINCOMPREFnew = self.catalogue['BINCOMP_REF'].copy()
@@ -1029,8 +1026,8 @@ class QueryATNF(object):
         BINCOMPnew[idxbincomp] = BINCOMPnew[idxbincomp]\
             .apply(lambda x: re.split(r'\[|,|\(|:', x)[0])
 
-        self.update(BINCOMPnew)
-        self.update(BINCOMPREFnew)
+        self.update(BINCOMPnew, overwrite=True)
+        self.update(BINCOMPREFnew, overwrite=True)
 
     def set_derived(self):
         """
