@@ -31,7 +31,7 @@ class QueryATNF(object):
     """
     A class to generate a query of the
     `ATNF pulsar catalogue <http://www.atnf.csiro.au/people/pulsar/psrcat/>`_.
-    By default this class will download and cache the latest version of the
+    By default, this class will download and cache the latest version of the
     catalogue database file. The catalogue can be queried for specificpulsar
     parameters and for specific named pulsars. Conditions on the parameter can
     be specified. The results will be stored as a :class:`pandas.DataFrame`,
@@ -42,21 +42,19 @@ class QueryATNF(object):
             pulsar `parameters
             <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=expert#par_list>`_
             to query. The parameter names are case insensitive. If this is not
-            given then all parameters will be returned by default.
+            given, then all parameters will be returned by default.
         condition (str): a string with logical conditions for the returned
             parameters. The allowed format of the condition string is given
             `here
             <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#condition>`_.
             Defaults to None.
-        psrtype (:obj:`list`): a list of strings, or single string, of
+        psrtype (str, :obj:`list`): a list of strings, or single string, of
             conditions on the `type
             <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#psr_types>`_
             of pulsars to return (logical AND will be used for any listed
             types). Defaults to None.
         assoc (:obj:`list`, str): a condition on the associations of pulsars to
             return (logical AND will be used for any listed associations).
-            Currently this can contain either ``GC`` for pulsars in globular
-            clusters or ``SNR`` for pulsars with associated supernova remnants.
             Defaults to None.
         bincomp (str, :obj:`list`): a list of strings, or single string, of
             conditions on the
@@ -231,17 +229,17 @@ class QueryATNF(object):
 
         Args:
             path_to_db (str): if the path to a local version of the database
-            file is given then that will be read in rather than attempting to
-            download the file (defaults to None).
-        cache (bool): cache the downloaded ATNF Pulsar Catalogue file. Defaults
-            to True. This is ignored if `path_to_db` is given.
-        update (bool): if True the ATNF Pulsar Catalogue will be
-            re-downloaded and cached if there has been a change compared to the
-            currently cached version. This is ignored if `path_to_db` is given.
-        overwrite (bool): if True the returned catalogue will overwrite the
-            catalogue currently contained within the :class:`~psrqpy.QueryATNF`
-            class. If False then a new :class:`~psrqpy.QueryATNF` copy of the
-            catalogue will be returned.
+                file is given then that will be read in rather than attempting to
+                download the file (defaults to None).
+            cache (bool): cache the downloaded ATNF Pulsar Catalogue file. Defaults
+                to True. This is ignored if `path_to_db` is given.
+            update (bool): if True the ATNF Pulsar Catalogue will be
+                re-downloaded and cached if there has been a change compared to the
+                currently cached version. This is ignored if `path_to_db` is given.
+            overwrite (bool): if True the returned catalogue will overwrite the
+                catalogue currently contained within the :class:`~psrqpy.QueryATNF`
+                class. If False then a new :class:`~psrqpy.QueryATNF` copy of the
+                catalogue will be returned.
 
         Returns:
             :class:`psrqpy.QueryATNF`: a table containing the catalogue.
@@ -293,7 +291,7 @@ class QueryATNF(object):
     def update(self, column, name=None, overwrite=False):
         """
         Update a column in the internal :class:`pandas.DataFrame` table using
-        :meth:`pandas.DataFrame.update`. If the column does not exist it will
+        :meth:`pandas.DataFrame.update`. If the column does not exist, it will
         be added to the table.
 
         Args:
@@ -368,7 +366,7 @@ class QueryATNF(object):
 
         Returns:
             :class:`~pandas.DataFrame`: a table containing the sorted
-            catalogue.
+                catalogue.
         """
 
         if sort_attr is not None:

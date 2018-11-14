@@ -1,5 +1,5 @@
 """
-This submodules sets up common constants for use, such as the allowed pulsar parameters and various
+This submodule sets up common constants for use, such as the allowed pulsar parameters and various
 URLs used for queries.
 """
 
@@ -16,7 +16,7 @@ ATNF_TARBALL = ATNF_BASE_URL + r'downloads/psrcat_pkg.tar.gz'
 #: The Jodrell Bank glitch catalogue table URL.
 GLITCH_URL = r'http://www.jb.man.ac.uk/pulsar/glitches/gTable.html'
 
-# pulsar parameters (http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html) that can be
+# Pulsar parameters (http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html) that can be
 # queried. For each parameter there is a dictionary giving:
 #  - 'ref': True if the parameter can have an associated reference in the ATNF catalogue
 #  - 'err': True if the parameter can have an associated error value

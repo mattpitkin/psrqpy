@@ -310,4 +310,3 @@ intersphinx_mapping = {'python': ('http://docs.python.org/', None),
                        'ads': ('https://ads.readthedocs.io/en/latest/', None),
                        'bs4': ('https://www.crummy.com/software/BeautifulSoup/bs4/doc/', None),
                        'pandas': ('http://pandas.pydata.org/pandas-docs/stable/', None)}
-
