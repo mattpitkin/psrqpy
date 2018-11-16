@@ -306,6 +306,7 @@ API interface
    pulsar
    config
    utils
+   CHANGELOG
 
 Test suite
 ==========

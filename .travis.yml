@@ -20,7 +20,7 @@ install:
   # install additionally allowed packages
   - pip install matplotlib ads
   # install packages for documentation building
-  - pip install sphinx sphinx-rtd-theme
+  - pip install sphinx sphinx-rtd-theme recommonmark
   # install packages for testing
   - pip install --upgrade pytest>=3.6.3
   - pip install pytest-cov pytest-socket

@@ -90,7 +90,7 @@ class QueryATNF(object):
         include_errs (bool): Set if wanting parameter errors to be returned.
             Defaults to True.
         include_refs (bool): Set if wanting to include references tags in the
-            output tables. Defaults to False. 
+            output tables. Defaults to False.
         adsref (bool): Set if wanting to use an :class:`ads.search.SearchQuery`
             to get reference information. Defaults to False.
         loadfromdb (str): Load a pulsar database file from a given path rather
