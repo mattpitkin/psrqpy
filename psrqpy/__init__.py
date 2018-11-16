@@ -2,7 +2,12 @@
 
 """ A Python tool for interacting with the ATNF pulsar catalogue """
 
-__version__ = "0.6.3"
+import warnings
+from .search import QueryATNF
+from .pulsar import Pulsar, Pulsars
+from .utils import *
+
+__version__ = "1.0.0"
 
 __citation__ = """@article{psrqpy,
   author = {{Pitkin}, M.},
@@ -18,6 +23,11 @@ __citation__ = """@article{psrqpy,
 }
 """
 
-from .search import QueryATNF
-from .pulsar import Pulsar, Pulsars
-from .utils import *
+
+# set formatting of warnings to not include line number and code (see
+# e.g. https://pymotw.com/3/warnings/#formatting)
+def warning_format(message, category, filename, lineno, file=None, line=None):
+    return '{}: {}\n'.format(category.__name__, message)
+
+
+warnings.formatwarning = warning_format

@@ -1,21 +1,30 @@
 language: python
+sudo: required
+dist: xenial
 branches:
   only:
     master
 python:
   - "2.7"
   - "3.5"
+  - "3.6"
+  - "3.7"
 before_install:
   # add a latex install for the matplotlib testing
   #- sudo apt-get -qq update && sudo apt-get install -y --no-install-recommends texlive-full
   # try a lighter weight texlive distribution, e.g. just texlive and texlive-latex-extra
   - sudo apt-get -qq update && sudo apt-get install -y --no-install-recommends texlive texlive-latex-extra
 install:
+  - pip install --upgrade pip
   - pip install -r requirements.txt
   # install additionally allowed packages
   - pip install matplotlib ads
   # install packages for documentation building
-  - pip install sphinx sphinx-rtd-theme
+  - pip install sphinx sphinx-rtd-theme recommonmark
+  # install packages for testing
+  - pip install --upgrade pytest>=3.6.3
+  - pip install pytest-cov pytest-socket
+  - pip install codecov
   # build psrqpy
   - pip install -e .
 before_script: # configure a headless display to test plot generation (see https://stackoverflow.com/a/35403128/1862861)
@@ -23,14 +32,13 @@ before_script: # configure a headless display to test plot generation (see https
   - "sh -e /etc/init.d/xvfb start"
   - sleep 3 # give xvfb some time to start
 script:
-  # try running a query
-  - python -c "import sys; from psrqpy import QueryATNF; query = QueryATNF(params='JName'); fig = query.ppdot(showtypes='BINARY', showGCs=True); sys.exit(0)"
-  # check the Crab pulsar frequency rounds down to 29 Hz (should be OK for another ~80 years)
-  - python -c "import sys; from numpy import floor; from psrqpy import QueryATNF; query = QueryATNF(params=['F0'], psrs=['J0534+2200']); sys.exit(0) if floor(query.table['F0'][0]) == 29.0 else sys.exit(1)"
   # run the test script
-  - python test/query_test.py
+  - pytest --cov=psrqpy
   # try building documentation
   - cd docs
   - mkdir source/_static
   - make html
-
+  # return to base directory
+  - cd .. 
+after_success:
+  - codecov
