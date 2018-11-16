@@ -295,6 +295,26 @@ def test_get_references(query):
 
     query.get_references()
 
+    # test parsing a reference
+    ref = query.parse_ref('ksm+06')
+
+    assert isinstance(ref, string_types)
+    assert "Tests of General Relativity from Timing the Double Pulsar" in ref
+
+    # test parsing two references
+    ref = query.parse_ref(['ksm+06', 'abb+18'])
+
+    assert len(ref) == 2
+    assert "Tests of General Relativity from Timing the Double Pulsar" in ref[0]
+    assert "The NANOGrav 11-year Data Set" in ref[1]
+
+    # test parsing two references (with the second one being gibberish)
+    ref = query.parse_ref(['ksm+06', 'wlihlacljkblf'])
+
+    assert len(ref) == 2
+    assert "Tests of General Relativity from Timing the Double Pulsar" in ref[0]
+    assert ref[1] is None
+
 
 def test_update(query):
     """

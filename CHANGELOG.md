@@ -4,6 +4,8 @@
 
 This release involves major changes to the API.
 
-- PSRQpy now downloads the full ATNF Pulsar Catalogue database and stores it internally
-- PSRQpy will no longer generate queries of the ATNF Pulsar Catalogue via the web interface
-- Derived parameters are calculated internally rather than being values returned be the catalogue web interface
+- PSRQpy now downloads the full ATNF Pulsar Catalogue database and stores it internally.
+- PSRQpy will no longer generate queries of the ATNF Pulsar Catalogue via the web interface.
+- Derived parameters are calculated internally rather than being values returned be the catalogue web interface.
+- Full string paper references are no longer included in the output table, but can be returned using the `parse_ref`
+method of the `QueryATNF` class.

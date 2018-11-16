@@ -273,20 +273,21 @@ class QueryATNF(object):
                             refstrs.append((self._refs[ref], None))
                     else:
                         refstrs.append(self._refs[ref])
-                if useadst:
-                    refstrs.append((None, None))
                 else:
-                    refstrs.append(None)
+                    if useadst:
+                        refstrs.append((None, None))
+                    else:
+                        refstrs.append(None)
             else:
                 if useadst:
                     refstrs.append((None, None))
                 else:
                     refstrs.append(None)
-        
+
         # just return a single value if only one input
         if singleref:
             return refstrs[0]
-        
+
         return refstrs
 
     def get_catalogue(self, path_to_db=None, cache=True, update=False,
