@@ -1,0 +1,38 @@
+# A fake catalogue based on values returned from the
+# full ATNF Pulsar Catalogue (v1.59) with which to
+# test derived parameters.
+# TEST1 is based on J0023+0923
+# TEST2 is based on J0026+6320
+# TEST3 is based on J0357+3205
+# TEST4 is based on J0024-7204O
+PSRJ     TEST1
+RAJ      00:23:16.878141      9
+DECJ     09:23:23.8652        3
+PMELONG  -13.90               3
+PMELAT   -0.3                 4
+DM       14.32810             4
+F0       327.8470205906107    7
+F1       -1.22783E-15         4
+PB       0.13879914332        5
+EPS1     7.2E-6               31
+EPS2     -4.0E-6              32
+BINARY   ELL1
+A1       0.03484142           7
+PX       0.9                  2
+S400     2     
+S1400    0.48
+@-----------------------------------------------------------------
+PSRJ     TEST2
+P0       0.318357731235       1
+P1       0.15006E-15          6
+DIST_DM  6.42      
+DIST_DM1 9.27
+@-----------------------------------------------------------------
+PSRJ     TEST3
+DIST_AMN 0.43
+DIST_AMX 1.24
+@-----------------------------------------------------------------
+PSRJ     TEST4
+FB0      8.511956725E-5       6
+FB1      -7.3E-20             1
+@-----------------------------------------------------------------

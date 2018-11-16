@@ -1,8 +1,6 @@
 # PSRQpy
 
-This module aims to provide a python interface for querying the [ATNF pulsar catalogue](http://www.atnf.csiro.au/people/pulsar/psrcat/).
-It is inspired by, and has some minor similarities to, the [`ads`](https://ads.readthedocs.io) module for interfacing with the
-[NASA ADS](https://ui.adsabs.harvard.edu/) [API](https://github.com/adsabs/adsabs-dev-api). It is an unofficial
+This module aims to provide a python interface for querying the [ATNF pulsar catalogue](http://www.atnf.csiro.au/people/pulsar/psrcat/). It is an unofficial
 package and is not endorsed by or affiliated with the ATNF.
 
 Full documentation of the module can be found [here](http://psrqpy.readthedocs.io/).
@@ -35,19 +33,20 @@ pip install psrqpy
 
 The [requirements](requirements.txt) for installing the code are:
 
- * `six`
- * `requests`
- * `beautifulsoup4`
- * `numpy`
- * `astropy` (for Python 2 astropy versions before [3.0](http://docs.astropy.org/en/latest/whatsnew/3.0.html#whatsnew-3-0-python3) must be used)
- * `datetime`
+ * [`six`](https://six.readthedocs.io/)
+ * [`requests`](http://docs.python-requests.org/en/master/)
+ * [`beautifulsoup4`](https://www.crummy.com/software/BeautifulSoup/bs4/doc/)
+ * [`numpy`](http://www.numpy.org/)
+ * [`scipy`](https://www.scipy.org/)
+ * [`astropy`](http://www.astropy.org/) (for Python 2 astropy versions before [3.0](http://docs.astropy.org/en/latest/whatsnew/3.0.html#whatsnew-3-0-python3) must be used)
+ * [`pandas`](https://pandas.pydata.org/)
 
-The `ads` module is an optional requirement that is needed to get ADS URLs for references.
+The [`ads`](https://ads.readthedocs.io/en/latest/) module is an optional requirement that is needed to get ADS URLs for references,
+and [`matplotlib`](https://matplotlib.org/) is required for making period-period derivative plots.
 
 ## Examples
 
-A simple query of the catalogue to, e.g., just return all pulsar frequencies (noting that the
-pulsar ['JNAME'](http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html?type=normal&highlight=jname#jname) is also always returned by default), would be:
+A simple query of the catalogue to, e.g., just return all pulsar frequencies, would be:
 
 ```python
 import psrqpy
@@ -102,13 +101,33 @@ q = psrqpy.QueryATNF(params=['Jname', 'f0'], condition='f0 > 100 && f0 < 200', a
 
 where `assoc=GC` looks for all pulsars in globular clusters.
 
-If you really want to query the catalogue many times in quick succession it is probably preferable to [download
-the catalogue](http://www.atnf.csiro.au/research/pulsar/psrcat/download.html) and query it with the software
-provided. The enitre catalogue can be downloaded using:
+When a query is generated the entire catalogue is downloaded and stored in the `QueryATNF` object as
+a pandas [`DataFrame`](https://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.html).
+The query can therefore be re-used to access data on different parameters, different pulsars, or
+using different conditions, without the need to re-download the catalogue. We may originally want
+to query pulsar frequencies using only frequencies greater than 10 Hz, with
 
 ```python
 import psrqpy
-catalogue = psrqpy.get_catalogue()
+q = psrqpy.QueryATNF(params=['F0'], condition='F0 > 10')
+freqs = q.table['F0']
+```
+
+Using the same `QueryATNF` object we could change to get frequency derivatives for pulsars
+with frequencies less than 10 Hz, with
+
+```python
+q.condition = 'F0 < 10'
+q.query_params = 'F1'
+
+fdot = q.table['F1']
+```
+
+In these cases the whole catalogue (with no conditions applied and all available parameters) stored as a pandas [`DataFrame`](https://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.html)
+is accessible with
+
+```python
+catalogue = q.catalogue
 ```
 
 You can also [generate](http://psrqpy.readthedocs.io/en/latest/query.html#psrqpy.search.QueryATNF.ppdot) a
@@ -131,6 +150,18 @@ Code development is done via the package's [GitHib repository](https://github.co
 Any contributions can be made via a [fork and pull request](https://help.github.com/articles/creating-a-pull-request-from-a-fork/) model
 from that repository, and must adhere to the [MIT license](#License). Any problems with the code
 or support requests can be submitted via the repository's [Issue tracker](https://github.com/mattpitkin/psrqpy/issues).
+
+## Test suite
+
+There are tests supplied that cover many of the functions within PSRQpy. These can be run from the
+base directory of the repository (after installing the [`pytest`](https://docs.pytest.org/en/latest/) and
+[`pytest-socket`](https://pypi.org/project/pytest-socket/) modules, e.g., with `pip`) by just calling:
+
+```bash
+pytest
+```
+
+These tests are not included in the `pip` installed version of the code.
 
 ## Copyright and referencing for the catalogue
 
@@ -168,7 +199,9 @@ This code is licensed under the [MIT License](http://opensource.org/licenses/MIT
 &copy; Matt Pitkin, 2017
 
 [![PyPI version](https://badge.fury.io/py/psrqpy.svg)](https://badge.fury.io/py/psrqpy)
+[![version](https://img.shields.io/pypi/pyversions/psrqpy.svg)](https://pypi.org/project/psrqpy/)
 [![Build Status](https://travis-ci.org/mattpitkin/psrqpy.svg?branch=master)](https://travis-ci.org/mattpitkin/psrqpy)
+[![codecov](https://codecov.io/gh/mattpitkin/psrqpy/branch/master/graph/badge.svg)](https://codecov.io/gh/mattpitkin/psrqpy)
 [![Documentation Status](https://readthedocs.org/projects/psrqpy/badge/?version=latest)](http://psrqpy.readthedocs.io/en/latest/?badge=latest)
 [![status](http://joss.theoj.org/papers/711dc5566159f6e9f8ea5d07dbfaf5d2/status.svg)](http://joss.theoj.org/papers/711dc5566159f6e9f8ea5d07dbfaf5d2)
 
