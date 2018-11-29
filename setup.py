@@ -53,6 +53,7 @@ setup(name="psrqpy",
           readfile(os.path.join(os.path.dirname(__file__), "README.md")),
       install_requires=\
           readfile(os.path.join(os.path.dirname(__file__), "requirements.txt")),
+      include_package_data=True,
       classifiers=[
           "Programming Language :: Python :: 2.7",
           "Programming Language :: Python :: 3.5",
