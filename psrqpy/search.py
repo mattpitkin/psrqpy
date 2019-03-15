@@ -2618,24 +2618,19 @@ class QueryATNF(object):
                 raise ImportError('Cannot create plot using altair as it is not available')
 
         # check that both input parameters have been queried
-        nparams = len(self._query_params)
-        if param1 not in self._query_params:
-            self._query_params.append(param1)
+        if param1 not in self.query_params:
+            self.query_params = self.query_params + [param1]
         if param2 not in self._query_params:
-            self._query_params.append(param2)
-
-        # redo query if required
-        if len(self._query_params) != nparams:
-            # perform query
-            self._query_content = self.generate_query()
-            self._query_output = self.parse_query()
+            self.query_params = self.query_params + [param1]
+        if 'JNAME' not in self.query_params:
+            self.query_params = self.query_params + ['JNAME']
 
         if not self.num_pulsars:
             print("No pulsars found, so no P-Pdot plot has been produced")
             return None
 
         # get Pandas DataFrame of parameters
-        t = self.pandas()
+        t = self.pandas
 
         # set axes scales
         scalex = 'linear' if not logx else 'log'
