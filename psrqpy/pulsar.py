@@ -185,7 +185,8 @@ class Pulsar(object):
         Define '!=' rich comparison methods. False if pulsars have the same name.
         """
 
-        assert isinstance(other, Pulsar), "You are not comparing two Pulsar types!"
+        if not isinstance(other, Pulsar):
+            return True
 
         return bool(self.name != other.name)
 

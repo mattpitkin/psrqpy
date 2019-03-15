@@ -14,6 +14,8 @@ before_install:
   #- sudo apt-get -qq update && sudo apt-get install -y --no-install-recommends texlive-full
   # try a lighter weight texlive distribution, e.g. just texlive and texlive-latex-extra
   - sudo apt-get -qq update && sudo apt-get install -y --no-install-recommends texlive texlive-latex-extra
+services:  # see https://docs.travis-ci.com/user/gui-and-headless-browsers/#using-services-xvfb
+  - xvfb
 install:
   - pip install --upgrade pip
   - pip install -r requirements.txt
@@ -27,10 +29,6 @@ install:
   - pip install codecov
   # build psrqpy
   - pip install -e .
-before_script: # configure a headless display to test plot generation (see https://stackoverflow.com/a/35403128/1862861)
-  - "export DISPLAY=:99.0"
-  - "sh -e /etc/init.d/xvfb start"
-  - sleep 3 # give xvfb some time to start
 script:
   # run the test script
   - pytest --cov=psrqpy
