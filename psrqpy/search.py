@@ -2355,14 +2355,6 @@ class QueryATNF(object):
 
         return ephemstr
 
-    def pandas(self):
-        """
-        Returns:
-            :class:`pandas.DataFrame`: a table of pulsar data returned by the query.
-        """
-
-        return self.table().to_pandas()
-
     def get_pulsars(self):
         """
         Returns:
