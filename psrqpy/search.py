@@ -15,16 +15,27 @@ from six.moves import cPickle as pickle
 from six import string_types
 
 import numpy as np
-from astropy.coordinates import SkyCoord, ICRS, BarycentricMeanEcliptic, Galactic
+import astropy
+from astropy.coordinates import SkyCoord, ICRS, Galactic
 import astropy.units as aunits
 from astropy.constants import c, GM_sun
 from astropy.table import Table
+import packaging import version
 
 from pandas import DataFrame, Series
 from copy import deepcopy
 
 from .config import ATNF_BASE_URL, PSR_ALL, PSR_ALL_PARS, PSR_TYPE, PSR_ASSOC_TYPE, PSR_BINARY_TYPE
 from .utils import condition, age_pdot, B_field_pdot
+
+
+# check whether to use BarycentricTrueEcliptic of BarycentricMeanEcliptic
+if packaging.version.parse(astropy.__version__) < packaging.version.parse("3.2"):
+    from astropy.coordinates import BarycentricMeanEcliptic
+    ASTROPY_V32 = True
+else:
+    from astropy.coordinates import BarycentricTrueEcliptic as BarycentricMeanEcliptic
+    ASTROPY_V32 = False
 
 
 class QueryATNF(object):
@@ -1316,8 +1327,12 @@ class QueryATNF(object):
         sc = SkyCoord(RAJD[idx].values*aunits.deg,
                       DECJD[idx].values*aunits.deg)
 
-        ELONGnew[idx] = sc.barycentricmeanecliptic.lon.value
-        ELATnew[idx] = sc.barycentricmeanecliptic.lat.value
+        if ASTROPY_V32:
+            ELONGnew[idx] = sc.barycentricmeanecliptic.lon.value
+            ELATnew[idx] = sc.barycentricmeanecliptic.lat.value
+        else:
+            ELONGnew[idx] = sc.barycentrictrueecliptic.lon.value
+            ELATnew[idx] = sc.barycentrictrueecliptic.lat.value
 
         self.update(ELONGnew, name='ELONG')
         self.update(ELATnew, name='ELAT')
