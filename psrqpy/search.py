@@ -20,7 +20,7 @@ from astropy.coordinates import SkyCoord, ICRS, Galactic
 import astropy.units as aunits
 from astropy.constants import c, GM_sun
 from astropy.table import Table
-import packaging
+from packaging import version
 
 from pandas import DataFrame, Series
 from copy import deepcopy
@@ -30,7 +30,7 @@ from .utils import condition, age_pdot, B_field_pdot
 
 
 # check whether to use BarycentricTrueEcliptic of BarycentricMeanEcliptic
-if packaging.version.parse(astropy.__version__) < packaging.version.parse("3.2"):
+if version.parse(astropy.__version__) >= version.parse("3.2"):
     from astropy.coordinates import BarycentricMeanEcliptic
     ASTROPY_V32 = True
 else:
