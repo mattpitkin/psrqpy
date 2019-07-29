@@ -15,7 +15,7 @@ from six.moves import cPickle as pickle
 from six import string_types
 
 import numpy as np
-from astropy.coordinates import SkyCoord, ICRS, BarycentricTrueEcliptic, Galactic
+from astropy.coordinates import SkyCoord, ICRS, BarycentricMeanEcliptic, Galactic
 import astropy.units as aunits
 from astropy.constants import c, GM_sun
 from astropy.table import Table
@@ -1240,7 +1240,7 @@ class QueryATNF(object):
         idx = np.isfinite(ELONG) & np.isfinite(ELAT)
 
         # get sky coordinates
-        sc = BarycentricTrueEcliptic(ELONG.values[idx]*aunits.deg,
+        sc = BarycentricMeanEcliptic(ELONG.values[idx]*aunits.deg,
                                      ELAT.values[idx]*aunits.deg
                                      ).transform_to(ICRS())
 
@@ -1276,7 +1276,7 @@ class QueryATNF(object):
 
             idx = idx & np.isfinite(PMELONG) & np.isfinite(PMELAT)
 
-            sc = BarycentricTrueEcliptic(
+            sc = BarycentricMeanEcliptic(
                 ELONG[idx].values*aunits.deg,
                 ELAT[idx].values*aunits.deg,
                 pm_lon_coslat=PMELONG[idx].values*aunits.mas/aunits.yr,
@@ -1293,8 +1293,11 @@ class QueryATNF(object):
         """
         Calculate the ecliptic coordinates, and proper motions, from the
         right ascension and declination if they are not already given.
-        The ecliptic used here is the astropy's `BarycentricTrueEcliptic
-        <http://docs.astropy.org/en/stable/api/astropy.coordinates.BarycentricTrueEcliptic.html>`_,
+        The ecliptic used here is the astropy's `BarycentricMeanEcliptic
+        <http://docs.astropy.org/en/stable/api/astropy.coordinates.BarycentricMeanEcliptic.html>`_
+        (note that this does not include nutation unlike the
+        `BarycentricTrueEcliptic <http://docs.astropy.org/en/stable/api/astropy.coordinates.BarycentricTrueEcliptic.html>`_
+        for which a bug fix was added in `astropy 3.2 <http://docs.astropy.org/en/v3.2.1/changelog.html#id12>`_),
         which may not exactly match that used in `psrcat`.
         """
 
@@ -1313,8 +1316,8 @@ class QueryATNF(object):
         sc = SkyCoord(RAJD[idx].values*aunits.deg,
                       DECJD[idx].values*aunits.deg)
 
-        ELONGnew[idx] = sc.barycentrictrueecliptic.lon.value
-        ELATnew[idx] = sc.barycentrictrueecliptic.lat.value
+        ELONGnew[idx] = sc.barycentricmeanecliptic.lon.value
+        ELATnew[idx] = sc.barycentricmeanecliptic.lat.value
 
         self.update(ELONGnew, name='ELONG')
         self.update(ELATnew, name='ELAT')
@@ -1348,7 +1351,7 @@ class QueryATNF(object):
                 DECJD[idx].values*aunits.deg,
                 pm_ra_cosdec=PMRA[idx].values*aunits.mas/aunits.yr,
                 pm_dec=PMDEC[idx].values*aunits.mas/aunits.yr
-            ).transform_to(BarycentricTrueEcliptic())
+            ).transform_to(BarycentricMeanEcliptic())
 
             PMELONGnew[idx] = sc.pm_lon_coslat.value
             PMELATnew[idx] = sc.pm_lat.value
