@@ -20,7 +20,7 @@ from astropy.coordinates import SkyCoord, ICRS, Galactic
 import astropy.units as aunits
 from astropy.constants import c, GM_sun
 from astropy.table import Table
-import packaging import version
+import packaging
 
 from pandas import DataFrame, Series
 from copy import deepcopy
