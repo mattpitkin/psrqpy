@@ -2724,8 +2724,10 @@ class QueryATNF(object):
 
             chart = alt.Chart(t, height=600, width=800,
                               config=config).mark_circle().encode(
-                    alt.X(param1+':Q', scale=alt.Scale(type=scalex)),
-                    alt.Y(param2+':Q', scale=alt.Scale(type=scaley)),
+                    alt.X(param1+':Q', scale=alt.Scale(type=scalex),
+                          axis=alt.Axis(format='~g'), title=param1),
+                    alt.Y(param2+':Q', scale=alt.Scale(type=scaley),
+                          axis=alt.Axis(format='~g'), title=param2),
                     tooltip=tooltip
                 )
 
