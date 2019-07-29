@@ -7,7 +7,7 @@ from .search import QueryATNF
 from .pulsar import Pulsar, Pulsars
 from .utils import *
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 __citation__ = """@article{psrqpy,
   author = {{Pitkin}, M.},
