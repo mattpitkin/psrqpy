@@ -185,11 +185,21 @@ class QueryATNF(object):
         # store passed pandas DataFrame
         if isinstance(frompandas, DataFrame):
             self.__dataframe = frompandas.copy()
+
+            # set version to None if not defined
+            if not hasattr(self.__dataframe, 'version'):
+                self.__dataframe.version = None
             return
 
         # store passed astropy Table
         if isinstance(fromtable, Table):
             self.__dataframe = fromtable.to_pandas()
+
+            # set version if available
+            if 'version' in fromtable.meta:
+                self.__dataframe.version = fromtable.meta['version']
+            else:
+                self.__dataframe.version = None
             return
 
         # download and cache (if requested) the database file
