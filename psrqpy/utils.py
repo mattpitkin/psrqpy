@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 A selection of useful functions used by the module.
 """
@@ -14,7 +12,7 @@ import requests
 import tarfile
 from bs4 import BeautifulSoup
 
-from six import string_types, text_type
+from six import string_types
 
 from collections import OrderedDict
 
@@ -133,10 +131,7 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
                 # error values are last digit errors, so convert to actual
                 # errors by finding the number of decimal places after the
                 # '.' in the value string
-                val = text_type(dataline[1].split(':')[-1])  # account for RA and DEC strings
-
-                # replace unicode "−" with minus sign if present
-                val = val.replace(text_type(u"−"), "-")
+                val = dataline[1].split(':')[-1]  # account for RA and DEC strings
 
                 try:
                     float(val)
