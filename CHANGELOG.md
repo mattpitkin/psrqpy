@@ -1,5 +1,11 @@
 # Notable changes between versions
 
+## [1.0.5] 2019-09-04
+
+Changes for this release:
+
+- The version 1.61 of the ATNF Pulsar Catalogue containing the declinations with the unicode "−" character in place of an ascii minus sign "-" has been fixed upstream, so the code fix to account for this has been removed (it was also causing issues with the Python 2 version of the code).
+
 ## [1.0.4] 2019-09-04
 
 Changes for this release:
