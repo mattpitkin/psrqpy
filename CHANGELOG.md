@@ -1,5 +1,12 @@
 # Notable changes between versions
 
+## [1.0.4] 2019-09-04
+
+Changes for this release:
+
+- Update the P-Pdot diagram, so that the user can specify which pulsars to include, either via the pulsars passed to the original query request (which is the default option) or by directly passing names to the P-Pdot function. If no particular pulsars were requested then all pulsars will be included.
+- Version 1.61 of the ATNF Pulsar Catalogue contains some declinations with the unicode "−" character in place of an ascii minus sign "-". This release switched the unicode "−" to the "-", so that the values can be parsed to float numbers. This version of the ATNF Pulsar Catalogue also contains a couple of negative parallax values, so this release does not allow these to be used for calculating distances.
+
 ## [1.0.3] 2019-07-29
 
 Changes for this release:
