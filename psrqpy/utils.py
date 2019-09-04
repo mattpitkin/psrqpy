@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 """
 A selection of useful functions used by the module.
 """
