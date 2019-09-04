@@ -133,6 +133,9 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
                 # '.' in the value string
                 val = dataline[1].split(':')[-1]  # account for RA and DEC strings
 
+                # replace unicode "−" with minus sign if present
+                val = val.replace("−", "-")
+
                 try:
                     float(val)
                 except ValueError:

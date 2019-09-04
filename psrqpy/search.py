@@ -683,7 +683,7 @@ class QueryATNF(object):
         return self.__dataframe.empty
 
     def query_table(self, query_params=None, usecondition=True,
-                    useseparation=True):
+                    usepsrs=True, useseparation=True):
         """
         Return an :class:`astropy.table.Table` from the query with new
         parameters or conditions if given.
@@ -697,6 +697,11 @@ class QueryATNF(object):
                 the table. If False no condition will be applied to the
                 returned table. If a string is given then that will be the
                 assumed condition string.
+            usepsrs (bool, str): If True then the list of pulsars parsed to the
+                :class:`psrqpy.QueryATNF`: class will be used when returning
+                the table. If False then all pulsars in the catalogue will be
+                returned. If a string, or list of strings, is given then that
+                will be assumed to be a set of pulsar names to return.
             useseparation (bool): If True and a set of sky coordinates and
                 radius around which to return pulsars was set in the
                 :class:`psrqpy.QueryATNF`: class then only pulsars within the
@@ -742,26 +747,61 @@ class QueryATNF(object):
                 # apply conditions
                 dftable = condition(dftable, expression, self._exactmatch)
 
+            # return only requested pulsars
+            if usepsrs and self.psrs is not None:
+                if not isinstance(usepsrs, bool):
+                    # copy original pulsars
+                    tmppsrs = deepcopy(self.psrs)
+
+                    # set new pulsars
+                    self.psrs = usepsrs
+
+                jnames = np.zeros(len(dftable), dtype=np.bool)
+                if "JNAME" in dftable.columns:
+                    jnames = np.array([psr in self.psrs
+                                      for psr in dftable["JNAME"]])
+
+                bnames = np.zeros(len(dftable), dtype=np.bool)
+                if "BNAME" in dftable.columns:
+                    bnames = np.array([psr in self.psrs
+                                       for psr in dftable["BNAME"]])
+
+                if np.any(jnames) and np.any(bnames):
+                    allnames = jnames | bnames
+                elif np.any(jnames):
+                    allnames = jnames
+                elif np.any(bnames):
+                    allnames = bnames
+                else:
+                    raise ValueError("No requested pulsars '{}' were "
+                                     "found.".format(self.psrs), UserWarning)
+
+                dftable = dftable[allnames]
+
+                # reset original pulsar query
+                if not isinstance(usepsrs, bool):
+                    self.psrs = tmppsrs
+
             # return only requested parameters and convert to table
             table = Table.from_pandas(dftable[query_params[intab].tolist()])
 
             # add units if known
             for key in PSR_ALL_PARS:
                 if key in table.colnames:
-                    if PSR_ALL[key]['units']:
-                        table.columns[key].unit = PSR_ALL[key]['units']
+                    if PSR_ALL[key]["units"]:
+                        table.columns[key].unit = PSR_ALL[key]["units"]
 
-                    if PSR_ALL[key]['err'] and key+'_ERR' in table.colnames:
-                        table.columns[key+'_ERR'].unit = PSR_ALL[key]['units']
+                    if PSR_ALL[key]["err"] and key+"_ERR" in table.colnames:
+                        table.columns[key+"_ERR"].unit = PSR_ALL[key]["units"]
 
             # add catalogue version to metadata
-            table.meta['version'] = self.get_version
-            table.meta['ATNF Pulsar Catalogue'] = ATNF_BASE_URL
+            table.meta["version"] = self.get_version
+            table.meta["ATNF Pulsar Catalogue"] = ATNF_BASE_URL
 
-            if (useseparation and self._coord is not None and 'RAJ' in
-                    table.colnames and 'DECJ' in table.colnames):
+            if (useseparation and self._coord is not None and "RAJ" in
+                    table.colnames and "DECJ" in table.colnames):
                 # apply sky coordinate constraint
-                catalog = SkyCoord(table['RAJ'], table['DECJ'],
+                catalog = SkyCoord(table["RAJ"], table["DECJ"],
                                    unit=(aunits.hourangle, aunits.deg))
 
                 # get seperations
@@ -1182,9 +1222,10 @@ class QueryATNF(object):
 
         idxpx = np.isfinite(PX) & np.isfinite(PXERR)
 
-        # set distances using parallax if parallax has greater than 3 sigma significance
+        # set distances using parallax if parallax has greater than 3 sigma
+        # significance (and as long as parallax is positive)
         pxsigma = np.zeros(self.catalogue_len)
-        pxsigma[idxpx] = np.abs(PX[idxpx])/PXERR[idxpx]
+        pxsigma[idxpx] = PX[idxpx]/PXERR[idxpx]
 
         # use DIST_A if available
         idxdista = np.isfinite(DIST_A)
@@ -2606,7 +2647,7 @@ class QueryATNF(object):
               showGCs=False, showSNRs=False, markertypes={}, deathline=True,
               deathmodel='Ip', filldeath=True, filldeathtype={}, showtau=True,
               brakingidx=3, tau=None, showB=True, Bfield=None, pdotlims=None,
-              periodlims=None, usecondition=True, rcparams={}):
+              periodlims=None, usecondition=True, usepsrs=True, rcparams={}):
         """
         Draw a lovely period vs period derivative diagram.
 
@@ -2650,8 +2691,10 @@ class QueryATNF(object):
             periodlims (array_like): the [min, max] period limits to plot with
             pdotlims (array_like): the [min, max] pdot limits to plot with
             usecondition (bool): if True create the P-Pdot diagram only with
-                pulsars that conform the the original query condition values.
+                pulsars that conform to the original query condition values.
                 Defaults to True.
+            usepsrs (bool): if True create the P-Pdot diagram only with pulsars
+                specified in the original query. Defaults to True.
             rcparams (dict): a dictionary of :py:obj:`matplotlib.rcParams`
                 setup parameters for the plot.
 
@@ -2670,6 +2713,7 @@ class QueryATNF(object):
 
         # get table containing all required parameters
         table = self.query_table(usecondition=usecondition,
+                                 usepsrs=usepsrs,
                                  query_params=['P0', 'P1', 'P1_I', 'ASSOC',
                                                'BINARY', 'TYPE'])
 
