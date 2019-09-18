@@ -1,7 +1,7 @@
 six
 requests
 beautifulsoup4
-numpy
+numpy>=1.15
 scipy
 pandas>0.21
 astropy>=2.0,<3.0; python_version <= '2.7'

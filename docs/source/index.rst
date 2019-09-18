@@ -25,7 +25,7 @@ Other functionality that it includes:
 Installation
 ============
 
-This package can be installed using ``pip`` via ``pip install psrqpy``. Alternatively
+This package can be installed using ``pip`` via ``pip install psrqpy`` or ``conda`` using ``conda install -c mattpitkin psrqpy``. Alternatively
 the source code can be obtained from `github <https://github.com/mattpitkin/psrqpy>`_, and installed using::
 
     python setup.py install
