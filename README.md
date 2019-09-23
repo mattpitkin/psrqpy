@@ -32,7 +32,7 @@ pip install psrqpy
 or in a [Conda](https://docs.conda.io/en/latest/) environment using:
 
 ```
-conda install -c mattpitkin psrqpy
+conda install -c conda-forge psrqpy
 ```
 
 ### Requirements
@@ -205,7 +205,7 @@ This code is licensed under the [MIT License](http://opensource.org/licenses/MIT
 &copy; Matt Pitkin, 2017
 
 [![PyPI version](https://badge.fury.io/py/psrqpy.svg)](https://badge.fury.io/py/psrqpy)
-[![Anaconda-Server Badge](https://anaconda.org/mattpitkin/psrqpy/badges/version.svg)](https://anaconda.org/mattpitkin/psrqpy)
+[![Anaconda-Server Badge](https://anaconda.org/conda-forge/psrqpy/badges/version.svg)](https://anaconda.org/conda-forge/psrqpy)
 [![version](https://img.shields.io/pypi/pyversions/psrqpy.svg)](https://pypi.org/project/psrqpy/)
 [![Build Status](https://travis-ci.org/mattpitkin/psrqpy.svg?branch=master)](https://travis-ci.org/mattpitkin/psrqpy)
 [![codecov](https://codecov.io/gh/mattpitkin/psrqpy/branch/master/graph/badge.svg)](https://codecov.io/gh/mattpitkin/psrqpy)
