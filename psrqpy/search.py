@@ -2669,7 +2669,7 @@ class QueryATNF(object):
                 above.
             excludeAssoc (list): a list of pulsar association type only ('GC' or 'SNR') at the
                 moment to exclude from the plot.
-            useplotly (bool): create a plot `plot.ly <https://plot.ly/>`_ figure rather than a
+            usealtair (bool): create an altair interactive figure rather than a
                 :class:`matplotlib.figure.Figure`.
         """
 
@@ -2687,10 +2687,13 @@ class QueryATNF(object):
                 raise ImportError('Cannot create plot using altair as it is not available')
 
         # check that both input parameters have been queried
-        if param1 not in self.query_params:
-            self.query_params = self.query_params + [param1]
-        if param2 not in self._query_params:
-            self.query_params = self.query_params + [param1]
+        if self.query_params is None:
+            self.query_params = [param1, param2]
+        else:
+            if param1 not in self.query_params:
+                self.query_params = self.query_params + [param1]
+            if param2 not in self.query_params:
+                self.query_params = self.query_params + [param2]
         if 'JNAME' not in self.query_params:
             self.query_params = self.query_params + ['JNAME']
 
@@ -2704,6 +2707,14 @@ class QueryATNF(object):
         # set axes scales
         scalex = 'linear' if not logx else 'log'
         scaley = 'linear' if not logy else 'log'
+        scales = [scalex, scaley]
+
+        # if scale is log, but data contains negative values, switch to a
+        # symlog scale
+        for scale, param in zip(scales, [param1, param2]):
+            if scale == "log":
+                if np.any(t[param] <= 0.0):
+                    scale = "symlog"
 
         if usealtair:
             # set tool tip values
@@ -2718,17 +2729,19 @@ class QueryATNF(object):
             tooltip.append(param2)
 
             text = alt.TextConfig(font='Times')
-            axistext = alt.VgAxisConfig(titleFont='Times', titleFontSize=12,
-                                        labelFont='Times')
-            config = alt.Config(text=text, axis=axistext)
+            config = alt.Config(text=text)
 
             chart = alt.Chart(t, height=600, width=800,
                               config=config).mark_circle().encode(
-                    alt.X(param1+':Q', scale=alt.Scale(type=scalex),
+                    alt.X(param1+':Q', scale=alt.Scale(type=scales[0]),
                           axis=alt.Axis(format='~g'), title=param1),
-                    alt.Y(param2+':Q', scale=alt.Scale(type=scaley),
+                    alt.Y(param2+':Q', scale=alt.Scale(type=scales[1]),
                           axis=alt.Axis(format='~g'), title=param2),
                     tooltip=tooltip
+                ).configure_axis(
+                    titleFont="Times",
+                    titleFontSize=12,
+                    labelFont="Times"
                 )
 
             return chart
@@ -2749,8 +2762,8 @@ class QueryATNF(object):
             fig, ax = pl.subplots()
 
             ax.plot(t[param1], t[param2])
-            ax.set_xscale(scalex)
-            ax.set_yscale(scaley)
+            ax.set_xscale(scales[0])
+            ax.set_yscale(scales[1])
 
             return fig
 
