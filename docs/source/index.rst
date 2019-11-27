@@ -25,7 +25,7 @@ Other functionality that it includes:
 Installation
 ============
 
-This package can be installed using ``pip`` via ``pip install psrqpy``. Alternatively
+This package can be installed using ``pip`` via ``pip install psrqpy`` or ``conda`` using ``conda install -c conda-forge psrqpy``. Alternatively
 the source code can be obtained from `github <https://github.com/mattpitkin/psrqpy>`_, and installed using::
 
     python setup.py install
@@ -183,7 +183,7 @@ What if we want the frequency of J0534+2200? Well, we just have to do
 
 We can also get the whole ephemeris for the Crab with
 
-    >>> print(query.get_ephemeris('J0534+2200))
+    >>> print(query.get_ephemeris('J0534+2200'))
     NAME      J0534+2200
     JNAME     J0534+2200
     BNAME     B0531+21

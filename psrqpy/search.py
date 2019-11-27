@@ -16,16 +16,27 @@ from six.moves import cPickle as pickle
 from six import string_types
 
 import numpy as np
-from astropy.coordinates import SkyCoord, ICRS, BarycentricTrueEcliptic, Galactic
+import astropy
+from astropy.coordinates import SkyCoord, ICRS, Galactic
 import astropy.units as aunits
 from astropy.constants import c, GM_sun
 from astropy.table import Table
+from packaging import version
 
 from pandas import DataFrame, Series
 from copy import deepcopy
 
 from .config import ATNF_BASE_URL, PSR_ALL, PSR_ALL_PARS, PSR_TYPE, PSR_ASSOC_TYPE, PSR_BINARY_TYPE
 from .utils import condition, age_pdot, B_field_pdot
+
+
+# check whether to use BarycentricTrueEcliptic of BarycentricMeanEcliptic
+if version.parse(astropy.__version__) >= version.parse("3.2"):
+    from astropy.coordinates import BarycentricMeanEcliptic
+    ASTROPY_V32 = True
+else:
+    from astropy.coordinates import BarycentricTrueEcliptic as BarycentricMeanEcliptic
+    ASTROPY_V32 = False
 
 
 class QueryATNF(object):
@@ -186,11 +197,21 @@ class QueryATNF(object):
         # store passed pandas DataFrame
         if isinstance(frompandas, DataFrame):
             self.__dataframe = frompandas.copy()
+
+            # set version to None if not defined
+            if not hasattr(self.__dataframe, 'version'):
+                self.__dataframe.version = None
             return
 
         # store passed astropy Table
         if isinstance(fromtable, Table):
             self.__dataframe = fromtable.to_pandas()
+
+            # set version if available
+            if 'version' in fromtable.meta:
+                self.__dataframe.version = fromtable.meta['version']
+            else:
+                self.__dataframe.version = None
             return
 
         # download and cache (if requested) the database file
@@ -663,7 +684,7 @@ class QueryATNF(object):
         return self.__dataframe.empty
 
     def query_table(self, query_params=None, usecondition=True,
-                    useseparation=True):
+                    usepsrs=True, useseparation=True):
         """
         Return an :class:`astropy.table.Table` from the query with new
         parameters or conditions if given.
@@ -677,6 +698,11 @@ class QueryATNF(object):
                 the table. If False no condition will be applied to the
                 returned table. If a string is given then that will be the
                 assumed condition string.
+            usepsrs (bool, str): If True then the list of pulsars parsed to the
+                :class:`psrqpy.QueryATNF`: class will be used when returning
+                the table. If False then all pulsars in the catalogue will be
+                returned. If a string, or list of strings, is given then that
+                will be assumed to be a set of pulsar names to return.
             useseparation (bool): If True and a set of sky coordinates and
                 radius around which to return pulsars was set in the
                 :class:`psrqpy.QueryATNF`: class then only pulsars within the
@@ -722,26 +748,61 @@ class QueryATNF(object):
                 # apply conditions
                 dftable = condition(dftable, expression, self._exactmatch)
 
+            # return only requested pulsars
+            if usepsrs and self.psrs is not None:
+                if not isinstance(usepsrs, bool):
+                    # copy original pulsars
+                    tmppsrs = deepcopy(self.psrs)
+
+                    # set new pulsars
+                    self.psrs = usepsrs
+
+                jnames = np.zeros(len(dftable), dtype=np.bool)
+                if "JNAME" in dftable.columns:
+                    jnames = np.array([psr in self.psrs
+                                      for psr in dftable["JNAME"]])
+
+                bnames = np.zeros(len(dftable), dtype=np.bool)
+                if "BNAME" in dftable.columns:
+                    bnames = np.array([psr in self.psrs
+                                       for psr in dftable["BNAME"]])
+
+                if np.any(jnames) and np.any(bnames):
+                    allnames = jnames | bnames
+                elif np.any(jnames):
+                    allnames = jnames
+                elif np.any(bnames):
+                    allnames = bnames
+                else:
+                    raise ValueError("No requested pulsars '{}' were "
+                                     "found.".format(self.psrs), UserWarning)
+
+                dftable = dftable[allnames]
+
+                # reset original pulsar query
+                if not isinstance(usepsrs, bool):
+                    self.psrs = tmppsrs
+
             # return only requested parameters and convert to table
             table = Table.from_pandas(dftable[query_params[intab].tolist()])
 
             # add units if known
             for key in PSR_ALL_PARS:
                 if key in table.colnames:
-                    if PSR_ALL[key]['units']:
-                        table.columns[key].unit = PSR_ALL[key]['units']
+                    if PSR_ALL[key]["units"]:
+                        table.columns[key].unit = PSR_ALL[key]["units"]
 
-                    if PSR_ALL[key]['err'] and key+'_ERR' in table.colnames:
-                        table.columns[key+'_ERR'].unit = PSR_ALL[key]['units']
+                    if PSR_ALL[key]["err"] and key+"_ERR" in table.colnames:
+                        table.columns[key+"_ERR"].unit = PSR_ALL[key]["units"]
 
             # add catalogue version to metadata
-            table.meta['version'] = self.get_version
-            table.meta['ATNF Pulsar Catalogue'] = ATNF_BASE_URL
+            table.meta["version"] = self.get_version
+            table.meta["ATNF Pulsar Catalogue"] = ATNF_BASE_URL
 
-            if (useseparation and self._coord is not None and 'RAJ' in
-                    table.colnames and 'DECJ' in table.colnames):
+            if (useseparation and self._coord is not None and "RAJ" in
+                    table.colnames and "DECJ" in table.colnames):
                 # apply sky coordinate constraint
-                catalog = SkyCoord(table['RAJ'], table['DECJ'],
+                catalog = SkyCoord(table["RAJ"], table["DECJ"],
                                    unit=(aunits.hourangle, aunits.deg))
 
                 # get seperations
@@ -1162,9 +1223,10 @@ class QueryATNF(object):
 
         idxpx = np.isfinite(PX) & np.isfinite(PXERR)
 
-        # set distances using parallax if parallax has greater than 3 sigma significance
+        # set distances using parallax if parallax has greater than 3 sigma
+        # significance (and as long as parallax is positive)
         pxsigma = np.zeros(self.catalogue_len)
-        pxsigma[idxpx] = np.abs(PX[idxpx])/PXERR[idxpx]
+        pxsigma[idxpx] = PX[idxpx]/PXERR[idxpx]
 
         # use DIST_A if available
         idxdista = np.isfinite(DIST_A)
@@ -1231,7 +1293,7 @@ class QueryATNF(object):
         idx = np.isfinite(ELONG) & np.isfinite(ELAT)
 
         # get sky coordinates
-        sc = BarycentricTrueEcliptic(ELONG.values[idx]*aunits.deg,
+        sc = BarycentricMeanEcliptic(ELONG.values[idx]*aunits.deg,
                                      ELAT.values[idx]*aunits.deg
                                      ).transform_to(ICRS())
 
@@ -1267,7 +1329,7 @@ class QueryATNF(object):
 
             idx = idx & np.isfinite(PMELONG) & np.isfinite(PMELAT)
 
-            sc = BarycentricTrueEcliptic(
+            sc = BarycentricMeanEcliptic(
                 ELONG[idx].values*aunits.deg,
                 ELAT[idx].values*aunits.deg,
                 pm_lon_coslat=PMELONG[idx].values*aunits.mas/aunits.yr,
@@ -1284,8 +1346,11 @@ class QueryATNF(object):
         """
         Calculate the ecliptic coordinates, and proper motions, from the
         right ascension and declination if they are not already given.
-        The ecliptic used here is the astropy's `BarycentricTrueEcliptic
-        <http://docs.astropy.org/en/stable/api/astropy.coordinates.BarycentricTrueEcliptic.html>`_,
+        The ecliptic used here is the astropy's `BarycentricMeanEcliptic
+        <http://docs.astropy.org/en/stable/api/astropy.coordinates.BarycentricMeanEcliptic.html>`_
+        (note that this does not include nutation unlike the
+        `BarycentricTrueEcliptic <http://docs.astropy.org/en/stable/api/astropy.coordinates.BarycentricTrueEcliptic.html>`_
+        for which a bug fix was added in `astropy 3.2 <http://docs.astropy.org/en/v3.2.1/changelog.html#id12>`_),
         which may not exactly match that used in `psrcat`.
         """
 
@@ -1304,8 +1369,12 @@ class QueryATNF(object):
         sc = SkyCoord(RAJD[idx].values*aunits.deg,
                       DECJD[idx].values*aunits.deg)
 
-        ELONGnew[idx] = sc.barycentrictrueecliptic.lon.value
-        ELATnew[idx] = sc.barycentrictrueecliptic.lat.value
+        if ASTROPY_V32:
+            ELONGnew[idx] = sc.barycentricmeanecliptic.lon.value
+            ELATnew[idx] = sc.barycentricmeanecliptic.lat.value
+        else:
+            ELONGnew[idx] = sc.barycentrictrueecliptic.lon.value
+            ELATnew[idx] = sc.barycentrictrueecliptic.lat.value
 
         self.update(ELONGnew, name='ELONG')
         self.update(ELATnew, name='ELAT')
@@ -1339,7 +1408,7 @@ class QueryATNF(object):
                 DECJD[idx].values*aunits.deg,
                 pm_ra_cosdec=PMRA[idx].values*aunits.mas/aunits.yr,
                 pm_dec=PMDEC[idx].values*aunits.mas/aunits.yr
-            ).transform_to(BarycentricTrueEcliptic())
+            ).transform_to(BarycentricMeanEcliptic())
 
             PMELONGnew[idx] = sc.pm_lon_coslat.value
             PMELATnew[idx] = sc.pm_lat.value
@@ -2687,7 +2756,7 @@ class QueryATNF(object):
               showGCs=False, showSNRs=False, markertypes={}, deathline=True,
               deathmodel='Ip', filldeath=True, filldeathtype={}, showtau=True,
               brakingidx=3, tau=None, showB=True, Bfield=None, pdotlims=None,
-              periodlims=None, usecondition=True, rcparams={},
+              periodlims=None, usecondition=True, usepsrs=True, rcparams={},
               usealtair=False):
         """
         Draw a lovely period vs period derivative diagram.
@@ -2732,8 +2801,10 @@ class QueryATNF(object):
             periodlims (array_like): the [min, max] period limits to plot with
             pdotlims (array_like): the [min, max] pdot limits to plot with
             usecondition (bool): if True create the P-Pdot diagram only with
-                pulsars that conform the the original query condition values.
+                pulsars that conform to the original query condition values.
                 Defaults to True.
+            usepsrs (bool): if True create the P-Pdot diagram only with pulsars
+                specified in the original query. Defaults to True.
             rcparams (dict): a dictionary of :py:obj:`matplotlib.rcParams`
                 setup parameters for the plot.
             usealtair (bool): use `altair <https://altair-viz.github.io/>`_ to
@@ -2762,6 +2833,7 @@ class QueryATNF(object):
 
         # get table containing all required parameters
         table = self.query_table(usecondition=usecondition,
+                                 usepsrs=usepsrs,
                                  query_params=['P0', 'P1', 'P1_I', 'ASSOC',
                                                'BINARY', 'TYPE'])
 

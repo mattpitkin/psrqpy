@@ -51,6 +51,7 @@ setup(name="psrqpy",
       description="A Python module for querying the ATNF pulsar catalogue",
       long_description=\
           readfile(os.path.join(os.path.dirname(__file__), "README.md")),
+      long_description_content_type="text/markdown",
       install_requires=\
           readfile(os.path.join(os.path.dirname(__file__), "requirements.txt")),
       include_package_data=True,
