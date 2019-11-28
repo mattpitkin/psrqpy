@@ -2742,7 +2742,7 @@ class QueryATNF(object):
                     titleFont="Times",
                     titleFontSize=12,
                     labelFont="Times"
-                )
+                ).interactive()
 
             return chart
         else:
