@@ -2645,7 +2645,8 @@ class QueryATNF(object):
         return repr(self.table)
 
     def plot(self, param1, param2, logx=False, logy=False, excludeAssoc=[], showtypes=[],
-             showGCs=False, showSNRs=False, markertypes={}, rcparams={}, usealtair=False,
+             showGCs=False, showSNRs=False, markertypes={}, usecondition=True, usepsrs=True,
+             rcparams={}, usealtair=False, xlabel=None, ylabel=None, intrinsicpdot=False,
              **kwargs):
         """
         Produce a scatter plot of pairs of parameters using :module:`matplotlib.pyplot`.
@@ -2667,10 +2668,22 @@ class QueryATNF(object):
                 with them. Defaults to False.
             markertypes (dict): a dictionary of marker styles and colors keyed to the pulsar types
                 above.
-            excludeAssoc (list): a list of pulsar association type only ('GC' or 'SNR') at the
-                moment to exclude from the plot.
+            usecondition (bool): if True create the diagram only with
+                pulsars that conform to the original query condition values.
+                Defaults to True.
+            usepsrs (bool): if True create the P-Pdot diagram only with pulsars
+                specified in the original query. Defaults to True.
+            excludeAssoc (list): a list of pulsar association type (only 'GC' or 'SNR' at the
+                moment) to exclude from the plot.
             usealtair (bool): create an altair interactive figure rather than a
                 :class:`matplotlib.figure.Figure`.
+            xlabel (str): a label to be used for the x-axis if not wanting to use the standard
+                parameter name.
+            ylabel (str): a label to be used for the y-axis if not wanting to use the standard
+                parameter name.
+            intrinsicpdot (bool): use the intrinsic period derivative corrected
+                for the `Shklovskii effect <https://en.wikibooks.org/wiki/Pulsars_and_neutron_stars/Pulsar_properties#Pulse_period>`_
+                rather than the observed value. Defaults to False.
         """
 
         try:
@@ -2687,6 +2700,7 @@ class QueryATNF(object):
                 raise ImportError('Cannot create plot using altair as it is not available')
 
         # check that both input parameters have been queried
+        orig_query = deepcopy(self.query_params)
         if self.query_params is None:
             self.query_params = [param1, param2]
         else:
@@ -2694,15 +2708,78 @@ class QueryATNF(object):
                 self.query_params = self.query_params + [param1]
             if param2 not in self.query_params:
                 self.query_params = self.query_params + [param2]
-        if 'JNAME' not in self.query_params:
-            self.query_params = self.query_params + ['JNAME']
+        
+        for param in ["JNAME", "ASSOC", "BINARY", "TYPE", "P1_I"]:
+            if param not in self.query_params:
+                if param == "P1_I" and not intrinsicpdot:
+                    continue
+                self.query_params = self.query_params + [param]
+
+        # get table containing all required parameters
+        table = self.query_table(usecondition=usecondition,
+                                 usepsrs=usepsrs)
+
+        # reset query parameters
+        self.query_params = orig_query
 
         if not self.num_pulsars:
-            print("No pulsars found, so no P-Pdot plot has been produced")
+            print("No pulsars found, so no plot has been produced")
             return None
 
-        # get Pandas DataFrame of parameters
-        t = self.pandas
+        if isinstance(showtypes, string_types):
+            nshowtypes = [showtypes]
+        else:
+            nshowtypes = showtypes
+
+        for stype in list(nshowtypes):
+            if 'ALL' == stype.upper():
+                nshowtypes = list(PSR_TYPE)
+                # remove radio as none are returned as this
+                del nshowtypes[nshowtypes.index('RADIO')]
+                break
+            elif stype.upper() not in list(PSR_TYPE):
+                warnings.warn('"TYPE" {} is not recognised, so will not be '
+                              'included'.format(stype))
+                del nshowtypes[nshowtypes.index(stype)]
+            if 'SGR' == stype.upper():  # synonym for AXP
+                nshowtypes[nshowtypes.index(stype)] = 'AXP'
+
+        # extract periods and period derivatives
+        p1values = table[param1]
+        p2values = table[param2]
+
+        if "P1" in [param1, param2] and intrinsicpdot:
+            ipdotidx = np.isfinite(table['P1_I'])
+            if param1 == "P1":
+                p1values[ipdotidx] = table['P1_I'][ipdotidx]
+            else:
+                p2values[ipdotidx] = table['P1_I'][ipdotidx]
+
+        # get only finite values
+        pidx = (np.isfinite(p1values)) & (np.isfinite(p2values))
+        p1values = p1values[pidx]
+        p2values = p2values[pidx]
+
+        if 'ASSOC' in table.columns:
+            assocs = table['ASSOC'][pidx]     # associations
+        if 'TYPE' in table.columns:
+            types = table['TYPE'][pidx]       # pulsar types
+        if 'BINARY' in nshowtypes:
+            binaries = table['BINARY'][pidx]  # binary pulsars
+
+        # check whether to exclude GC or SNR pulsars
+        for exc in excludeAssoc:
+            nongcidxs = np.flatnonzero(
+                np.char.find(np.array(assocs.tolist(),
+                                      dtype=np.str), '{}:'.format(exc)) == -1)
+            p1values = p1values[nongcidxs]
+            p2values = p2values[nongcidxs]
+            if 'ASSOC' in table.columns:
+                assocs = assocs[nongcidxs]
+            if 'TYPE' in table.columns:
+                types = types[nongcidxs]
+            if 'BINARY' in nshowtypes:
+                binaries = binaries[nongcidxs]
 
         # set axes scales
         scalex = 'linear' if not logx else 'log'
@@ -2711,9 +2788,9 @@ class QueryATNF(object):
 
         # if scale is log, but data contains negative values, switch to a
         # symlog scale
-        for scale, param in zip(scales, [param1, param2]):
+        for scale, param in zip(scales, [p1values, p2values]):
             if scale == "log":
-                if np.any(t[param] <= 0.0):
+                if np.any(param <= 0.0):
                     scale = "symlog"
 
         if usealtair:
@@ -2728,20 +2805,22 @@ class QueryATNF(object):
             tooltip.append(param1)
             tooltip.append(param2)
 
-            text = alt.TextConfig(font='Times')
+            text = alt.TextConfig(font='Helvetica')
             config = alt.Config(text=text)
 
             chart = alt.Chart(t, height=600, width=800,
                               config=config).mark_circle().encode(
                     alt.X(param1+':Q', scale=alt.Scale(type=scales[0]),
-                          axis=alt.Axis(format='~g'), title=param1),
+                          axis=alt.Axis(format='~g'),
+                          title=(param1 if xlabel is None else xlabel)),
                     alt.Y(param2+':Q', scale=alt.Scale(type=scales[1]),
-                          axis=alt.Axis(format='~g'), title=param2),
+                          axis=alt.Axis(format='~g'),
+                          title=(param2 if ylabel is None else ylabel)),
                     tooltip=tooltip
                 ).configure_axis(
-                    titleFont="Times",
+                    titleFont="Helvetica",
                     titleFontSize=12,
-                    labelFont="Times"
+                    labelFont="Helvetica"
                 ).interactive()
 
             return chart
@@ -2761,11 +2840,13 @@ class QueryATNF(object):
             
             fig, ax = pl.subplots()
 
-            ax.plot(t[param1], t[param2])
+            ax.plot(p1values, p2values, **kwargs)
             ax.set_xscale(scales[0])
             ax.set_yscale(scales[1])
+            ax.set_xlabel(param1 if xlabel is None else xlabel)
+            ax.set_ylabel(param2 if ylabel is None else ylabel)
 
-            return fig
+            return fig, ax
 
     def ppdot(self, intrinsicpdot=False, excludeGCs=False, showtypes=[],
               showGCs=False, showSNRs=False, markertypes={}, deathline=True,
@@ -2838,6 +2919,18 @@ class QueryATNF(object):
 
         from .utils import death_line, label_line
 
+        orig_condition = self.condition
+        if usecondition:    
+            if "P1 > 0" not in self.condition:
+                # only use positive period derivaties
+                if self.condition is None:
+                    self.condition = "P1 > 0"
+                else:
+                    self.condition += " && P1 > 0"
+        else:
+            self.condition = "P1 > 0"
+            usecondition = True  # must use this condition
+
         if usealtair:
             # import altair
             try:
@@ -2845,268 +2938,191 @@ class QueryATNF(object):
             except ImportError:
                 raise ImportError('Cannot create plot using altair as it is '
                                   'not available')
-
-        # get table containing all required parameters
-        table = self.query_table(usecondition=usecondition,
-                                 usepsrs=usepsrs,
-                                 query_params=['P0', 'P1', 'P1_I', 'ASSOC',
-                                               'BINARY', 'TYPE'])
-
-        if len(table) == 0:
-            print("No pulsars found, so no P-Pdot plot has been produced")
-            return None
-
-        if isinstance(showtypes, string_types):
-            nshowtypes = [showtypes]
+            chart = self.plot(
+                "P0", "P1",
+                usealtair=True,
+                usepsrs=usepars,
+                usecondition=usecondition,
+                xlabel="Period (s)",
+                ylabel="Period Derivative",
+                logx=True,
+                logy=True,
+                intrinsicpdot=intrinsicpdot
+            )
         else:
-            nshowtypes = showtypes
+            figax = self.plot(
+                "P0", "P1",
+                usepsrs=usepsrs,
+                usecondition=usecondition,
+                xlabel="Period (s)",
+                ylabel="Period Derivative",
+                logx=True,
+                logy=True,
+                intrinsicpdot=intrinsicpdot
+            )
 
-        for stype in list(nshowtypes):
-            if 'ALL' == stype.upper():
-                nshowtypes = list(PSR_TYPE)
-                # remove radio as none are returned as this
-                del nshowtypes[nshowtypes.index('RADIO')]
-                break
-            elif stype.upper() not in list(PSR_TYPE):
-                warnings.warn('"TYPE" {} is not recognised, so will not be '
-                              'included'.format(stype))
-                del nshowtypes[nshowtypes.index(stype)]
-            if 'SGR' == stype.upper():  # synonym for AXP
-                nshowtypes[nshowtypes.index(stype)] = 'AXP'
-
-        # set plot parameters
-        rcparams['figure.figsize'] = rcparams['figure.figsize'] if \
-            'figure.figsize' in rcparams else (9, 9.5)
-        rcparams['figure.dpi'] = rcparams['figure.dpi'] if \
-            'figure.dpi' in rcparams else 250
-        rcparams['text.usetex'] = rcparams['text.usetex'] if \
-            'text.usetex' in rcparams else True
-        rcparams['axes.linewidth'] = rcparams['axes.linewidth'] if \
-            'axes.linewidth' in rcparams else 0.5
-        rcparams['axes.grid'] = rcparams['axes.grid'] if \
-            'axes.grid' in rcparams else False
-        rcparams['font.family'] = rcparams['font.family'] if \
-            'font.family' in rcparams else 'sans-serif'
-        rcparams['font.sans-serif'] = rcparams['font.sans-serif'] if \
-            'font.sans-serif' in rcparams else \
-            'Avant Garde, Helvetica, Computer Modern Sans serif'
-        rcparams['font.size'] = rcparams['font.size'] if \
-            'font.size' in rcparams else 20
-        rcparams['legend.fontsize'] = rcparams['legend.fontsize'] if \
-            'legend.fontsize' in rcparams else 16
-        rcparams['legend.frameon'] = rcparams['legend.frameon'] if \
-            'legend.frameon' in rcparams else False
-
-        mpl.rcParams.update(rcparams)
-
-        fig, ax = pl.subplots()
-
-        # extract periods and period derivatives
-        periods = table['P0']
-        pdots = table['P1']
-        if intrinsicpdot:  # use instrinsic period derivatives if requested
-            ipdotidx = np.isfinite(table['P1_I'])
-            pdots[ipdotidx] = table['P1_I'][ipdotidx]
-
-        # get only finite values
-        pidx = (np.isfinite(periods)) & (np.isfinite(pdots))
-        periods = periods[pidx]
-        pdots = pdots[pidx]
-
-        if 'ASSOC' in table.columns:
-            assocs = table['ASSOC'][pidx]     # associations
-        if 'TYPE' in table.columns:
-            types = table['TYPE'][pidx]       # pulsar types
-        if 'BINARY' in nshowtypes:
-            binaries = table['BINARY'][pidx]  # binary pulsars
-
-        # now get only positive pdot values
-        pidx = pdots > 0.
-        periods = periods[pidx]
-        pdots = pdots[pidx]
-        if 'ASSOC' in table.columns:
-            assocs = assocs[pidx]      # associations
-        if 'TYPE' in table.columns:
-            types = types[pidx]        # pulsar types
-        if 'BINARY' in nshowtypes:
-            binaries = binaries[pidx]  # binary pulsars
-
-        # check whether to exclude globular cluster pulsars that could have
-        # contaminated spin-down value
-        if excludeGCs:
-            # use '!=' to find GC indexes
-            nongcidxs = np.flatnonzero(
-                np.char.find(np.array(assocs.tolist(),
-                                      dtype=np.str), 'GC:') == -1)
-            periods = periods[nongcidxs]
-            pdots = pdots[nongcidxs]
-            if 'ASSOC' in table.columns:
-                assocs = assocs[nongcidxs]
-            if 'TYPE' in table.columns:
-                types = types[nongcidxs]
-            if 'BINARY' in nshowtypes:
-                binaries = binaries[nongcidxs]
-
-        # plot pulsars
-        ax.loglog(periods, pdots, marker='.', color='dimgrey',
-                  linestyle='none')
-        ax.set_xlabel(r'Period (s)')
-        ax.set_ylabel(r'Period Derivative')
-
-        # get limits
-        if periodlims is None:
-            periodlims = [10**np.floor(np.min(np.log10(periods))),
-                          10.*int(np.ceil(np.max(pdots)/10.))]
-        if pdotlims is None:
-            pdotlims = [10**np.floor(np.min(np.log10(pdots))),
-                        10**np.ceil(np.max(np.log10(pdots)))]
-        ax.set_xlim(periodlims)
-        ax.set_ylim(pdotlims)
-
-        if deathline:
-            deathpdots = 10**death_line(np.log10(periodlims),
-                                        linemodel=deathmodel)
-            ax.loglog(periodlims, deathpdots, 'k--', linewidth=0.5)
-
-            if filldeath:
-                if not filldeathtype:
-                    filldeathtype = {}
-
-                filldeathtype['linestyle'] = filldeathtype['linestyle'] if \
-                    'linestyle' in filldeathtype else '-'
-                filldeathtype['alpha'] = filldeathtype['alpha'] if \
-                    'alpha' in filldeathtype else 0.15
-                filldeathtype['facecolor'] = filldeathtype['facecolor'] if \
-                    'facecolor' in filldeathtype else 'darkorange'
-                filldeathtype['hatch'] = filldeathtype['hatch'] if \
-                    'hatch' in filldeathtype else ''
-                ax.fill_between(periodlims, deathpdots, pdotlims[0],
-                                **filldeathtype)
-
-        # add markers for each pulsar type
-        if not markertypes:
-            markertypes = {}
-
-        # check if markers have been defined by the user or not
-        markertypes['AXP'] = {'marker': 's', 'markeredgecolor': 'red'} if \
-            'AXP' not in markertypes else markertypes['AXP']
-        markertypes['BINARY'] = {'marker': 'o', 'markeredgecolor': 'grey'} if \
-            'BINARY' not in markertypes else markertypes['BINARY']
-        markertypes['HE'] = {'marker': 'D', 'markeredgecolor': 'orange'} if \
-            'HE' not in markertypes else markertypes['HE']
-        markertypes['RRAT'] = {'marker': 'h', 'markeredgecolor': 'green'} if \
-            'RRAT' not in markertypes else markertypes['RRAT']
-        markertypes['NRAD'] = {'marker': 'v', 'markeredgecolor': 'blue'} if \
-            'NRAD' not in markertypes else markertypes['NRAD']
-        markertypes['XINS'] = {'marker': '^', 'markeredgecolor': 'magenta'} if \
-            'XINS' not in markertypes else markertypes['XINS']
-        markertypes['GC'] = {'marker': '8', 'markeredgecolor': 'cyan'} if \
-            'GC' not in markertypes else markertypes['GC']
-        markertypes['SNR'] = {'marker': '*', 'markeredgecolor': 'darkorchid'} if \
-            'SNR' not in markertypes else markertypes['SNR']
-
-        # legend strings for different types
-        typelegstring = {}
-        typelegstring['AXP'] = r'SGR/AXP'
-        typelegstring['NRAD'] = r'"Radio-Quiet"'
-        typelegstring['XINS'] = r'Pulsed Thermal X-ray'
-        typelegstring['BINARY'] = r'Binary'
-        typelegstring['HE'] = r'Radio-IR Emission'
-        typelegstring['GC'] = r'Globular Cluster'
-        typelegstring['SNR'] = r'SNR'
-        typelegstring['RRAT'] = r'RRAT'
-
-        # show globular cluster pulsars
-        if showGCs and not excludeGCs:
-            nshowtypes.append('GC')
-
-        # show pulsars with associated supernova remnants
-        if showSNRs:
-            nshowtypes.append('SNR')
-
-        handles = OrderedDict()
-
-        for stype in nshowtypes:
-            if stype.upper() in PSR_TYPE + ['GC', 'SNR']:
-                thistype = stype.upper()
-                if thistype == 'BINARY':
-                    # for binaries used the 'BINARY' column in the table
-                    typeidx = np.flatnonzero(~binaries.mask)
-                elif thistype in ['GC', 'SNR']:
-                    typeidx = np.flatnonzero(
-                        np.char.find(np.array(assocs.tolist(),
-                                              dtype=np.str), thistype) != -1)
-                else:
-                    typeidx = np.flatnonzero(
-                        np.char.find(np.array(types.tolist(),
-                                              dtype=np.str), thistype) != -1)
-
-                if len(typeidx) == 0:
-                    continue
-
-                # default to empty markers with no lines between them
-                if 'markerfacecolor' not in markertypes[thistype]:
-                    markertypes[thistype]['markerfacecolor'] = 'none'
-                if 'linestyle' not in markertypes[thistype]:
-                    markertypes[thistype]['linestyle'] = 'none'
-                typehandle, = ax.loglog(periods[typeidx], pdots[typeidx],
-                                        label=typelegstring[thistype],
-                                        **markertypes[thistype])
-                if thistype in typelegstring:
-                    handles[typelegstring[thistype]] = typehandle
-                else:
-                    handles[thistype] = typehandle
-
-                ax.legend(handles.values(), handles.keys(), loc='upper left',
-                          numpoints=1)
-
-        # add characteristic age lines
-        tlines = OrderedDict()
-        if showtau:
-            if tau is None:
-                taus = [1e5, 1e6, 1e7, 1e8, 1e9]  # default characteristic ages
+            if figax is None:
+                return None
             else:
-                taus = tau
+                fig, ax = figax
 
-            nbrake = brakingidx
-            for tauv in taus:
-                pdots_tc = age_pdot(periodlims, tau=tauv, braking_idx=nbrake)
-                tline, = ax.loglog(periodlims, pdots_tc, 'k-.', linewidth=0.5)
-                # check if taus are powers of 10
-                taupow = np.floor(np.log10(tauv))
-                numv = tauv/10**taupow
-                if numv == 1.:
-                    tlines[r'$10^{{{0:d}}}\,{{\rm yr}}$'.format(int(taupow))] = tline
+            # get limits
+            if periodlims is None:
+                periodlims = [10**np.floor(np.min(np.log10(periods))),
+                              10.*int(np.ceil(np.max(pdots)/10.))]
+            if pdotlims is None:
+                pdotlims = [10**np.floor(np.min(np.log10(pdots))),
+                            10**np.ceil(np.max(np.log10(pdots)))]
+            ax.set_xlim(periodlims)
+            ax.set_ylim(pdotlims)
+
+            if deathline:
+                deathpdots = 10**death_line(np.log10(periodlims),
+                                            linemodel=deathmodel)
+                ax.loglog(periodlims, deathpdots, 'k--', linewidth=0.5)
+
+                if filldeath:
+                    if not filldeathtype:
+                        filldeathtype = {}
+
+                    filldeathtype['linestyle'] = filldeathtype['linestyle'] if \
+                        'linestyle' in filldeathtype else '-'
+                    filldeathtype['alpha'] = filldeathtype['alpha'] if \
+                        'alpha' in filldeathtype else 0.15
+                    filldeathtype['facecolor'] = filldeathtype['facecolor'] if \
+                        'facecolor' in filldeathtype else 'darkorange'
+                    filldeathtype['hatch'] = filldeathtype['hatch'] if \
+                        'hatch' in filldeathtype else ''
+                    ax.fill_between(periodlims, deathpdots, pdotlims[0],
+                                    **filldeathtype)
+
+            # add markers for each pulsar type
+            if not markertypes:
+                markertypes = {}
+
+            # check if markers have been defined by the user or not
+            markertypes['AXP'] = {'marker': 's', 'markeredgecolor': 'red'} if \
+                'AXP' not in markertypes else markertypes['AXP']
+            markertypes['BINARY'] = {'marker': 'o', 'markeredgecolor': 'grey'} if \
+                'BINARY' not in markertypes else markertypes['BINARY']
+            markertypes['HE'] = {'marker': 'D', 'markeredgecolor': 'orange'} if \
+                'HE' not in markertypes else markertypes['HE']
+            markertypes['RRAT'] = {'marker': 'h', 'markeredgecolor': 'green'} if \
+                'RRAT' not in markertypes else markertypes['RRAT']
+            markertypes['NRAD'] = {'marker': 'v', 'markeredgecolor': 'blue'} if \
+                'NRAD' not in markertypes else markertypes['NRAD']
+            markertypes['XINS'] = {'marker': '^', 'markeredgecolor': 'magenta'} if \
+                'XINS' not in markertypes else markertypes['XINS']
+            markertypes['GC'] = {'marker': '8', 'markeredgecolor': 'cyan'} if \
+                'GC' not in markertypes else markertypes['GC']
+            markertypes['SNR'] = {'marker': '*', 'markeredgecolor': 'darkorchid'} if \
+                'SNR' not in markertypes else markertypes['SNR']
+
+            # legend strings for different types
+            typelegstring = {}
+            typelegstring['AXP'] = r'SGR/AXP'
+            typelegstring['NRAD'] = r'"Radio-Quiet"'
+            typelegstring['XINS'] = r'Pulsed Thermal X-ray'
+            typelegstring['BINARY'] = r'Binary'
+            typelegstring['HE'] = r'Radio-IR Emission'
+            typelegstring['GC'] = r'Globular Cluster'
+            typelegstring['SNR'] = r'SNR'
+            typelegstring['RRAT'] = r'RRAT'
+
+            # show globular cluster pulsars
+            if showGCs and not excludeGCs:
+                nshowtypes.append('GC')
+
+            # show pulsars with associated supernova remnants
+            if showSNRs:
+                nshowtypes.append('SNR')
+
+            handles = OrderedDict()
+
+            for stype in nshowtypes:
+                if stype.upper() in PSR_TYPE + ['GC', 'SNR']:
+                    thistype = stype.upper()
+                    if thistype == 'BINARY':
+                        # for binaries used the 'BINARY' column in the table
+                        typeidx = np.flatnonzero(~binaries.mask)
+                    elif thistype in ['GC', 'SNR']:
+                        typeidx = np.flatnonzero(
+                            np.char.find(np.array(assocs.tolist(),
+                                                  dtype=np.str), thistype) != -1)
+                    else:
+                        typeidx = np.flatnonzero(
+                            np.char.find(np.array(types.tolist(),
+                                                  dtype=np.str), thistype) != -1)
+
+                    if len(typeidx) == 0:
+                        continue
+
+                    # default to empty markers with no lines between them
+                    if 'markerfacecolor' not in markertypes[thistype]:
+                        markertypes[thistype]['markerfacecolor'] = 'none'
+                    if 'linestyle' not in markertypes[thistype]:
+                        markertypes[thistype]['linestyle'] = 'none'
+                    typehandle, = ax.loglog(periods[typeidx], pdots[typeidx],
+                                            label=typelegstring[thistype],
+                                            **markertypes[thistype])
+                    if thistype in typelegstring:
+                        handles[typelegstring[thistype]] = typehandle
+                    else:
+                        handles[thistype] = typehandle
+
+                    ax.legend(handles.values(), handles.keys(), loc='upper left',
+                              numpoints=1)
+
+            # add characteristic age lines
+            tlines = OrderedDict()
+            if showtau:
+                if tau is None:
+                    taus = [1e5, 1e6, 1e7, 1e8, 1e9]  # default characteristic ages
                 else:
-                    tlines[r'${{{0:.1f}}}!\times\!10^{{{1:d}}}\,{{\rm yr}}$'
-                           .format(numv, taupow)] = tline
+                    taus = tau
 
-        # add magnetic field lines
-        Blines = OrderedDict()
-        if showB:
-            if Bfield is None:
-                Bs = [1e10, 1e11, 1e12, 1e13, 1e14]
-            else:
-                Bs = Bfield
-            for B in Bs:
-                pdots_B = B_field_pdot(periodlims, Bfield=B)
-                bline, = ax.loglog(periodlims, pdots_B, 'k:', linewidth=0.5)
-                # check if Bs are powers of 10
-                Bpow = np.floor(np.log10(B))
-                numv = B/10**Bpow
-                if numv == 1.:
-                    Blines[r'$10^{{{0:d}}}\,{{\rm G}}$'.format(int(Bpow))] = bline
+                nbrake = brakingidx
+                for tauv in taus:
+                    pdots_tc = age_pdot(periodlims, tau=tauv, braking_idx=nbrake)
+                    tline, = ax.loglog(periodlims, pdots_tc, 'k-.', linewidth=0.5)
+                    # check if taus are powers of 10
+                    taupow = np.floor(np.log10(tauv))
+                    numv = tauv/10**taupow
+                    if numv == 1.:
+                        tlines[r'$10^{{{0:d}}}\,{{\rm yr}}$'.format(int(taupow))] = tline
+                    else:
+                        tlines[r'${{{0:.1f}}}!\times\!10^{{{1:d}}}\,{{\rm yr}}$'
+                               .format(numv, taupow)] = tline
+
+            # add magnetic field lines
+            Blines = OrderedDict()
+            if showB:
+                if Bfield is None:
+                    Bs = [1e10, 1e11, 1e12, 1e13, 1e14]
                 else:
-                    Blines[r'${{{0:.1f}}}!\times\!10^{{{1:d}}}\,{{\rm G}}$'
-                           .format(numv, Bpow)] = bline
+                    Bs = Bfield
+                for B in Bs:
+                    pdots_B = B_field_pdot(periodlims, Bfield=B)
+                    bline, = ax.loglog(periodlims, pdots_B, 'k:', linewidth=0.5)
+                    # check if Bs are powers of 10
+                    Bpow = np.floor(np.log10(B))
+                    numv = B/10**Bpow
+                    if numv == 1.:
+                        Blines[r'$10^{{{0:d}}}\,{{\rm G}}$'.format(int(Bpow))] = bline
+                    else:
+                        Blines[r'${{{0:.1f}}}!\times\!10^{{{1:d}}}\,{{\rm G}}$'
+                               .format(numv, Bpow)] = bline
 
-        fig.tight_layout()
+            fig.tight_layout()
 
-        # add text for characteristic age lines and magnetic field strength lines
-        for l in tlines:
-            _ = label_line(ax, tlines[l], l, color='k', fs=18, frachoffset=0.05)
+            # add text for characteristic age lines and magnetic field strength lines
+            for l in tlines:
+                _ = label_line(ax, tlines[l], l, color='k', fs=18, frachoffset=0.05)
 
-        for l in Blines:
-            _ = label_line(ax, Blines[l], l, color='k', fs=18, frachoffset=0.90)
+            for l in Blines:
+                _ = label_line(ax, Blines[l], l, color='k', fs=18, frachoffset=0.90)
+
+        # reset original conditions
+        self.condition = orig_condition
 
         return fig
