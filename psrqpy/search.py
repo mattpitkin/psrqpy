@@ -2647,7 +2647,7 @@ class QueryATNF(object):
     def plot(self, param1, param2, logx=False, logy=False, excludeAssoc=[], showtypes=[],
              showGCs=False, showSNRs=False, markertypes={}, usecondition=True, usepsrs=True,
              rcparams={}, usealtair=False, xlabel=None, ylabel=None, intrinsicpdot=False,
-             **kwargs):
+             xlims=None, ylims=None, **kwargs):
         """
         Produce a scatter plot of pairs of parameters using :module:`matplotlib.pyplot`.
 
@@ -2681,6 +2681,8 @@ class QueryATNF(object):
                 parameter name.
             ylabel (str): a label to be used for the y-axis if not wanting to use the standard
                 parameter name.
+            xlims (list): the [min, max] x-limits to plot with
+            ylims (array_like): the [min, max] y-limits to plot with
             intrinsicpdot (bool): use the intrinsic period derivative corrected
                 for the `Shklovskii effect <https://en.wikibooks.org/wiki/Pulsars_and_neutron_stars/Pulsar_properties#Pulse_period>`_
                 rather than the observed value. Defaults to False.
@@ -2846,6 +2848,16 @@ class QueryATNF(object):
             ax.set_xlabel(param1 if xlabel is None else xlabel)
             ax.set_ylabel(param2 if ylabel is None else ylabel)
 
+            # get limits
+            if xlims is None and scales[0] == "log":
+                xlims = [10**np.floor(np.min(np.log10(p1values))),
+                         10.*int(np.ceil(np.max(p1values)/10.))]
+            if ylims is None and scales[1] == "log":
+                ylims = [10**np.floor(np.min(np.log10(p2values))),
+                         10**np.ceil(np.max(np.log10(p2values)))]
+            ax.set_xlim(xlims)
+            ax.set_ylim(ylims)
+
             return fig, ax
 
     def ppdot(self, intrinsicpdot=False, excludeGCs=False, showtypes=[],
@@ -2938,10 +2950,10 @@ class QueryATNF(object):
             except ImportError:
                 raise ImportError('Cannot create plot using altair as it is '
                                   'not available')
-            chart = self.plot(
+            fig = self.plot(
                 "P0", "P1",
                 usealtair=True,
-                usepsrs=usepars,
+                usepsrs=usepsrs,
                 usecondition=usecondition,
                 xlabel="Period (s)",
                 ylabel="Period Derivative",
@@ -2958,7 +2970,9 @@ class QueryATNF(object):
                 ylabel="Period Derivative",
                 logx=True,
                 logy=True,
-                intrinsicpdot=intrinsicpdot
+                intrinsicpdot=intrinsicpdot,
+                xlims=periodlims,
+                ylims=pdotlims
             )
 
             if figax is None:
@@ -2966,15 +2980,11 @@ class QueryATNF(object):
             else:
                 fig, ax = figax
 
-            # get limits
             if periodlims is None:
-                periodlims = [10**np.floor(np.min(np.log10(periods))),
-                              10.*int(np.ceil(np.max(pdots)/10.))]
+                periodlims = ax.get_xlims()
+
             if pdotlims is None:
-                pdotlims = [10**np.floor(np.min(np.log10(pdots))),
-                            10**np.ceil(np.max(np.log10(pdots)))]
-            ax.set_xlim(periodlims)
-            ax.set_ylim(pdotlims)
+                pdotlims = ax.get_ylims()
 
             if deathline:
                 deathpdots = 10**death_line(np.log10(periodlims),
