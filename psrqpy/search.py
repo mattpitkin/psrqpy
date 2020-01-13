@@ -2798,19 +2798,23 @@ class QueryATNF(object):
         if usealtair:
             # set tool tip values
             tooltip = []
-            if 'JNAME' in t:
+            if 'JNAME' in table.columns:
                 tooltip.append('JNAME')
-            if 'F0' in t and 'F0' not in [param1, param2]:
+            if 'F0' in table.columns and 'F0' not in [param1, param2]:
                 tooltip.append('F0')
-            elif 'P0' in t and 'P0' not in [param1, param2]:
+            elif 'P0' in table.columns and 'P0' not in [param1, param2]:
                 tooltip.append('P0')
             tooltip.append(param1)
             tooltip.append(param2)
 
+            psrtable = {}
+            if "BINARY" in nshowtypes:
+                psrtable["BINARY"] = binaries.to_pandas()
+
             text = alt.TextConfig(font='Helvetica')
             config = alt.Config(text=text)
 
-            chart = alt.Chart(t, height=600, width=800,
+            chart = alt.Chart(table.to_pandas(), height=600, width=800,
                               config=config).mark_circle().encode(
                     alt.X(param1+':Q', scale=alt.Scale(type=scales[0]),
                           axis=alt.Axis(format='~g'),
@@ -2823,9 +2827,9 @@ class QueryATNF(object):
                     titleFont="Helvetica",
                     titleFontSize=12,
                     labelFont="Helvetica"
-                ).interactive()
+                )
 
-            return chart
+            return chart.interactive()
         else:
             rcparams['figure.figsize'] = rcparams['figure.figsize'] if 'figure.figsize' in rcparams else (9, 9.5)
             rcparams['figure.dpi'] = rcparams['figure.dpi'] if 'figure.dpi' in rcparams else 250
