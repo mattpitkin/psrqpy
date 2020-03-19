@@ -192,6 +192,30 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
             psrlist[i]['RAJD'] = coord.ra.deg    # right ascension in degrees
             psrlist[i]['DECJD'] = coord.dec.deg  # declination in degrees
 
+            # set errors on positions in degrees
+            if "RAJ_ERR" in psr.keys():
+                # get the units for the error
+                nvals = len(psr["RAJ"].split(":"))
+                rajscale = 1.0 / (60.0 ** (len(psr["RAJ"].split(":")) - 1))
+
+                psrlist[i]["RAJD_ERR"] = (
+                    psr["RAJ_ERR"] * rajscale * aunits.hourangle
+                ).to("deg").value
+
+            if "DECJ_ERR" in psr.keys():
+                # get the units for the error
+                nvals = len(psr["DECJ"].split(":"))
+                if nvals == 1:
+                    decunit = aunits.deg
+                elif nvals == 2:
+                    decunit = aunits.arcmin
+                else:
+                    decunit = aunits.arcsec
+
+                psrlist[i]["DECJD_ERR"] = (
+                    psr["DECJ_ERR"] * decunit
+                ).to("deg").value
+
         # add 'JNAME', 'BNAME' and 'NAME'
         if 'PSRJ' in psr.keys():
             psrlist[i]['JNAME'] = psr['PSRJ']
