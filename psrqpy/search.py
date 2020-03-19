@@ -17,6 +17,7 @@ from six import string_types
 import numpy as np
 import astropy
 from astropy.coordinates import SkyCoord, ICRS, Galactic
+from astropy.table.column import MaskedColumn, Column
 import astropy.units as aunits
 from astropy.constants import c, GM_sun
 from astropy.table import Table
@@ -2361,19 +2362,42 @@ class QueryATNF(object):
             if par in psr.columns:
                 parval = psr[par]
 
-                if not parval.mask[0]:
+                if type(parval) == MaskedColumn:
+                    # required for astropy versions below v4
+                    if not parval.mask[0]:
+                        variables.append(par)
+                        values.append(parval[0])
+
+                        if par+'_ERR' in psr.columns:
+                            errval = psr[par+'_ERR']
+
+                            if type(errval) == MaskedColumn:
+                                if not errval.mask[0]:
+                                    errors.append(errval[0])
+                                else:
+                                    errors.append(None)
+                            else:
+                                errors.append(errval[0])
+                        else:
+                            errors.append(None)
+                elif type(parval) == Column:
                     variables.append(par)
                     values.append(parval[0])
 
                     if par+'_ERR' in psr.columns:
                         errval = psr[par+'_ERR']
 
-                        if not errval.mask[0]:
-                            errors.append(errval[0])
+                        if type(errval) == MaskedColumn:
+                            if not errval.mask[0]:
+                                errors.append(errval[0])
+                            else:
+                                errors.append(None)
                         else:
-                            errors.append(None)
+                            errors.append(errval[0])
                     else:
                         errors.append(None)
+                else:
+                    raise TypeError("Pulsar contains a non-column type!")
 
         mkl = max([len(kn) for kn in variables])+2  # max key length for output alignment
         vlb = precision + 10  # allow extra space for minus sign/exponents
@@ -2896,7 +2920,10 @@ class QueryATNF(object):
                 thistype = stype.upper()
                 if thistype == 'BINARY':
                     # for binaries used the 'BINARY' column in the table
-                    typeidx = np.flatnonzero(~binaries.mask)
+                    if type(binaries) == MaskedColumn:
+                        typeidx = np.flatnonzero(~binaries.mask)
+                    else:
+                        typeidx = np.ones(len(binaries))
                 elif thistype in ['GC', 'SNR']:
                     typeidx = np.flatnonzero(
                         np.char.find(np.array(assocs.tolist(),

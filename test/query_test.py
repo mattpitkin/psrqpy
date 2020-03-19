@@ -9,6 +9,7 @@ import numpy as np
 from pandas import Series
 import pytest_socket
 from six import string_types
+from astropy.table.column import MaskedColumn
 
 
 def sf_scale(value):
@@ -172,7 +173,10 @@ def test_condition(query):
     f0s = psrs['F0']
     binary = psrs['BINARY']
 
-    assert not np.any(f0s < 100.) and not np.any(binary.mask)
+    if type(binary) == MaskedColumn:
+        assert not np.any(f0s < 100.) and not np.any(binary.mask)
+    else:
+        assert not np.any(f0s < 100.)
 
     # test 'OR'
     query.condition = 'F0 > 100 || type(binary)'
@@ -181,7 +185,8 @@ def test_condition(query):
     f0s = psrs['F0']
     binary = psrs['BINARY']
 
-    assert np.all(~binary[f0s < 100.].mask)
+    if type(binary) == MaskedColumn:
+        assert np.all(~binary[f0s < 100.].mask)
 
     # test 'NOT'
     query.condition = 'F0 > 100 and not type(binary)'
@@ -190,7 +195,10 @@ def test_condition(query):
     f0s = psrs['F0']
     binary = psrs['BINARY']
 
-    assert not np.any(f0s < 100) and np.all(binary.mask)
+    if type(binary) == MaskedColumn:
+        assert not np.any(f0s < 100) and np.all(binary.mask)
+    else:
+        assert not np.any(f0s < 100)
 
     # test type (not binary)
     query.condition = 'type(HE)'
@@ -224,7 +232,8 @@ def test_condition(query):
     psrs = query.table
     pmras = psrs['PMRA']
 
-    assert len(pmras) == np.sum(~allpsrs['PMRA'].mask)
+    if type(allpsrs['PMRA']) == MaskedColumn:
+        assert len(pmras) == np.sum(~allpsrs['PMRA'].mask)
 
     # reset condition
     query.condition = None
