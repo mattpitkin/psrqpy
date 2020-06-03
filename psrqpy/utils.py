@@ -485,14 +485,21 @@ def get_references(useads=False, cache=True):
         else:
             thisline = line.decode()
 
-        if thisline[0:3] == '***':
+        if thisline[0:7] == 'bibitem' or "endthebibliography" in thisline:
             if refidx > 0:
+                # parse the line
+                refparts = thisref[thisref.find("]")+1:].split()
+                thisname = refparts[0]  # the identifier
+                refpad = refparts[0][-1] if refparts[0][-1].isalpha() else ""
+
                 # return reference making sure to only have single spaces
-                refdic[thisname] = re.sub(r'\s+', ' ', thisref)
+                refstr = re.sub(r'\s+', ' ', "".join(refparts[1:]))
+                # remove natelab{x} from year string
+                refstr = re.sub(r"natexlab\w", "", refstr)
+                refdic[thisname] = refstr
             thisref = ''
             refidx += 1
-            thisname = thisline.split()[0].strip('***')
-            thisref += thisline[thisline.find(':')+1:]
+            thisref += thisline[7:]  # remove bibitem
         else:
             # make sure there is a space so words don't get concatenated
             thisref += ' '
@@ -557,6 +564,8 @@ def get_references(useads=False, cache=True):
         match = re.match(r'.*([1-2][0-9]{3}[az]{1}|[1-2][0-9]{3})', refstring)
         if match is None:
             continue
+
+        # change matching and splitting to something like spl= re.split(r".([1-2][0-9]{3})") with the assumption that the year comes after the authors with like, e.g. ".2002"
 
         # do splitting
         spl = re.split(r'([1-2][0-9]{3}[az]{1}|[1-2][0-9]{3})', refstring)
