@@ -26,10 +26,6 @@ from .config import (ATNF_BASE_URL, ADS_URL, ATNF_TARBALL,
                      PSR_ALL, PSR_ALL_PARS, GLITCH_URL)
 
 
-# problematic references that are hard to parse
-PROB_REFS = ['bwck08', 'crf+18']
-
-
 def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
     """
     This function will attempt to download and cache the entire ATNF Pulsar
@@ -440,18 +436,29 @@ def get_glitch_catalogue(psr=None):
                 return table[table['JNAME'] == psr]
 
 
-def get_references(useads=False, cache=True):
+def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False):
     """
     Return a dictionary of paper
     `reference <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_ref.html>`_
     in the ATNF catalogue. The keys are the ref strings given in the ATNF
     catalogue.
 
+    Note: The way that the ATNF references are stored has changed, so if you
+    downloaded the catalogue with a version of psrqpy before v1.0.8 you may
+    need to run this function with ``updaterefcache=True`` to allow references
+    to work. You may also want to update the ATNF catalogue tarball with:
+
+    >>> import psrqpy
+    >>> psrqpy.QueryATNF(checkupdate=True)
+
     Args:
         useads (bool): boolean to set whether to use the python mod:`ads`
             module to get the NASA ADS URL for the references.
         cache (bool): use cached, or cache, the reference bundled with the
             catalogue tarball.
+        updaterefcache (bool): update the cached references.
+        bibtex (bool): if using ADS return the bibtex for the reference along
+            with the ADS URL.
 
     Returns:
         dict: a dictionary of references.
@@ -493,9 +500,10 @@ def get_references(useads=False, cache=True):
                 refpad = refparts[0][-1] if refparts[0][-1].isalpha() else ""
 
                 # return reference making sure to only have single spaces
-                refstr = re.sub(r'\s+', ' ', "".join(refparts[1:]))
+                refstr = re.sub(r'\s+', ' ', " ".join(refparts[1:]))
                 # remove natelab{x} from year string
                 refstr = re.sub(r"natexlab\w", "", refstr)
+
                 refdic[thisname] = refstr
             thisref = ''
             refidx += 1
@@ -531,7 +539,7 @@ def get_references(useads=False, cache=True):
         dummyfile = os.path.join('{}'.format(tmpdir), 'ads_cache')
 
         # check if cached ADS refs list exists (using dummy URL)
-        if is_url_in_cache(dummyurl):
+        if is_url_in_cache(dummyurl) and not updaterefcache:
             adsfile = download_file(dummyurl, cache=True, show_progress=False)
 
             try:
@@ -541,44 +549,43 @@ def get_references(useads=False, cache=True):
                               UserWarning)
                 return refdic, None
 
-            adsrefs = json.load(fp)
+            cachedrefs = json.load(fp)
             fp.close()
 
-            return refdic, adsrefs
+            adsrefs = None
+            adsbibtex = None
+            if "urls" in cachedrefs:
+                adsrefs = cachedrefs["urls"]
+            if bibtex and "bibtex" in cachedrefs:
+                adsbibtex = cachedrefs["bibtex"]
+
+            if bibtex:
+                return refdic, adsrefs, adsbibtex
+            else:
+                return refdic, adsrefs
         else:
             adsrefs = {}
 
     # loop over references
     j = 0
+    bibcodes = {}
     for reftag in refdic:
         j = j + 1
 
-        if reftag in PROB_REFS:
-            continue
-
         refstring = refdic[reftag]
 
-        # try getting the year from the string and split on this (allows years
-        # between 1000-2999 and followed by a lowercase letter, e.g. 2009 or
-        # 2009a)
-        match = re.match(r'.*([1-2][0-9]{3}[az]{1}|[1-2][0-9]{3})', refstring)
-        if match is None:
+        # do splitting on the year (allows between 1000-2999)
+        spl = re.split(r"([1-2][0-9]{3})", refstring)
+
+        if len(spl) < 2:
+            # no authors + year, so ignore!
             continue
 
-        # change matching and splitting to something like spl= re.split(r".([1-2][0-9]{3})") with the assumption that the year comes after the authors with like, e.g. ".2002"
-
-        # do splitting
-        spl = re.split(r'([1-2][0-9]{3}[az]{1}|[1-2][0-9]{3})', refstring)
-
-        if len(spl) != 3:
-            # more than 1 "year", so ignore!
-            continue
-
-        year = spl[1] if len(spl[1]) == 4 else spl[1][:4]
+        year = spl[1] if len(spl[1]) == 4 else None
 
         try:
             int(year)
-        except ValueError:
+        except (ValueError, TypeError):
             # "year" is not an integer
             continue
 
@@ -586,10 +593,10 @@ def get_references(useads=False, cache=True):
         authors = spl[0].strip().strip('.')
 
         # remove " Jr." from any author names (as it causes issues!)
-        authors = authors.replace(' Jr.', '')
+        authors = authors.replace(" Jr.", "")
 
         # separate out authors
-        sepauthors = authors.split('.,')[:-1]
+        sepauthors = [auth.lstrip() for auth in authors.split('.,')[:-1]]
 
         if len(sepauthors) == 0:
             # no authors were parsed
@@ -608,34 +615,71 @@ def get_references(useads=False, cache=True):
         else:
             sepauthors = [a+'.' for a in sepauthors]  # re-add final full stops
 
-        # get the title
-        try:
-            # remove preceding or trailing full stops
-            title = spl[2].strip('.').split('.')[0].strip()
-        except RuntimeError:
-            # could not get title so ignore this entry
-            continue
+        # remove any authors with an apostrophe as query can't handle them!
+        sepauthors = [a for a in sepauthors if "'" not in a]
+
+        bibkwargs = {}
+        bibstem = None
+        volume = None
+        if len(spl) > 2:
+            # join the remaining values and split on ","
+            extrainfo = ("".join(spl[2:])).split(",")
+            # get the journal (assumed to be the first item in extrainfo)
+            try:
+                # remove preceding or trailing full stops
+                journal = extrainfo[1].strip()
+                if len(journal) > 0:
+                    bibkwargs["bibstem"] = journal
+            except (RuntimeError, IndexError):
+                # could not get title so ignore this entry
+                pass
+
+            # get the volume if given
+            try:
+                volume = int(extrainfo[2].strip())
+            except (IndexError, TypeError, ValueError):
+                # could not get the volume
+                pass
+
+            if isinstance(volume, int):
+                bibkwargs["volume"] = volume 
 
         # try getting ADS references
         try:
-            article = ads.SearchQuery(year=year, first_author=sepauthors[0],
-                                      title=title)
-        except APIResponseError:
+            article = ads.SearchQuery(year=year, author=", ".join(sepauthors),
+                                      first_author=sepauthors[0],
+                                      **bibkwargs)
+        except (APIResponseError, IndexError):
             warnings.warn('Could not get reference information, so no ADS '
                           'information will be included', UserWarning)
             continue
 
         try:
-            adsrefs[reftag] = ADS_URL.format(list(article)[0].bibcode)
+            bibcodes[reftag] = list(article)[0].bibcode
+            adsrefs[reftag] = ADS_URL.format(bibcodes[reftag])
         except (IndexError, APIResponseError):
             pass
+
+    if bibtex:
+        # use ExportQuery to get bibtex
+        expquery = ads.ExportQuery(list(bibcodes.values())).execute().split("\n\n")[:-1]
+        adsbibtex = {}
+        for i, reftag in enumerate(bibcodes):
+            adsbibtex[reftag] = expquery[i]
 
     if cache:
         # output adsrefs to cache file
         try:
             # output to dummy temporary file and then "download" to cache
             fp = open(dummyfile, 'w')
-            json.dump(adsrefs, fp, indent=2)
+
+            cachedic = {}
+            cachedic["urls"] = adsrefs
+
+            if bibtex:
+                cachedic["bibtex"] = adsbibtex
+
+            json.dump(cachedic, fp, indent=2)
             fp.close()
         except IOError:
             raise IOError("Could not output the ADS references to a file")
@@ -646,7 +690,10 @@ def get_references(useads=False, cache=True):
         # remove the temporary file
         os.remove(dummyfile)
 
-    return refdic, adsrefs
+    if bibtex:
+        return refdic, adsrefs, adsbibtex
+    else:
+        return refdic, adsrefs
 
 
 # string of logical expressions for use in regex parser
