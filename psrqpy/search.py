@@ -39,6 +39,13 @@ else:
     ASTROPY_V32 = False
 
 
+# set default astropy galactocentric frame values
+# (https://docs.astropy.org/en/latest/coordinates/galactocentric.html)
+if version.parse(astropy.__version__) >= version.parse("4.0"):
+    from astropy.coordinates import galactocentric_frame_defaults
+    _ = galactocentric_frame_defaults.set("pre-v4.0")
+
+
 class QueryATNF(object):
     """
     A class to generate a query of the
