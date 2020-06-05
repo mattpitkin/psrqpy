@@ -13,7 +13,7 @@ before_install:
   # add a latex install for the matplotlib testing
   #- sudo apt-get -qq update && sudo apt-get install -y --no-install-recommends texlive-full
   # try a lighter weight texlive distribution, e.g. just texlive and texlive-latex-extra
-  - sudo apt-get -qq update && sudo apt-get install -y --no-install-recommends texlive texlive-latex-extra
+  - sudo apt-get -qq update && sudo apt-get install -y --no-install-recommends texlive texlive-latex-extra dvipng latexmk
 services:  # see https://docs.travis-ci.com/user/gui-and-headless-browsers/#using-services-xvfb
   - xvfb
 install:
