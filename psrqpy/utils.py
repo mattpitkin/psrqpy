@@ -680,7 +680,7 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False)
                 pass
 
             if isinstance(volume, int):
-                bibkwargs["volume"] = volume 
+                bibkwargs["volume"] = volume
 
         # try getting ADS references
         try:
