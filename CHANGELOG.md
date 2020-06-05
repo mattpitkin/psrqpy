@@ -1,5 +1,24 @@
 # Notable changes between versions
 
+## [1.0.8] 2020-06-05
+
+Changes for this release:
+
+- The way references are stored in the ATNF pulsar catalogue has changed, so the `get_references` function has been changed to work with this new format. This breaks that function for older cached catalogue, but a warning is provided.. See [#64](https://github.com/mattpitkin/psrqpy/pull/64).
+- The astropy Galactocentric coordinates have been set to use default values from the pre-v4.0 release. See [#65](https://github.com/mattpitkin/psrqpy/pull/65).
+
+## [1.0.7] 2020-03-29
+
+Changes for this release:
+
+- Fix an issue with Tables in Astropy v4.0 (see [#61](https://github.com/mattpitkin/psrqpy/pull/61)).
+
+## [1.0.6] 2020-03-19
+
+Changes for this release:
+
+- Adds position errors on the right ascension and declination when converted into degrees (see [#60](https://github.com/mattpitkin/psrqpy/pull/60)).
+
 ## [1.0.5] 2019-09-04
 
 Changes for this release:
