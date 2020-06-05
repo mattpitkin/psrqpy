@@ -7,6 +7,7 @@ from __future__ import print_function, division
 import warnings
 import re
 import os
+import functools
 import numpy as np
 import requests
 import tarfile
@@ -436,6 +437,43 @@ def get_glitch_catalogue(psr=None):
                 return table[table['JNAME'] == psr]
 
 
+def check_old_references(func):
+    @functools.wraps(func)
+    def wrapper_check_old_references(*args, **kwargs):
+        # check version
+        try:
+            return func(*args, **kwargs)
+        except Exception:
+            warnings.warn(
+                "The way references are stored in the ATNF catalogue has "
+                "changed and 'get_references' will no longer parse the old "
+                "style references. Please update your cached version of the "
+                "ATNF pulsar catalogue with:\n\n"
+                ">>> from psrqpy import QueryATNF\n"
+                ">>> QueryATNF(checkupdate=True)\n\n"
+                "and update any cached references with:\n\n"
+                ">>> from psrqpy import get_references\n"
+                ">>> refs = get_references(updaterefcache=True)"
+            )
+            # get the correct number of expected outputs
+            output = [None]
+            if kwargs.get("useads", False):
+                output.append(None)
+            elif len(args) > 0:
+                if args[0]:
+                    output.append(None)
+
+            if kwargs.get("bibtex", False):
+                output.append(None)
+            elif len(args) == 4:
+                if args[3]:
+                    output.append(None)
+
+            return tuple(output)
+    return wrapper_check_old_references
+
+
+@check_old_references
 def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False):
     """
     Return a dictionary of paper
