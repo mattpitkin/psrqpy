@@ -1,10 +1,14 @@
 # Notable changes between versions
 
+## [1.0.9] 2020-06-08
+
+- A minor fix to get ADS references to work. See [#66](https://github.com/mattpitkin/psrqpy/pull/66).
+
 ## [1.0.8] 2020-06-05
 
 Changes for this release:
 
-- The way references are stored in the ATNF pulsar catalogue has changed, so the `get_references` function has been changed to work with this new format. This breaks that function for older cached catalogue, but a warning is provided.. See [#64](https://github.com/mattpitkin/psrqpy/pull/64).
+- The way references are stored in the ATNF pulsar catalogue has changed, so the `get_references` function has been changed to work with this new format. This breaks that function for older cached catalogue, but a warning is provided. See [#64](https://github.com/mattpitkin/psrqpy/pull/64).
 - The astropy Galactocentric coordinates have been set to use default values from the pre-v4.0 release. See [#65](https://github.com/mattpitkin/psrqpy/pull/65).
 
 ## [1.0.7] 2020-03-29
