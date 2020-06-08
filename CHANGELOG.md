@@ -1,5 +1,9 @@
 # Notable changes between versions
 
+## [1.0.9] 2020-06-08
+
+- A minor fix to get ADS references to work. 
+
 ## [1.0.8] 2020-06-05
 
 Changes for this release:

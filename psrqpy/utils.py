@@ -688,8 +688,11 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False)
                                       first_author=sepauthors[0],
                                       **bibkwargs)
         except (APIResponseError, IndexError):
-            warnings.warn('Could not get reference information, so no ADS '
-                          'information will be included', UserWarning)
+            warnings.warn(
+                'Could not get reference information, so no ADS '
+                'information for {} will be included'.format(reftag),
+                UserWarning,
+            )
             continue
 
         try:
@@ -700,10 +703,14 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False)
 
     if bibtex:
         # use ExportQuery to get bibtex
-        expquery = ads.ExportQuery(list(bibcodes.values())).execute().split("\n\n")[:-1]
+        expquery = ads.ExportQuery(list(bibcodes.values())).execute().split("\n\n")
+
         adsbibtex = {}
-        for i, reftag in enumerate(bibcodes):
-            adsbibtex[reftag] = expquery[i]
+        for reftag in bibcodes:
+            for equery in expquery:
+                if bibcodes[reftag] in equery:
+                    adsbibtex[reftag] = equery
+                    break
 
     if cache:
         # output adsrefs to cache file
