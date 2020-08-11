@@ -443,7 +443,12 @@ def check_old_references(func):
         # check version
         try:
             return func(*args, **kwargs)
-        except Exception:
+        except Exception as e:
+            if kwargs.get("useads", False):
+                from ads.exceptions import APIResponseError
+                if type(e) is APIResponseError:
+                    raise(e)
+
             warnings.warn(
                 "The way references are stored in the ATNF catalogue has "
                 "changed and 'get_references' will no longer parse the old "
@@ -473,8 +478,8 @@ def check_old_references(func):
     return wrapper_check_old_references
 
 
-####   dave  ####   @check_old_references    ###  This line had trivial errors reminding you to update psrcat.
-def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False):
+@check_old_references
+def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False, showfails=False):
     """
     Return a dictionary of paper
     `reference <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_ref.html>`_
@@ -493,11 +498,13 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False)
         useads (bool): boolean to set whether to use the python mod:`ads`
             module to get the NASA ADS URL for the references.
         cache (bool): use cached, or cache, the reference bundled with the
-            catalogue tarball.  
-DAVE -- "cache" indeed used for ATNF_TARBALL but then later also for adsrefs{}. 
+            catalogue tarball.
         updaterefcache (bool): update the cached references.
         bibtex (bool): if using ADS return the bibtex for the reference along
             with the ADS URL.
+        showfails (bool): if outputting NASA ADS references set this flag to
+            True to output the reference tags of references that fail to be
+            found.
 
     Returns:
         dict: a dictionary of references.
@@ -581,10 +588,6 @@ DAVE -- "cache" indeed used for ATNF_TARBALL but then later also for adsrefs{}.
         if is_url_in_cache(dummyurl) and not updaterefcache:
             adsfile = download_file(dummyurl, cache=True, show_progress=False)
 
-#  dave 16 July 2020, adsfile points to this:
-# lh /home/local1/.astropy/cache/download/py3/2999bfc7a450995c039d729e101a6e61
-# -rw-------. 1 local1 local1 434K Jun 12 13:18 /home/local1/.astropy/cache/download/py3/2999bfc7a450995c039d729e101a6e61
-
             try:
                 fp = open(adsfile, 'r')
             except IOError:
@@ -597,22 +600,31 @@ DAVE -- "cache" indeed used for ATNF_TARBALL but then later also for adsrefs{}.
 
             adsrefs = None
             adsbibtex = None
+            failures = None
             if "urls" in cachedrefs:
                 adsrefs = cachedrefs["urls"]
             if bibtex and "bibtex" in cachedrefs:
                 adsbibtex = cachedrefs["bibtex"]
+            if showfails and "failures" in cacherefs:
+                failures = cachedrefs["failures"]
 
             if bibtex:
-                return refdic, adsrefs, adsbibtex
+                if failures is None:
+                    return refdic, adsrefs, adsbibtex
+                else:
+                    return refdic, adsrefs, adsbibtex, failures
             else:
-                return refdic, adsrefs
+                if failures is None:
+                    return refdic, adsrefs
+                else:
+                    return refdic, adsrefs, failures
         else:
             adsrefs = {}
 
     # loop over references
-    print ( " WELL? ",   len(refdic) )  # (dave) Gets here, 1052 refs, cache=True or False, updaterefcache=True
     j = 0
     bibcodes = {}
+    failures = []
     for reftag in refdic:
         j = j + 1
 
@@ -633,6 +645,7 @@ DAVE -- "cache" indeed used for ATNF_TARBALL but then later also for adsrefs{}.
 
             if len(spl) < 2:
                 # no authors + year, so ignore!
+                failures.append(reftag)
                 continue
 
             year = spl[1] if len(spl[1]) == 4 else None
@@ -641,6 +654,7 @@ DAVE -- "cache" indeed used for ATNF_TARBALL but then later also for adsrefs{}.
                 int(year)
             except (ValueError, TypeError):
                 # "year" is not an integer
+                failures.append(reftag)
                 continue
 
             # get the authors (remove line breaks/extra spaces and final full-stop)
@@ -649,41 +663,32 @@ DAVE -- "cache" indeed used for ATNF_TARBALL but then later also for adsrefs{}.
             # remove " Jr." from any author names (as it causes issues!)
             authors = authors.replace(" Jr.", "")
 
-            # separate out authors
-            sepauthors = [auth.lstrip() for auth in authors.split('.,')[:-1]]
+            # replace ampersands/and with ".," for separation
+            authors = authors.replace(" &", ".,").replace(" and", ".,")
 
-            if len(sepauthors) == 0:
-                # no authors were parsed
-                continue
+            # separate out authors
+            sepauthors = [auth.lstrip() for auth in authors.split('.,') if len(auth.strip()) > 0]
 
             # remove any "'s for umlauts in author names
             sepauthors = [a.replace(r'"', '') for a in sepauthors]
 
-            # split any authors that are seperated by an ampersand
-            if '&' in sepauthors[-1] or 'and' in sepauthors[-1]:
-                lastauthors = [a.strip() for a in re.split(r'& | and ', sepauthors.pop(-1))]
-                sepauthors = sepauthors + lastauthors
-                for i in range(len(sepauthors)-2):
-                    sepauthors[i] += '.'  # re-add final full stops where needed
-                sepauthors[-1] += '.'
-            else:
-                sepauthors = [a+'.' for a in sepauthors]  # re-add final full stops
-
             # remove any authors with an apostrophe as query can't handle them!
             sepauthors = [a for a in sepauthors if "'" not in a]
 
-            bibkwargs = {}
-            bibstem = None
+            if len(sepauthors) == 0:
+                # no authors were parsed
+                failures.append(reftag)
+                continue
+
             volume = None
             if len(spl) > 2:
                 # join the remaining values and split on ","
                 extrainfo = ("".join(spl[2:])).split(",")
+                print(extrainfo)
                 # get the journal (assumed to be the first item in extrainfo)
                 try:
                     # remove preceding or trailing full stops
                     journal = extrainfo[1].strip()
-                    if len(journal) > 0:
-                        bibkwargs["bibstem"] = journal
                 except (RuntimeError, IndexError):
                     # could not get title so ignore this entry
                     pass
@@ -693,33 +698,14 @@ DAVE -- "cache" indeed used for ATNF_TARBALL but then later also for adsrefs{}.
                     volume = int(extrainfo[2].strip())
                 except (IndexError, TypeError, ValueError):
                     # could not get the volume
-                    volume = None # dave
-                    pass
+                    pass    
 
-                if isinstance(volume, int):
-                    bibkwargs["volume"] = volume
-
-                # get the page if given (dave)
+                # get the page if given
                 page = extrainfo[-1].strip()
-                print ( " WELL? (1.72) ",   extrainfo, page)
 
-        # try getting ADS references
-#        fiona = ", ".join(sepauthors)   # dave
-#        q = []
-                if len(sepauthors) > 1:
-                    print ( " WELL? (2) ", sepauthors[0], year, volume, page, bibkwargs, type(year), type(volume), type(page))  #, ' FIONA: ', fiona )  # dave Gets here, updaterefcache=True
-                else:
-                    print ( " WELL? (2) ", year, volume, page, bibkwargs, type(year), type(volume), type(page))
-        '''
-DAVE SMITH attempts revolution here.
-Matt's SearchQuery works for <1/2 of the psrcat references.
-Main problem is that the ADS queries strings aren't as robust as we'd hope.
-Dave thinks the q=myquery using first author ; year ; volume ; and page will be robust.
-
-These two examples work both in code and using the adw www interface.
-myquery = 'author:"^Bailes" AND year:1997 AND volume:481 AND page:386'
-myquery = 'author:"^Alurkar" AND year:1986 AND volume:39 AND page:433'
-        '''
+            if volume is None:
+                failures.append(reftag)
+                continue
 
         # generate the query string
         if arxivid is None:
@@ -727,7 +713,7 @@ myquery = 'author:"^Alurkar" AND year:1986 AND volume:39 AND page:433'
             myquery = 'year:{} AND volume:{} AND page:{}'.format(year, volume, page)
 
             # add author is given
-            if len(sepauthors) > 1:
+            if len(sepauthors) > 0:
                 # check if authors have spaces in names (a few cases due to formating of some accented names),
                 # if so try next author...
                 myquery
@@ -737,21 +723,11 @@ myquery = 'author:"^Alurkar" AND year:1986 AND volume:39 AND page:433'
                         break
         else:
             myquery = arxivid
-        print (" MYQUERY: ", myquery)  # dave
-        if volume is None: continue   # dave -- be nice to output a list of those you punt for, to fix later. e.g. aaa+13 which is 2PC but only has
 
         try:
-# Matt's original query line:
-#            article = ads.SearchQuery(year=year, author=fiona,
-#                                      first_author=sepauthors[0],
-#                                      **bibkwargs)
             article = ads.SearchQuery(q=myquery)
-
-#            q.append(list(article))
-            print (" HERE WAS DAVE: ")#, article.response.get_ratelimits(), useads, adsfile, len(refdic) , len(adsrefs) , len(adsbibtex) )  # 16 July 2020, does it get here?
-#        except (APIResponseError, IndexError):
-        except :
-            print ( " WELL? (2.5) ", reftag)  # dave 
+        except APIResponseError:
+            failures.append(reftag)
             warnings.warn(
                 'Could not get reference information, so no ADS '
                 'information for {} will be included'.format(reftag),
@@ -759,27 +735,15 @@ myquery = 'author:"^Alurkar" AND year:1986 AND volume:39 AND page:433'
             )
             continue
 
-        '''
-        print ( " WELL? (2.71) ", list(article)[0].bibcode) # dave
-        print ( " WELL? (2.72) ", ADS_URL.format(list(article)[0].bibcode)) # dave
-        try:
-            bibcodes[reftag] = list(article)[0].bibcode
-            adsrefs[reftag] = ADS_URL.format(bibcodes[reftag])
-        except (IndexError, APIResponseError):
-            print ( " WELL? (2.8) ")#,bibcodes[reftag] ,adsrefs[reftag] )  # dave 29 July 2020 -- gets here.
-            pass
-        '''
-# Above crashes for dave, he tries below:
         for paper in article:
-           print (j, "GOOBA", reftag, paper.title, paper.bibcode)
-           bibcodes[reftag] = paper.bibcode
-           adsrefs[reftag] = ADS_URL.format(bibcodes[reftag])
-
-
-        #if j>60 : break  # dave debugging
+            bibcodes[reftag] = paper.bibcode
+            adsrefs[reftag] = ADS_URL.format(bibcodes[reftag])
+        
+        # check if paper bibcode was found
+        if reftag not in bibcodes:
+            failures.append(reftag)
 
     if bibtex:
-        print ( " WELL? (3) ", bibcodes )  # dave
         # use ExportQuery to get bibtex
         expquery = ads.ExportQuery(list(bibcodes.values())).execute().split("\n\n")
 
@@ -802,6 +766,9 @@ myquery = 'author:"^Alurkar" AND year:1986 AND volume:39 AND page:433'
             if bibtex:
                 cachedic["bibtex"] = adsbibtex
 
+            if showfails:
+                cachedic["failures"] = failures
+
             json.dump(cachedic, fp, indent=2)
             fp.close()
         except IOError:
@@ -814,9 +781,15 @@ myquery = 'author:"^Alurkar" AND year:1986 AND volume:39 AND page:433'
         os.remove(dummyfile)
 
     if bibtex:
-        return refdic, adsrefs, adsbibtex
+        if showfails:
+            return refdic, adsrefs, adsbibtex, failures
+        else:
+            return refdic, adsrefs, adsbibtex
     else:
-        return refdic, adsrefs
+        if showfails:
+            return refdic, adsrefs, failures
+        else:
+            return refdic, adsrefs
 
 
 # string of logical expressions for use in regex parser
