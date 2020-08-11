@@ -473,7 +473,7 @@ def check_old_references(func):
     return wrapper_check_old_references
 
 
-@check_old_references
+####   dave  ####   @check_old_references    ###  This line had trivial errors reminding you to update psrcat.
 def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False):
     """
     Return a dictionary of paper
@@ -493,7 +493,8 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False)
         useads (bool): boolean to set whether to use the python mod:`ads`
             module to get the NASA ADS URL for the references.
         cache (bool): use cached, or cache, the reference bundled with the
-            catalogue tarball.
+            catalogue tarball.  
+DAVE -- "cache" indeed used for ATNF_TARBALL but then later also for adsrefs{}. 
         updaterefcache (bool): update the cached references.
         bibtex (bool): if using ADS return the bibtex for the reference along
             with the ADS URL.
@@ -580,6 +581,10 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False)
         if is_url_in_cache(dummyurl) and not updaterefcache:
             adsfile = download_file(dummyurl, cache=True, show_progress=False)
 
+#  dave 16 July 2020, adsfile points to this:
+# lh /home/local1/.astropy/cache/download/py3/2999bfc7a450995c039d729e101a6e61
+# -rw-------. 1 local1 local1 434K Jun 12 13:18 /home/local1/.astropy/cache/download/py3/2999bfc7a450995c039d729e101a6e61
+
             try:
                 fp = open(adsfile, 'r')
             except IOError:
@@ -598,6 +603,7 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False)
                 adsbibtex = cachedrefs["bibtex"]
 
             if bibtex:
+                print (" DAVE WAS HERE: ", useads, adsfile, len(refdic) , len(adsrefs) , len(adsbibtex) )  # 16 July 2020, it gets here, cache=True, updaterefcache=False.
                 return refdic, adsrefs, adsbibtex
             else:
                 return refdic, adsrefs
@@ -605,6 +611,7 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False)
             adsrefs = {}
 
     # loop over references
+    print ( " WELL? ",   len(refdic) )  # (dave) Gets here, 1052 refs, cache=True or False, updaterefcache=True
     j = 0
     bibcodes = {}
     for reftag in refdic:
@@ -677,17 +684,47 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False)
                 volume = int(extrainfo[2].strip())
             except (IndexError, TypeError, ValueError):
                 # could not get the volume
+                volume = 999 # dave
                 pass
 
             if isinstance(volume, int):
                 bibkwargs["volume"] = volume
 
+            # get the page if given (dave)
+            page = extrainfo[-1].strip()
+            print ( " WELL? (1.72) ",   extrainfo, page)
+
         # try getting ADS references
+#        fiona = ", ".join(sepauthors)   # dave
+#        q = []
+        print ( " WELL? (2) ",   sepauthors[0], year, volume, page, bibkwargs, type(year), type(volume), type(page))  #, ' FIONA: ', fiona )  # dave Gets here, updaterefcache=True
+        '''
+DAVE SMITH attempts revolution here.
+Matt's SearchQuery works for <1/2 of the psrcat references.
+Main problem is that the ADS queries strings aren't as robust as we'd hope.
+Dave thinks the q=myquery using first author ; year ; volume ; and page will be robust.
+
+These two examples work both in code and using the adw www interface.
+myquery = 'author:"^Bailes" AND year:1997 AND volume:481 AND page:386'
+myquery = 'author:"^Alurkar" AND year:1986 AND volume:39 AND page:433'
+        '''
+
+        myquery = 'author:"^%s" AND year:%s AND volume:%d AND page:%s'%(sepauthors[0], year, volume, page)
+        print (" MYQUERY: ", myquery)  # dave
+        if volume == 999: continue   # dave -- be nice to output a list of those you punt for, to fix later. e.g. aaa+13 which is 2PC but only has 
+
         try:
-            article = ads.SearchQuery(year=year, author=", ".join(sepauthors),
-                                      first_author=sepauthors[0],
-                                      **bibkwargs)
-        except (APIResponseError, IndexError):
+# Matt's original query line:
+#            article = ads.SearchQuery(year=year, author=fiona,
+#                                      first_author=sepauthors[0],
+#                                      **bibkwargs)
+            article = ads.SearchQuery(q=myquery)
+
+#            q.append(list(article))
+            print (" HERE WAS DAVE: ")#, article.response.get_ratelimits(), useads, adsfile, len(refdic) , len(adsrefs) , len(adsbibtex) )  # 16 July 2020, does it get here?
+#        except (APIResponseError, IndexError):
+        except :
+            print ( " WELL? (2.5) ", reftag)  # dave 
             warnings.warn(
                 'Could not get reference information, so no ADS '
                 'information for {} will be included'.format(reftag),
@@ -695,13 +732,27 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False)
             )
             continue
 
+        '''
+        print ( " WELL? (2.71) ", list(article)[0].bibcode) # dave
+        print ( " WELL? (2.72) ", ADS_URL.format(list(article)[0].bibcode)) # dave
         try:
             bibcodes[reftag] = list(article)[0].bibcode
             adsrefs[reftag] = ADS_URL.format(bibcodes[reftag])
         except (IndexError, APIResponseError):
+            print ( " WELL? (2.8) ")#,bibcodes[reftag] ,adsrefs[reftag] )  # dave 29 July 2020 -- gets here.
             pass
+        '''
+# Above crashes for dave, he tries below:
+        for paper in article:
+           print (j, "GOOBA", reftag, paper.title, paper.bibcode)
+           bibcodes[reftag] = paper.bibcode
+           adsrefs[reftag] = ADS_URL.format(bibcodes[reftag])
+
+
+        #if j>60 : break  # dave debugging
 
     if bibtex:
+        print ( " WELL? (3) ", bibcodes )  # dave
         # use ExportQuery to get bibtex
         expquery = ads.ExportQuery(list(bibcodes.values())).execute().split("\n\n")
 
