@@ -603,7 +603,6 @@ DAVE -- "cache" indeed used for ATNF_TARBALL but then later also for adsrefs{}.
                 adsbibtex = cachedrefs["bibtex"]
 
             if bibtex:
-                print (" DAVE WAS HERE: ", useads, adsfile, len(refdic) , len(adsrefs) , len(adsbibtex) )  # 16 July 2020, it gets here, cache=True, updaterefcache=False.
                 return refdic, adsrefs, adsbibtex
             else:
                 return refdic, adsrefs
@@ -619,85 +618,98 @@ DAVE -- "cache" indeed used for ATNF_TARBALL but then later also for adsrefs{}.
 
         refstring = refdic[reftag]
 
-        # do splitting on the year (allows between 1000-2999)
-        spl = re.split(r"([1-2][0-9]{3})", refstring)
+        # check for arXiv identifier
+        arxivid = None
+        if "arXiv:" in refstring or "ArXiv:" in refstring:
+            for searchterm in [r"[Aa]rXiv:[0-9]{4}.[0-9]*", r"[Aa]rXiv:astro-ph/[0-9]{7}"]:
+                match = re.search(searchterm, refstring)
 
-        if len(spl) < 2:
-            # no authors + year, so ignore!
-            continue
-
-        year = spl[1] if len(spl[1]) == 4 else None
-
-        try:
-            int(year)
-        except (ValueError, TypeError):
-            # "year" is not an integer
-            continue
-
-        # get the authors (remove line breaks/extra spaces and final full-stop)
-        authors = spl[0].strip().strip('.')
-
-        # remove " Jr." from any author names (as it causes issues!)
-        authors = authors.replace(" Jr.", "")
-
-        # separate out authors
-        sepauthors = [auth.lstrip() for auth in authors.split('.,')[:-1]]
-
-        if len(sepauthors) == 0:
-            # no authors were parsed
-            continue
-
-        # remove any "'s for umlauts in author names
-        sepauthors = [a.replace(r'"', '') for a in sepauthors]
-
-        # split any authors that are seperated by an ampersand
-        if '&' in sepauthors[-1] or 'and' in sepauthors[-1]:
-            lastauthors = [a.strip() for a in re.split(r'& | and ', sepauthors.pop(-1))]
-            sepauthors = sepauthors + lastauthors
-            for i in range(len(sepauthors)-2):
-                sepauthors[i] += '.'  # re-add final full stops where needed
-            sepauthors[-1] += '.'
+                if match is not None:
+                    arxivid = match.group().lower()
+                    break
         else:
-            sepauthors = [a+'.' for a in sepauthors]  # re-add final full stops
+            # do splitting on the year (allows between 1000-2999)
+            spl = re.split(r"([1-2][0-9]{3})", refstring)
 
-        # remove any authors with an apostrophe as query can't handle them!
-        sepauthors = [a for a in sepauthors if "'" not in a]
+            if len(spl) < 2:
+                # no authors + year, so ignore!
+                continue
 
-        bibkwargs = {}
-        bibstem = None
-        volume = None
-        if len(spl) > 2:
-            # join the remaining values and split on ","
-            extrainfo = ("".join(spl[2:])).split(",")
-            # get the journal (assumed to be the first item in extrainfo)
+            year = spl[1] if len(spl[1]) == 4 else None
+
             try:
-                # remove preceding or trailing full stops
-                journal = extrainfo[1].strip()
-                if len(journal) > 0:
-                    bibkwargs["bibstem"] = journal
-            except (RuntimeError, IndexError):
-                # could not get title so ignore this entry
-                pass
+                int(year)
+            except (ValueError, TypeError):
+                # "year" is not an integer
+                continue
 
-            # get the volume if given
-            try:
-                volume = int(extrainfo[2].strip())
-            except (IndexError, TypeError, ValueError):
-                # could not get the volume
-                volume = 999 # dave
-                pass
+            # get the authors (remove line breaks/extra spaces and final full-stop)
+            authors = spl[0].strip().strip('.')
 
-            if isinstance(volume, int):
-                bibkwargs["volume"] = volume
+            # remove " Jr." from any author names (as it causes issues!)
+            authors = authors.replace(" Jr.", "")
 
-            # get the page if given (dave)
-            page = extrainfo[-1].strip()
-            print ( " WELL? (1.72) ",   extrainfo, page)
+            # separate out authors
+            sepauthors = [auth.lstrip() for auth in authors.split('.,')[:-1]]
+
+            if len(sepauthors) == 0:
+                # no authors were parsed
+                continue
+
+            # remove any "'s for umlauts in author names
+            sepauthors = [a.replace(r'"', '') for a in sepauthors]
+
+            # split any authors that are seperated by an ampersand
+            if '&' in sepauthors[-1] or 'and' in sepauthors[-1]:
+                lastauthors = [a.strip() for a in re.split(r'& | and ', sepauthors.pop(-1))]
+                sepauthors = sepauthors + lastauthors
+                for i in range(len(sepauthors)-2):
+                    sepauthors[i] += '.'  # re-add final full stops where needed
+                sepauthors[-1] += '.'
+            else:
+                sepauthors = [a+'.' for a in sepauthors]  # re-add final full stops
+
+            # remove any authors with an apostrophe as query can't handle them!
+            sepauthors = [a for a in sepauthors if "'" not in a]
+
+            bibkwargs = {}
+            bibstem = None
+            volume = None
+            if len(spl) > 2:
+                # join the remaining values and split on ","
+                extrainfo = ("".join(spl[2:])).split(",")
+                # get the journal (assumed to be the first item in extrainfo)
+                try:
+                    # remove preceding or trailing full stops
+                    journal = extrainfo[1].strip()
+                    if len(journal) > 0:
+                        bibkwargs["bibstem"] = journal
+                except (RuntimeError, IndexError):
+                    # could not get title so ignore this entry
+                    pass
+
+                # get the volume if given
+                try:
+                    volume = int(extrainfo[2].strip())
+                except (IndexError, TypeError, ValueError):
+                    # could not get the volume
+                    volume = None # dave
+                    pass
+
+                if isinstance(volume, int):
+                    bibkwargs["volume"] = volume
+
+                # get the page if given (dave)
+                page = extrainfo[-1].strip()
+                print ( " WELL? (1.72) ",   extrainfo, page)
 
         # try getting ADS references
 #        fiona = ", ".join(sepauthors)   # dave
 #        q = []
-        print ( " WELL? (2) ",   sepauthors[0], year, volume, page, bibkwargs, type(year), type(volume), type(page))  #, ' FIONA: ', fiona )  # dave Gets here, updaterefcache=True
+                if len(sepauthors) > 1:
+                    print ( " WELL? (2) ", sepauthors[0], year, volume, page, bibkwargs, type(year), type(volume), type(page))  #, ' FIONA: ', fiona )  # dave Gets here, updaterefcache=True
+                else:
+                    print ( " WELL? (2) ", year, volume, page, bibkwargs, type(year), type(volume), type(page))
         '''
 DAVE SMITH attempts revolution here.
 Matt's SearchQuery works for <1/2 of the psrcat references.
@@ -709,9 +721,24 @@ myquery = 'author:"^Bailes" AND year:1997 AND volume:481 AND page:386'
 myquery = 'author:"^Alurkar" AND year:1986 AND volume:39 AND page:433'
         '''
 
-        myquery = 'author:"^%s" AND year:%s AND volume:%d AND page:%s'%(sepauthors[0], year, volume, page)
+        # generate the query string
+        if arxivid is None:
+            # default query without authors
+            myquery = 'year:{} AND volume:{} AND page:{}'.format(year, volume, page)
+
+            # add author is given
+            if len(sepauthors) > 1:
+                # check if authors have spaces in names (a few cases due to formating of some accented names),
+                # if so try next author...
+                myquery
+                for k, thisauthor in enumerate(sepauthors):
+                    if len(thisauthor.split(",")[0].split()) == 1:
+                        myquery += ' AND author:"{}{}"'.format("^" if k == 0 else "", thisauthor)
+                        break
+        else:
+            myquery = arxivid
         print (" MYQUERY: ", myquery)  # dave
-        if volume == 999: continue   # dave -- be nice to output a list of those you punt for, to fix later. e.g. aaa+13 which is 2PC but only has 
+        if volume is None: continue   # dave -- be nice to output a list of those you punt for, to fix later. e.g. aaa+13 which is 2PC but only has
 
         try:
 # Matt's original query line:
