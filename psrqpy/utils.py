@@ -681,10 +681,11 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False,
                 continue
 
             volume = None
+            page = None
             if len(spl) > 2:
                 # join the remaining values and split on ","
                 extrainfo = ("".join(spl[2:])).split(",")
-                print(extrainfo)
+
                 # get the journal (assumed to be the first item in extrainfo)
                 try:
                     # remove preceding or trailing full stops
@@ -695,15 +696,22 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False,
 
                 # get the volume if given
                 try:
-                    volume = int(extrainfo[2].strip())
+                    volume = int(extrainfo[2].strip().lstrip("Vol."))
                 except (IndexError, TypeError, ValueError):
                     # could not get the volume
                     pass    
 
                 # get the page if given
-                page = extrainfo[-1].strip()
+                try:
+                    page = int(extrainfo[-1].strip())
+                except (IndexError, TypeError, ValueError):
+                    try:
+                        page = int(extrainto[3].strip())
+                    except (IndexError, TypeError, ValueError):
+                        # could not get the volume
+                        pass                    
 
-            if volume is None:
+            if volume is None or page is None:
                 failures.append(reftag)
                 continue
 
