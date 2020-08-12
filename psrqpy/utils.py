@@ -474,6 +474,12 @@ def check_old_references(func):
                 if args[3]:
                     output.append(None)
 
+            if kwargs.get("showfails", False):
+                output.append(None)
+            elif len(args) == 5:
+                if args[4]:
+                    output.append(None)
+
             return tuple(output)
     return wrapper_check_old_references
 
@@ -515,7 +521,7 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False,
 
     # get the tarball
     try:
-        dbtarfile = download_file(ATNF_TARBALL, cache=cache)
+        dbtarfile = download_file(ATNF_TARBALL, cache=not updaterefcache)
     except IOError:
         raise IOError('Problem accessing ATNF catalogue tarball')
 
@@ -703,10 +709,10 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False,
 
                 # get the page if given
                 try:
-                    page = int(extrainfo[-1].strip())
+                    page = int(extrainfo[-1].strip().split("-")[0])
                 except (IndexError, TypeError, ValueError):
                     try:
-                        page = int(extrainto[3].strip())
+                        page = int(extrainfo[3].strip().split("-")[0])
                     except (IndexError, TypeError, ValueError):
                         # could not get the volume
                         pass                    
@@ -722,7 +728,7 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False,
 
             # add author is given
             if len(sepauthors) > 0:
-                # check if authors have spaces in names (a few cases due to formating of some accented names),
+                # check if authors have spaces in last names (a few cases due to formating of some accented names),
                 # if so try next author...
                 myquery
                 for k, thisauthor in enumerate(sepauthors):
