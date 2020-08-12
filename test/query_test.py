@@ -235,6 +235,20 @@ def test_condition(query):
     if type(allpsrs['PMRA']) == MaskedColumn:
         assert len(pmras) == np.sum(~allpsrs['PMRA'].mask)
 
+    # test survey
+    query.condition = "survey(gb350)"
+    psrs = query.table
+    surveys = psrs["SURVEY"]
+
+    assert np.all(["gb350" in survey for survey in surveys])
+
+    # test discovery
+    query.condition = "discovery(htru_eff)"
+    psrs = query.table
+    discoveries = psrs["SURVEY"]
+
+    assert np.all(["htru_eff" == disc.split(",")[0] for disc in discoveries])
+
     # reset condition
     query.condition = None
 

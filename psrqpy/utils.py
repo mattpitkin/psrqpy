@@ -766,6 +766,10 @@ LOGEXPRS = (r'(\bAND\b'        # logical AND
             r'|\btype\b'       # pulsar type
             r'|\bBINCOMP\b'    # pulsar binary companion type
             r'|\bbincomp\b'    # pulsar binary companion type
+            r'|\bSURVEY\b'     # pulsar observation survey
+            r'|\bsurvey\b'     # pulsar observation survey
+            r'|\bDISCOVERY\b'  # pulsar discovery survey
+            r'|\bdiscovery\b'  # pulsar discovery survey
             r'|\bEXIST\b'      # pulsar parameter exists in the catalogue
             r'|\bexist\b'      # pulsar parameter exists in the catalogue
             r'|\bERROR\b'      # condition on parameter error
@@ -853,7 +857,7 @@ def condition(table, expression, exactMatch=False):
     else:
         tab = table
 
-    matchTypes = ['ASSOC', 'TYPE', 'BINCOMP', 'EXIST', 'ERROR']
+    matchTypes = ['ASSOC', 'TYPE', 'BINCOMP', 'EXIST', 'ERROR', 'SURVEY', 'DISCOVERY']
 
     # parse through tokens and replace as required
     ntokens = len(tokens)
@@ -917,6 +921,27 @@ def condition(table, expression, exactMatch=False):
                     else:
                         bincomp = np.array([tokens[i+2] in str(a) for a in table['BINCOMP']])
                         newtokens.append(r'(@bincomp)')
+                        i += 1
+                elif tokens[i].upper() == 'SURVEY':
+                    if 'SURVEY' not in tab.columns:
+                        warnings.warn("'SURVEY' parameter not in table: ignoring in query",
+                                      UserWarning)
+                    elif exactMatch:
+                        newtokens.append(r'(SURVEY == "{}")'.format(tokens[i+2].upper()))
+                    else:
+                        survey = np.array([tokens[i+2] in str(a) for a in table['SURVEY']])
+                        newtokens.append(r'(@survey)')
+                        i += 1
+                elif tokens[i].upper() == 'DISCOVERY':
+                    if 'SURVEY' not in tab.columns:
+                        warnings.warn("'SURVEY' parameter not in table: ignoring in query",
+                                      UserWarning)
+                    else:
+                        if exactMatch:
+                            discovery = np.array([tokens[i+2] == str(a).split(",")[0] for a in table['SURVEY']])
+                        else:
+                            discovery = np.array([tokens[i+2] in str(a).split(",")[0] for a in table['SURVEY']])
+                        newtokens.append(r'(@discovery)')
                         i += 1
                 elif tokens[i].upper() == 'EXIST':
                     if tokens[i+2].upper() not in tab.columns:
