@@ -709,12 +709,20 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False,
 
                 # get the page if given
                 try:
-                    page = int(extrainfo[-1].strip().split("-")[0])
+                    testpage = extrainfo[-1].strip().split("-")[0]
+                    if testpage[0].upper() == "L":  # e.g. for ApJL
+                        page = "L" + str(int(testpage[1:]))
+                    else:
+                        page = int(testpage)
                 except (IndexError, TypeError, ValueError):
                     try:
-                        page = int(extrainfo[3].strip().split("-")[0])
+                        testpage = extrainfo[3].strip().split("-")[0]
+                        if testpage[0].upper() == "L":  # e.g. for ApJL
+                            page = "L" + str(int(testpage[1:]))
+                        else:
+                            page = int(testpage)
                     except (IndexError, TypeError, ValueError):
-                        # could not get the volume
+                        # could not get the page
                         pass                    
 
             if volume is None or page is None:
