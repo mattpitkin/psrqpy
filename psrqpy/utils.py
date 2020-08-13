@@ -534,7 +534,7 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False,
     except IOError:
         raise IOError('Problem extracting the database file')
 
-    refdic = {}
+    refdic = OrderedDict()
     refidx = 0
     thisref = ''
 
@@ -631,6 +631,7 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False,
     j = 0
     bibcodes = {}
     failures = []
+    prevauthors = None
     for reftag in refdic:
         j = j + 1
 
@@ -663,23 +664,24 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False,
                 failures.append(reftag)
                 continue
 
-            # get the authors (remove line breaks/extra spaces and final full-stop)
-            authors = spl[0].strip().strip('.')
+            if "--." in spl[0] and prevauthors is not None:
+                authors = prevauthors
+            else:
+                # get the authors (remove line breaks/extra spaces and final full-stop)
+                authors = spl[0].strip().strip('.')
 
-            # remove " Jr." from any author names (as it causes issues!)
-            authors = authors.replace(" Jr.", "")
+                # remove " Jr." from any author names (as it causes issues!)
+                authors = authors.replace(" Jr.", "")
 
-            # replace ampersands/and with ".," for separation
-            authors = authors.replace(" &", ".,").replace(" and", ".,")
+                # replace ampersands/and with ".," for separation
+                authors = authors.replace(" &", ".,").replace(" and", ".,")
+                prevauthors = authors
 
             # separate out authors
             sepauthors = [auth.lstrip() for auth in authors.split('.,') if len(auth.strip()) > 0]
 
             # remove any "'s for umlauts in author names
             sepauthors = [a.replace(r'"', '') for a in sepauthors]
-
-            # remove any authors with an apostrophe as query can't handle them!
-            sepauthors = [a for a in sepauthors if "'" not in a]
 
             if len(sepauthors) == 0:
                 # no authors were parsed
@@ -688,42 +690,60 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False,
 
             volume = None
             page = None
+            journal = None
             if len(spl) > 2:
                 # join the remaining values and split on ","
                 extrainfo = ("".join(spl[2:])).split(",")
 
                 # get the journal (assumed to be the first item in extrainfo)
+                idx = 1
                 try:
-                    # remove preceding or trailing full stops
-                    journal = extrainfo[1].strip()
+                    # remove preceding or trailing spaces
+                    journal = extrainfo[idx].strip()
                 except (RuntimeError, IndexError):
                     # could not get title so ignore this entry
                     pass
 
-                # get the volume if given
-                try:
-                    volume = int(extrainfo[2].strip().lstrip("Vol."))
-                except (IndexError, TypeError, ValueError):
-                    # could not get the volume
-                    pass    
+                idx = idx + 1
+                if journal is not None:
+                    # check if journal is actually a number (there might not be
+                    # a journal entry, so it could be a volume number instead)
+                    try:
+                        volume = int(journal)
+                        idx = idx - 1
+                    except ValueError:
+                        pass
+
+                if idx == 2:
+                    # get the volume if given
+                    try:
+                        volume = int(extrainfo[idx].strip().lstrip("Vol."))
+                    except (IndexError, TypeError, ValueError):
+                        # could not get the volume
+                        pass
 
                 # get the page if given
+                idx = idx + 1
                 try:
-                    testpage = extrainfo[-1].strip().split("-")[0]
-                    if testpage[0].upper() == "L":  # e.g. for ApJL
-                        page = "L" + str(int(testpage[1:]))
-                    else:
-                        page = int(testpage)
+                    testpage = extrainfo[-1].strip().split("-")[0].rstrip("+")
+                    if testpage[0:4] != "eaao":  # Science Advances page string
+                        if testpage[0].upper() in ["L", "A", "E"] or testpage[0:4] == "":  # e.g. for ApJL, A&A, PASA
+                            dummy = int(testpage[1:])
+                        else:
+                            dummy = int(testpage)
+                    page = testpage
                 except (IndexError, TypeError, ValueError):
                     try:
-                        testpage = extrainfo[3].strip().split("-")[0]
-                        if testpage[0].upper() == "L":  # e.g. for ApJL
-                            page = "L" + str(int(testpage[1:]))
-                        else:
-                            page = int(testpage)
+                        testpage = extrainfo[idx].strip().split("-")[0].rstrip("+")
+                        if testpage[0:4] != "eaao":
+                            if testpage[0].upper() in ["L", "A", "E"]:  # e.g. for ApJL, A&A, PASA
+                                dummy = int(testpage[1:])
+                            else:
+                                dummy = int(testpage)
+                        page = testpage
                     except (IndexError, TypeError, ValueError):
                         # could not get the page
-                        pass                    
+                        pass
 
             if volume is None or page is None:
                 failures.append(reftag)
