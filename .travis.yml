@@ -5,10 +5,10 @@ branches:
   only:
     master
 python:
-  - "2.7"
   - "3.5"
   - "3.6"
   - "3.7"
+  - "3.8"
 before_install:
   # add a latex install for the matplotlib testing
   #- sudo apt-get -qq update && sudo apt-get install -y --no-install-recommends texlive-full
