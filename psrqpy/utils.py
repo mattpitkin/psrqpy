@@ -688,81 +688,89 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False,
                 failures.append(reftag)
                 continue
 
-            volume = None
-            page = None
-            journal = None
-            if len(spl) > 2:
-                # join the remaining values and split on ","
-                extrainfo = ("".join(spl[2:])).split(",")
+            thesis  = False
+            if "PhD thesis" not in refstring:
+                volume = None
+                page = None
+                journal = None
+                if len(spl) > 2:
+                    # join the remaining values and split on ","
+                    extrainfo = ("".join(spl[2:])).split(",")
 
-                # get the journal (assumed to be the first item in extrainfo)
-                idx = 1
-                try:
-                    # remove preceding or trailing spaces
-                    journal = extrainfo[idx].strip()
-                except (RuntimeError, IndexError):
-                    # could not get title so ignore this entry
-                    pass
-
-                idx = idx + 1
-                if journal is not None:
-                    # check if journal is actually a number (there might not be
-                    # a journal entry, so it could be a volume number instead)
+                    # get the journal (assumed to be the first item in extrainfo)
+                    idx = 1
                     try:
-                        volume = int(journal)
-                        idx = idx - 1
-                    except ValueError:
+                        # remove preceding or trailing spaces
+                        journal = extrainfo[idx].strip()
+                    except (RuntimeError, IndexError):
+                        # could not get title so ignore this entry
                         pass
 
-                if idx == 2:
-                    # get the volume if given
-                    try:
-                        volume = int(extrainfo[idx].strip().lstrip("Vol."))
-                    except (IndexError, TypeError, ValueError):
-                        # could not get the volume
-                        pass
+                    idx = idx + 1
+                    if journal is not None:
+                        # check if journal is actually a number (there might not be
+                        # a journal entry, so it could be a volume number instead)
+                        try:
+                            volume = int(journal)
+                            idx = idx - 1
+                        except ValueError:
+                            pass
 
-                # get the page if given
-                idx = idx + 1
-                try:
-                    testpage = extrainfo[-1].strip().split("-")[0].rstrip("+")
-                    if testpage[0:4] != "eaao":  # Science Advances page string
-                        if testpage[0].upper() in ["L", "A", "E"] or testpage[0:4] == "":  # e.g. for ApJL, A&A, PASA
-                            dummy = int(testpage[1:])
-                        else:
-                            dummy = int(testpage)
-                    page = testpage
-                except (IndexError, TypeError, ValueError):
+                    if idx == 2:
+                        # get the volume if given
+                        try:
+                            volume = int(extrainfo[idx].strip().lstrip("Vol."))
+                        except (IndexError, TypeError, ValueError):
+                            # could not get the volume
+                            pass
+
+                    # get the page if given
+                    idx = idx + 1
                     try:
-                        testpage = extrainfo[idx].strip().split("-")[0].rstrip("+")
-                        if testpage[0:4] != "eaao":
-                            if testpage[0].upper() in ["L", "A", "E"]:  # e.g. for ApJL, A&A, PASA
+                        testpage = extrainfo[-1].strip().split("-")[0].rstrip("+")
+                        if testpage[0:4] != "eaao":  # Science Advances page string
+                            if testpage[0].upper() in ["L", "A", "E"] or testpage[0:4] == "":  # e.g. for ApJL, A&A, PASA
                                 dummy = int(testpage[1:])
                             else:
                                 dummy = int(testpage)
                         page = testpage
                     except (IndexError, TypeError, ValueError):
-                        # could not get the page
-                        pass
+                        try:
+                            testpage = extrainfo[idx].strip().split("-")[0].rstrip("+")
+                            if testpage[0:4] != "eaao":
+                                if testpage[0].upper() in ["L", "A", "E"]:  # e.g. for ApJL, A&A, PASA
+                                    dummy = int(testpage[1:])
+                                else:
+                                    dummy = int(testpage)
+                            page = testpage
+                        except (IndexError, TypeError, ValueError):
+                            # could not get the page
+                            pass
 
-            if volume is None or page is None:
-                failures.append(reftag)
-                continue
+                if volume is None or page is None:
+                    failures.append(reftag)
+                    continue
+            else:
+                # a PhD thesis
+                thesis = True
 
         # generate the query string
         if arxivid is None:
-            # default query without authors
-            myquery = 'year:{} AND volume:{} AND page:{}'.format(year, volume, page)
+            if not thesis:
+                # default query without authors
+                myquery = 'year:{} AND volume:{} AND page:{}'.format(year, volume, page)
 
-            # add author is given
-            if len(sepauthors) > 0:
-                # check if authors have spaces in last names (a few cases due to formating of some accented names),
-                # if so try next author...
-                myquery
-                for k, thisauthor in enumerate(sepauthors):
-                    if len(thisauthor.split(",")[0].split()) == 1:
-                        myquery += ' AND author:"{}{}"'.format("^" if k == 0 else "", thisauthor)
-                        break
+                # add author is given
+                if len(sepauthors) > 0:
+                    # check if authors have spaces in last names (a few cases due to formating of some accented names),
+                    # if so try next author...
+                    myquery
+                    for k, thisauthor in enumerate(sepauthors):
+                        if len(thisauthor.split(",")[0].split()) == 1:
+                            myquery += ' AND author:"{}{}"'.format("^" if k == 0 else "", thisauthor)
+                            break
+            else:
+                myquery = 'year: {} AND author:"^{}" AND bibstem:"PhDT"'.format(sepauthors[0])
         else:
             myquery = arxivid
 
