@@ -46,7 +46,7 @@ class Pulsar(object):
         parameters.
         """
 
-        keys = PSR_ALL_PARS+[par+'_ERR' for par in PSR_ALL_PARS]
+        keys = PSR_ALL_PARS+[par+'_ERR' for par in PSR_ALL_PARS]+[par+'_REF' for par in PSR_ALL_PARS]
         return [key for key in self.__dict__ if key in keys]
 
     def items(self):
@@ -54,7 +54,7 @@ class Pulsar(object):
         Return a list of the class attribute values.
         """
 
-        keys = PSR_ALL_PARS+[par+'_ERR' for par in PSR_ALL_PARS]
+        keys = PSR_ALL_PARS+[par+'_ERR' for par in PSR_ALL_PARS]+[par+'_REF' for par in PSR_ALL_PARS]
         return [value for key, value in iteritems(self.__dict__) if key in keys]
 
     @property
@@ -83,7 +83,7 @@ class Pulsar(object):
         elif ukey in self.__dict__:
             return self.__dict__[ukey]
         else:
-            if ukey[-4:] == '_ERR':  # an error parameter
+            if ukey.endswith('_ERR') or ukey.endswith('_REF'):  # an error or reference parameter
                 tkey = ukey[:-4]  # parameter name without error
             else:
                 tkey = ukey
@@ -110,10 +110,17 @@ class Pulsar(object):
 
             # set parameter value if an error value was requested
             if PSR_ALL[tkey]['err']:
-                if tkey != ukey:  # asking for error, so set actual value
+                if tkey != ukey and ukey.endswith("_ERR"):  # asking for error, so set actual value
                     setattr(self, tkey, psrrow[tkey][0])
                 else:  # asking for value, so set error
                     setattr(self, tkey+'_ERR', psrrow[tkey+'_ERR'][0])
+
+            # set parameter value if a reference values was requested
+            if PSR_ALL[tkey]['ref']:
+                if tkey != ukey and ukey.endswith("_REF"):  # asking for reference, so set actual value
+                    setattr(self, tkey, psrrow[tkey][0])
+                else:  # asking for value, so set reference
+                    setattr(self, tkey+'_REF', psrrow[tkey+'_REF'][0])
 
         return param
 

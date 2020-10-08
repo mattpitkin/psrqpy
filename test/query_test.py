@@ -71,6 +71,10 @@ def test_crab(query):
 
     assert f0 == f0B
 
+    # check reference and error are not None
+    assert query.get_pulsar('B0531+21')['F0_ERR'][0] is not None
+    assert query.get_pulsar('B0531+21')['F0_REF'][0] is not None
+
 
 def test_catalogue_shape(query):
     """
