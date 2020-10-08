@@ -1,5 +1,9 @@
 # Notable changes between versions
 
+## [1.0.10] 2020-10-08
+
+- Allow the `Pulsar` objects to access parameter references. See [#71](https://github.com/mattpitkin/psrqpy/pull/71).
+
 ## [1.0.9] 2020-06-08
 
 - A minor fix to get ADS references to work. See [#66](https://github.com/mattpitkin/psrqpy/pull/66).
