@@ -46,7 +46,11 @@ class Pulsar(object):
         parameters.
         """
 
-        keys = PSR_ALL_PARS+[par+'_ERR' for par in PSR_ALL_PARS]+[par+'_REF' for par in PSR_ALL_PARS]
+        keys = (
+            PSR_ALL_PARS
+            + [par + "_ERR" for par in PSR_ALL_PARS]
+            + [par + "_REF" for par in PSR_ALL_PARS]
+        )
         return [key for key in self.__dict__ if key in keys]
 
     def items(self):
@@ -54,7 +58,11 @@ class Pulsar(object):
         Return a list of the class attribute values.
         """
 
-        keys = PSR_ALL_PARS+[par+'_ERR' for par in PSR_ALL_PARS]+[par+'_REF' for par in PSR_ALL_PARS]
+        keys = (
+            PSR_ALL_PARS
+            + [par + "_ERR" for par in PSR_ALL_PARS]
+            + [par + "_REF" for par in PSR_ALL_PARS]
+        )
         return [value for key, value in iteritems(self.__dict__) if key in keys]
 
     @property
@@ -83,44 +91,52 @@ class Pulsar(object):
         elif ukey in self.__dict__:
             return self.__dict__[ukey]
         else:
-            if ukey.endswith('_ERR') or ukey.endswith('_REF'):  # an error or reference parameter
+            if ukey.endswith("_ERR") or ukey.endswith(
+                "_REF"
+            ):  # an error or reference parameter
                 tkey = ukey[:-4]  # parameter name without error
             else:
                 tkey = ukey
 
             if tkey not in PSR_ALL_PARS:
-                raise KeyError('"{}" is not a recognised pulsar '
-                               'parameter'.format(tkey))
+                raise KeyError(
+                    '"{}" is not a recognised pulsar ' "parameter".format(tkey)
+                )
             else:
                 # generate a query for the key and add it
                 if self._query is None:
                     try:
                         from .search import QueryATNF
+
                         self._query = QueryATNF()
                     except IOError:
-                        raise Exception('Problem querying ATNF catalogue')
+                        raise Exception("Problem querying ATNF catalogue")
 
             psrrow = self._query.get_pulsar(pulsarname)
 
             if psrrow is None:
                 raise Exception('Pulsar "{}" is unknown'.format(pulsarname))
 
-            param = psrrow[ukey][0]     # required output parameter
-            setattr(self, ukey, param)   # set output parameter value
+            param = psrrow[ukey][0]  # required output parameter
+            setattr(self, ukey, param)  # set output parameter value
 
             # set parameter value if an error value was requested
-            if PSR_ALL[tkey]['err']:
-                if tkey != ukey and ukey.endswith("_ERR"):  # asking for error, so set actual value
+            if PSR_ALL[tkey]["err"]:
+                if tkey != ukey and ukey.endswith(
+                    "_ERR"
+                ):  # asking for error, so set actual value
                     setattr(self, tkey, psrrow[tkey][0])
                 else:  # asking for value, so set error
-                    setattr(self, tkey+'_ERR', psrrow[tkey+'_ERR'][0])
+                    setattr(self, tkey + "_ERR", psrrow[tkey + "_ERR"][0])
 
             # set parameter value if a reference values was requested
-            if PSR_ALL[tkey]['ref']:
-                if tkey != ukey and ukey.endswith("_REF"):  # asking for reference, so set actual value
+            if PSR_ALL[tkey]["ref"]:
+                if tkey != ukey and ukey.endswith(
+                    "_REF"
+                ):  # asking for reference, so set actual value
                     setattr(self, tkey, psrrow[tkey][0])
                 else:  # asking for value, so set reference
-                    setattr(self, tkey+'_REF', psrrow[tkey+'_REF'][0])
+                    setattr(self, tkey + "_REF", psrrow[tkey + "_REF"][0])
 
         return param
 
@@ -217,7 +233,7 @@ class Pulsars(object):
 
     def __init__(self):
         self._num_pulsars = 0  # number of pulsars in the object
-        self._psrs = {}        # dictionary of Pulsar objects in the object, keyed to the name
+        self._psrs = {}  # dictionary of Pulsar objects in the object, keyed to the name
 
     def __iter__(self):
         """
@@ -267,7 +283,7 @@ class Pulsars(object):
                 object
         """
 
-        assert isinstance(psr, (Pulsar, Pulsars)), 'psr is not a Pulsar type'
+        assert isinstance(psr, (Pulsar, Pulsars)), "psr is not a Pulsar type"
 
         if isinstance(psr, Pulsar):
             if psr.name not in self._psrs:
@@ -289,7 +305,7 @@ class Pulsars(object):
             psrname (str): a string with the name of a pulsar
         """
 
-        assert isinstance(psrname, string_types), 'psrname is not a string'
+        assert isinstance(psrname, string_types), "psrname is not a string"
 
         if psrname in self._psrs:
             del self._psrs[psrname]
@@ -302,7 +318,7 @@ class Pulsars(object):
         Args:
             psrname (str): a string with the name of a pulsar
         """
-        assert isinstance(psrname, string_types), 'psrname is not a string'
+        assert isinstance(psrname, string_types), "psrname is not a string"
 
         if psrname in self._psrs:
             self._num_pulsars -= 1
@@ -315,4 +331,4 @@ class Pulsars(object):
         Define string method
         """
 
-        return '\n'.join([self._psrs[psr].name for psr in self._psrs])
+        return "\n".join([self._psrs[psr].name for psr in self._psrs])
