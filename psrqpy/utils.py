@@ -689,7 +689,8 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False,
                 continue
 
             thesis  = False
-            if "PhD thesis" not in refstring:
+            iaucirc = False
+            if "PhD thesis" not in refstring and "IAU Circ" not in refstring:
                 volume = None
                 page = None
                 journal = None
@@ -740,6 +741,8 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False,
                             if testpage[0:4] != "eaao":
                                 if testpage[0].upper() in ["L", "A", "E"]:  # e.g. for ApJL, A&A, PASA
                                     dummy = int(testpage[1:])
+                                elif testpage[-1].upper() == "P":  # e.g., for early MNRAS
+                                    dummy = int(testpage[:-1])
                                 else:
                                     dummy = int(testpage)
                             page = testpage
@@ -750,21 +753,33 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False,
                 if volume is None or page is None:
                     failures.append(reftag)
                     continue
+            elif "IAU Circ" in refstring:
+                iaucirc = True
             else:
                 # a PhD thesis
                 thesis = True
 
         # generate the query string
         if arxivid is None:
-            if not thesis:
+            if not thesis and not iaucirc:
                 # default query without authors
                 myquery = 'year:{} AND volume:{} AND page:{}'.format(year, volume, page)
 
-                # add author is given
+                # add author if given
                 if len(sepauthors) > 0:
                     # check if authors have spaces in last names (a few cases due to formating of some accented names),
                     # if so try next author...
-                    myquery
+                    for k, thisauthor in enumerate(sepauthors):
+                        if len(thisauthor.split(",")[0].split()) == 1:
+                            myquery += ' AND author:"{}{}"'.format("^" if k == 0 else "", thisauthor)
+                            break
+            elif iaucirc:
+                myquery = 'bibstem:"IAUC" year:{}'.format(year)
+
+                # add author if given
+                if len(sepauthors) > 0:
+                    # check if authors have spaces in last names (a few cases due to formating of some accented names),
+                    # if so try next author...
                     for k, thisauthor in enumerate(sepauthors):
                         if len(thisauthor.split(",")[0].split()) == 1:
                             myquery += ' AND author:"{}{}"'.format("^" if k == 0 else "", thisauthor)
