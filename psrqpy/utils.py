@@ -184,7 +184,7 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
                 psrlist[i]['NAME'] = psr['PSRB']
                 if 'PSRB_REF' in psr.keys():
                     psrlist[i]['NAME_REF'] = psr['PSRB_REF']
-        
+
         if 'RAJ' in psr.keys() and 'DECJ' in psr.keys():
             # check if the string can be converted to a float (there are a few
             # cases where the position is just a decimal value)
