@@ -167,6 +167,24 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
 
     # add RA and DEC in degs and JNAME/BNAME
     for i, psr in enumerate(list(psrlist)):
+        # add 'JNAME', 'BNAME' and 'NAME'
+        if 'PSRJ' in psr.keys():
+            psrlist[i]['JNAME'] = psr['PSRJ']
+            psrlist[i]['NAME'] = psr['PSRJ']
+            if 'PSRJ_REF' in psr.keys():
+                psrlist[i]['JNAME_REF'] = psr['PSRJ_REF']
+                psrlist[i]['NAME_REF'] = psr['PSRJ_REF']
+
+        if 'PSRB' in psr.keys():
+            psrlist[i]['BNAME'] = psr['PSRB']
+            if 'PSRB_REF' in psr.keys():
+                psrlist[i]['BNAME_REF'] = psr['PSRB_REF']
+
+            if 'NAME' not in psrlist[i].keys():
+                psrlist[i]['NAME'] = psr['PSRB']
+                if 'PSRB_REF' in psr.keys():
+                    psrlist[i]['NAME_REF'] = psr['PSRB_REF']
+
         if 'RAJ' in psr.keys() and 'DECJ' in psr.keys():
             # check if the string can be converted to a float (there are a few
             # cases where the position is just a decimal value)
@@ -184,10 +202,20 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
             except ValueError:
                 pass
 
-            coord = SkyCoord(psr['RAJ'], psr['DECJ'],
-                             unit=(aunits.hourangle, aunits.deg))
-            psrlist[i]['RAJD'] = coord.ra.deg    # right ascension in degrees
-            psrlist[i]['DECJD'] = coord.dec.deg  # declination in degrees
+            try:
+                coord = SkyCoord(psr['RAJ'], psr['DECJ'],
+                                 unit=(aunits.hourangle, aunits.deg))
+                psrlist[i]['RAJD'] = coord.ra.deg    # right ascension in degrees
+                psrlist[i]['DECJD'] = coord.dec.deg  # declination in degrees
+            except Exception as e:
+                warnings.warn(
+                    "Error converting RAJ/DECJ strings to degrees for {}: {}".format(
+                        psrlist[i]['NAME'],
+                        e
+                    )
+                )
+                psrlist[i]["RAJD"] = np.nan
+                psrlist[i]["DECJD"] = np.nan
 
             # set errors on positions in degrees
             if "RAJ_ERR" in psr.keys():
@@ -212,24 +240,6 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
                 psrlist[i]["DECJD_ERR"] = (
                     psr["DECJ_ERR"] * decunit
                 ).to("deg").value
-
-        # add 'JNAME', 'BNAME' and 'NAME'
-        if 'PSRJ' in psr.keys():
-            psrlist[i]['JNAME'] = psr['PSRJ']
-            psrlist[i]['NAME'] = psr['PSRJ']
-            if 'PSRJ_REF' in psr.keys():
-                psrlist[i]['JNAME_REF'] = psr['PSRJ_REF']
-                psrlist[i]['NAME_REF'] = psr['PSRJ_REF']
-
-        if 'PSRB' in psr.keys():
-            psrlist[i]['BNAME'] = psr['PSRB']
-            if 'PSRB_REF' in psr.keys():
-                psrlist[i]['BNAME_REF'] = psr['PSRB_REF']
-
-            if 'NAME' not in psrlist[i].keys():
-                psrlist[i]['NAME'] = psr['PSRB']
-                if 'PSRB_REF' in psr.keys():
-                    psrlist[i]['NAME_REF'] = psr['PSRB_REF']
 
     # convert to a pandas DataFrame - this will fill in empty spaces
     dftable = DataFrame(psrlist)
