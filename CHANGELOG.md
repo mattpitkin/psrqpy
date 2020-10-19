@@ -1,5 +1,10 @@
 # Notable changes between versions
 
+## [1.0.11] 2020-10-19
+
+- Allow `psrqpy` query to work using ATNF catalogue v1.64, which contains a position typo. See [#74](https://github.com/mattpitkin/psrqpy/pull/74).
+- More fixes to enable parsing of more references using NASA ADS and fixes changes that occurred with v1.64. See [#70](https://github.com/mattpitkin/psrqpy/pull/70).
+
 ## [1.0.10] 2020-10-08
 
 - Allow the `Pulsar` objects to access parameter references. See [#71](https://github.com/mattpitkin/psrqpy/pull/71).
