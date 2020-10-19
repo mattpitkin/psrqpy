@@ -515,7 +515,7 @@ def check_old_references(func):
     return wrapper_check_old_references
 
 
-# @check_old_references
+@check_old_references
 def get_references(
     useads=False, cache=True, updaterefcache=False, bibtex=False, showfails=False
 ):
