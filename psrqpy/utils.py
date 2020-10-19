@@ -494,7 +494,7 @@ def check_old_references(func):
     return wrapper_check_old_references
 
 
-@check_old_references
+#@check_old_references
 def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False, showfails=False):
     """
     Return a dictionary of paper
@@ -520,7 +520,7 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False,
             with the ADS URL.
         showfails (bool): if outputting NASA ADS references set this flag to
             True to output the reference tags of references that fail to be
-            found.
+            found (mainly for debugging purposes).
 
     Returns:
         dict: a dictionary of references.
@@ -544,36 +544,10 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False,
     except IOError:
         raise IOError('Problem extracting the database file')
 
-    refdic = OrderedDict()
-    refidx = 0
-    thisref = ''
-
-    for line in reffile.readlines():
-        if isinstance(line, string_types):
-            thisline = line
-        else:
-            thisline = line.decode()
-
-        if thisline[0:7] == 'bibitem' or "endthebibliography" in thisline:
-            if refidx > 0:
-                # parse the line
-                refparts = thisref[thisref.find("]")+1:].split()
-                thisname = refparts[0]  # the identifier
-                refpad = refparts[0][-1] if refparts[0][-1].isalpha() else ""
-
-                # return reference making sure to only have single spaces
-                refstr = re.sub(r'\s+', ' ', " ".join(refparts[1:]))
-                # remove natelab{x} from year string
-                refstr = re.sub(r"natexlab\w", "", refstr)
-
-                refdic[thisname] = refstr
-            thisref = ''
-            refidx += 1
-            thisref += thisline[7:]  # remove bibitem
-        else:
-            # make sure there is a space so words don't get concatenated
-            thisref += ' '
-            thisref += thisline.strip()
+    refdic = {
+        line.split()[0]: " ".join(line.split()[2:])
+        for line in reffile.read().decode("utf-8").strip().split("***") if len(line) > 0
+    }
 
     reffile.close()
     pulsargz.close()  # close tar file
@@ -641,11 +615,16 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False,
     j = 0
     bibcodes = {}
     failures = []
-    prevauthors = None
     for reftag in refdic:
         j = j + 1
 
         refstring = refdic[reftag]
+
+        # check if IAU Circular or PhD thesis
+        iaucirc = True if "IAU Circ" in refstring else False
+        thesis = True if "PhD thesis" in refstring else False
+
+        sepauthors = ""
 
         # check for arXiv identifier
         arxivid = None
@@ -657,26 +636,33 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False,
                     arxivid = match.group().lower()
                     break
         else:
-            # do splitting on the year (allows between 1000-2999)
-            spl = re.split(r"([1-2][0-9]{3})", refstring)
-
-            if len(spl) < 2:
-                # no authors + year, so ignore!
-                failures.append(reftag)
-                continue
-
-            year = spl[1] if len(spl[1]) == 4 else None
-
-            try:
-                int(year)
-            except (ValueError, TypeError):
-                # "year" is not an integer
-                failures.append(reftag)
-                continue
-
-            if "--." in spl[0] and prevauthors is not None:
-                authors = prevauthors
+            if iaucirc:
+                # get circular number (value after IAU Circ. No.)
+                spl = re.split(r"([0-9]{4})", refstring)
+                noidx = 1
+                for val in spl:
+                    if "IAU Circ" in val:
+                        break
+                    noidx += 1
+                volume = spl[noidx]
             else:
+                # do splitting on the year (allows between 1000-2999)
+                spl = re.split(r"([1-2][0-9]{3})", refstring)
+
+                if len(spl) < 2:
+                    # no authors + year, so ignore!
+                    failures.append(reftag)
+                    continue
+
+                year = spl[1] if len(spl[1]) == 4 else None
+
+                try:
+                    int(year)
+                except (ValueError, TypeError):
+                    # "year" is not an integer
+                    failures.append(reftag)
+                    continue
+
                 # get the authors (remove line breaks/extra spaces and final full-stop)
                 authors = spl[0].strip().strip('.')
 
@@ -685,117 +671,71 @@ def get_references(useads=False, cache=True, updaterefcache=False, bibtex=False,
 
                 # replace ampersands/and with ".," for separation
                 authors = authors.replace(" &", ".,").replace(" and", ".,")
-                prevauthors = authors
 
-            # separate out authors
-            sepauthors = [auth.lstrip() for auth in authors.split('.,') if len(auth.strip()) > 0]
+                # separate out authors
+                sepauthors = [auth.lstrip() for auth in authors.split('.,') if len(auth.strip()) > 0 and "et al" not in auth]
 
-            # remove any "'s for umlauts in author names
-            sepauthors = [a.replace(r'"', '') for a in sepauthors]
+                # remove any "'s for umlauts in author names
+                sepauthors = [a.replace(r'"', '') for a in sepauthors]
 
-            if len(sepauthors) == 0:
-                # no authors were parsed
-                failures.append(reftag)
-                continue
-
-            thesis  = False
-            iaucirc = False
-            if "PhD thesis" not in refstring and "IAU Circ" not in refstring:
+                if len(sepauthors) == 0:
+                    # no authors were parsed
+                    failures.append(reftag)
+                    continue
+            
+            if not thesis and not iaucirc:
                 volume = None
                 page = None
-                journal = None
                 if len(spl) > 2:
                     # join the remaining values and split on ","
-                    extrainfo = ("".join(spl[2:])).split(",")
+                    extrainfo = [info for info in ("".join(spl[2:])).lstrip(".").split(",") if len(info.strip()) > 0]
 
-                    # get the journal (assumed to be the first item in extrainfo)
-                    idx = 1
+                    # get the journal volume (assumed to be second from last)
                     try:
-                        # remove preceding or trailing spaces
-                        journal = extrainfo[idx].strip()
-                    except (RuntimeError, IndexError):
-                        # could not get title so ignore this entry
+                        # in case volume contains issue number in brackets perform split
+                        volume = int(extrainfo[-2].strip().split("(")[0])
+                    except (IndexError, TypeError, ValueError):
+                        # could not get the volume
                         pass
 
-                    idx = idx + 1
-                    if journal is not None:
-                        # check if journal is actually a number (there might not be
-                        # a journal entry, so it could be a volume number instead)
-                        try:
-                            volume = int(journal)
-                            idx = idx - 1
-                        except ValueError:
-                            pass
-
-                    if idx == 2:
-                        # get the volume if given
-                        try:
-                            volume = int(extrainfo[idx].strip().lstrip("Vol."))
-                        except (IndexError, TypeError, ValueError):
-                            # could not get the volume
-                            pass
-
-                    # get the page if given
-                    idx = idx + 1
+                    # get the page if given (assumed to be th last value)
                     try:
-                        testpage = extrainfo[-1].strip().split("-")[0].rstrip("+")
-                        if testpage[0:4] != "eaao":  # Science Advances page string
+                        testpage = re.sub("[\+\-\.]", "", extrainfo[-1].strip().split("-")[0])
+                        if not testpage.startswith("eaao"):  # Science Advances page string
                             if testpage[0].upper() in ["L", "A", "E"] or testpage[0:4] == "":  # e.g. for ApJL, A&A, PASA
-                                dummy = int(testpage[1:])
+                                _ = int(testpage[1:])
+                            elif testpage[-1].upper() == "P":  # e.g., for early MNRAS
+                                _ = int(testpage[:-1])
                             else:
-                                dummy = int(testpage)
+                                _ = int(testpage)
                         page = testpage
                     except (IndexError, TypeError, ValueError):
-                        try:
-                            testpage = extrainfo[idx].strip().split("-")[0].rstrip("+")
-                            if testpage[0:4] != "eaao":
-                                if testpage[0].upper() in ["L", "A", "E"]:  # e.g. for ApJL, A&A, PASA
-                                    dummy = int(testpage[1:])
-                                elif testpage[-1].upper() == "P":  # e.g., for early MNRAS
-                                    dummy = int(testpage[:-1])
-                                else:
-                                    dummy = int(testpage)
-                            page = testpage
-                        except (IndexError, TypeError, ValueError):
-                            # could not get the page
-                            pass
+                        # could not get the page
+                        pass
 
                 if volume is None or page is None:
                     failures.append(reftag)
                     continue
-            elif "IAU Circ" in refstring:
-                iaucirc = True
-            else:
-                # a PhD thesis
-                thesis = True
 
         # generate the query string
         if arxivid is None:
-            if not thesis and not iaucirc:
-                # default query without authors
-                myquery = 'year:{} AND volume:{} AND page:{}'.format(year, volume, page)
+            if not thesis:
+                if iaucirc:
+                    myquery = 'bibstem:"IAUC" volume:"{}"'.format(volume)
+                else:
+                    # default query without authors
+                    myquery = 'year:{} AND volume:{} AND page:{}'.format(year, volume, page)
 
-                # add author if given
-                if len(sepauthors) > 0:
-                    # check if authors have spaces in last names (a few cases due to formating of some accented names),
-                    # if so try next author...
-                    for k, thisauthor in enumerate(sepauthors):
-                        if len(thisauthor.split(",")[0].split()) == 1:
-                            myquery += ' AND author:"{}{}"'.format("^" if k == 0 else "", thisauthor)
-                            break
-            elif iaucirc:
-                myquery = 'bibstem:"IAUC" year:{}'.format(year)
-
-                # add author if given
-                if len(sepauthors) > 0:
-                    # check if authors have spaces in last names (a few cases due to formating of some accented names),
-                    # if so try next author...
-                    for k, thisauthor in enumerate(sepauthors):
-                        if len(thisauthor.split(",")[0].split()) == 1:
-                            myquery += ' AND author:"{}{}"'.format("^" if k == 0 else "", thisauthor)
-                            break
+                    # add author if given
+                    if len(sepauthors) > 0:
+                        # check if authors have spaces in last names (a few cases due to formating of some accented names),
+                        # if so try next author...
+                        for k, thisauthor in enumerate(sepauthors):
+                            if len(thisauthor.split(",")[0].split()) == 1:
+                                myquery += ' AND author:"{}{}"'.format("^" if k == 0 else "", thisauthor)
+                                break
             else:
-                myquery = 'year: {} AND author:"^{}" AND bibstem:"PhDT"'.format(sepauthors[0])
+                myquery = 'year: {} AND author:"^{}" AND bibstem:"PhDT"'.format(year, sepauthors[0])
         else:
             myquery = arxivid
 
