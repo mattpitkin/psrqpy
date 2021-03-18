@@ -41,7 +41,7 @@ The requirements for installing the code are:
  * :mod:`requests`
  * :mod:`bs4`
  * :mod:`numpy`
- * :mod:`astropy` (for Python 2 astropy versions before `3.0 <http://docs.astropy.org/en/latest/whatsnew/3.0.html#whatsnew-3-0-python3>`_ must be used)
+ * :mod:`astropy`
  * :mod:`pandas`
  * :mod:`scipy`
 

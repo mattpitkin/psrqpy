@@ -4,6 +4,5 @@ beautifulsoup4
 numpy>=1.16
 scipy
 pandas>0.21
-astropy>=2.0,<3.0; python_version <= '2.7'
-astropy>=3.2; python_version > '3.4'
+astropy>=3.2
 packaging

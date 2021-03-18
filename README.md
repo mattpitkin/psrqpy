@@ -44,7 +44,7 @@ The [requirements](requirements.txt) for installing the code are:
  * [`beautifulsoup4`](https://www.crummy.com/software/BeautifulSoup/bs4/doc/)
  * [`numpy`](http://www.numpy.org/)
  * [`scipy`](https://www.scipy.org/)
- * [`astropy`](http://www.astropy.org/) (for Python 2 astropy versions before [3.0](http://docs.astropy.org/en/latest/whatsnew/3.0.html#whatsnew-3-0-python3) must be used)
+ * [`astropy`](http://www.astropy.org/)
  * [`pandas`](https://pandas.pydata.org/)
 
 The [`ads`](https://ads.readthedocs.io/en/latest/) module is an optional requirement that is needed to get ADS URLs for references,
