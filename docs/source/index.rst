@@ -263,6 +263,40 @@ where this shows all pulsar types and pulsars in supernova remnants, to give
    :align:   center
 
 
+Additional catalogues
+=====================
+
+In addition to returning a querying the ATNF Pulsar Catalogue, psrqpy can also
+download and parse:
+
+* the `Jodrell Bank pulsar glitch table <http://www.jb.man.ac.uk/pulsar/glitches/gTable.html>`_
+* Paolo Freire's `table of pulsars in globular clusters <http://www.naic.edu/~pfreire/GCpsr.txt>`_
+  (note that the downloaded table does not include accompanying notes or references, and binary
+  parameters that are listed as upper/lower limits within the table are just returned as equalities.)
+
+Examples
+--------
+
+Accessing the glitch table can be achieved with the :func:`~psrqpy.utils.get_glitch_catalogue`
+function using:
+
+    >>> from psrqpy.utils import get_glitch_catalogue
+    >>> glitches = get_glitch_catalogue()
+
+The glitches for a single pulsar can be returned with, e.g.:
+
+    >>> crabglitches = get_glitch_catalogue(psr="J0534+2200")
+
+Accessing the globular cluster tables can be achieved with the
+:func:`~psrqpy.utils.get_gc_catalogue` function using:
+
+    >>> from psrqpy.utils import get_gc_catalogue
+    >>> gctable = get_gc_catalogue()
+
+The pulsars with a single globular cluster, e.g., 47 Tuc, can the be returned with:
+
+    >>> tucpulsars = gctable.cluster_pulsars("47 Tuc")
+
 Differences with the ATNF Pulsar Catalogue
 ==========================================
 

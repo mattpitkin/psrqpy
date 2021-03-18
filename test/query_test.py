@@ -426,6 +426,22 @@ def test_glitch_table():
     assert len(table) > 1
 
 
+def test_gc_table():
+    """
+    Try downloading the globular cluster pulsar table.
+    """
+
+    from psrqpy.utils import get_gc_catalogue
+
+    table = get_gc_catalogue()
+
+    assert "47 Tuc" in table.clusters()
+    assert "J0023-7204C" in table.cluster_pulsars("47 Tuc")["Pulsar"]
+    assert "J0023-7204C" in table.cluster_pulsars("NGC 104")["Pulsar"]
+    assert "J0023-7204C" in table.cluster_pulsars("104")["Pulsar"]
+    assert "J0023-7204C" in table.cluster_pulsars("47Tuc")["Pulsar"]
+
+
 # TEST DERIVED PARAMETERS #
 def test_derived_p0_p1(query_derived, query_atnf):
     """
