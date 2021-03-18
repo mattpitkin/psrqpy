@@ -13,7 +13,7 @@ from six import string_types
 
 import numpy as np
 import astropy
-from astropy.coordinates import SkyCoord, ICRS, Galactic
+from astropy.coordinates import SkyCoord, ICRS, Galactic, BarycentricMeanEcliptic
 from astropy.table.column import MaskedColumn, Column
 import astropy.units as aunits
 from astropy.constants import c, GM_sun
@@ -25,15 +25,6 @@ from copy import deepcopy
 
 from .config import ATNF_BASE_URL, PSR_ALL, PSR_ALL_PARS, PSR_TYPE, PSR_ASSOC_TYPE, PSR_BINARY_TYPE
 from .utils import condition, age_pdot, B_field_pdot
-
-
-# check whether to use BarycentricTrueEcliptic of BarycentricMeanEcliptic
-if version.parse(astropy.__version__) >= version.parse("3.2"):
-    from astropy.coordinates import BarycentricMeanEcliptic
-    ASTROPY_V32 = True
-else:
-    from astropy.coordinates import BarycentricTrueEcliptic as BarycentricMeanEcliptic
-    ASTROPY_V32 = False
 
 
 # set default astropy galactocentric frame values
@@ -1175,6 +1166,8 @@ class QueryATNF(object):
         self.derived_edot_i()      # intrinsic luminosity
         self.derived_flux()        # radio flux
         self.derived_binary()      # derived binary parameters
+        self.derived_gw_h0_spindown_limit()  # derive GW parameters
+        self.derived_gw_spindown_luminosity()  # derive GW parameters
 
     def define_dist(self):
         """
@@ -1373,12 +1366,8 @@ class QueryATNF(object):
         sc = SkyCoord(RAJD[idx].values*aunits.deg,
                       DECJD[idx].values*aunits.deg)
 
-        if ASTROPY_V32:
-            ELONGnew[idx] = sc.barycentricmeanecliptic.lon.value
-            ELATnew[idx] = sc.barycentricmeanecliptic.lat.value
-        else:
-            ELONGnew[idx] = sc.barycentrictrueecliptic.lon.value
-            ELATnew[idx] = sc.barycentrictrueecliptic.lat.value
+        ELONGnew[idx] = sc.barycentricmeanecliptic.lon.value
+        ELATnew[idx] = sc.barycentricmeanecliptic.lat.value
 
         self.update(ELONGnew, name='ELONG')
         self.update(ELATnew, name='ELAT')
@@ -2095,6 +2084,57 @@ class QueryATNF(object):
         P1_I = self.catalogue['P1_I']
         BSURFI = B_field(P0, P1_I)
         self.update(BSURFI, name='BSURF_I')
+
+    def derived_gw_h0_spindown_limit(self):
+        """
+        Calculate the limit on the gravitational-wave emission amplitude at
+        Earth assuming all rotational kinetic energy is lost via
+        gravitational-waves generated from an l=m=2 mass quadrupole (i.e., a
+        braking index of n=5). This uses the intrinsic spin-down values rather
+        than the observed spin-downs.
+        """
+
+        from .utils import gw_h0_spindown_limit, pdot_to_fdot
+
+        if 'P1_I' not in self.columns:
+            self.derived_p1_i()
+
+        if not np.all([p in self.columns for p in ["F0", "P1_I", "P1", "DIST"]]):
+            return
+
+        F0 = self.catalogue["F0"]
+        P1_I = self.catalogue["P1_I"]
+
+        # where P1_I is not present use P1
+        idx = ~np.isfinite(P1_I) & np.isfinite(self.catalogue["P1"])
+        P1_I[idx] = self.catalogue["P1"][idx]
+
+        F1_I = pdot_to_fdot(P1_I, frequency=F0)
+        DIST = self.catalogue["DIST"]
+
+        H0UL = gw_h0_spindown_limit(frequency=F0, fdot=F1_I, distance=DIST)
+        self.update(H0UL, name="H0_UL")
+
+    def derived_gw_spindown_luminosity(self):
+        """
+        Calculate the gravitational-wave luminsity assuming a l=m=2 quadrupolar
+        mode emission and a braking index of n=5.
+        """
+
+        from .utils import gw_luminosity
+
+        if "H0_UL" not in self.columns:
+            self.derived_gw_h0_spindown_limit()
+
+        if not np.all([p in self.columns for p in ["H0_UL", "F0", "DIST"]]):
+            return
+
+        H0UL = self.catalogue["H0_UL"]
+        F0 = self.catalogue["F0"]
+        DIST = self.catalogue["DIST"]
+
+        EDOTGW = gw_luminosity(h0=H0UL, frequency=F0, distance=DIST)
+        self.update(EDOTGW, name="EDOT_GW")
 
     def derived_b_lc(self):
         """
