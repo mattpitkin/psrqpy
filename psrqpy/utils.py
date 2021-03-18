@@ -604,7 +604,7 @@ def get_gc_catalogue():
                     NaN for the error is not present
             """
             if "(" in value:
-                error = float(value[value.find("(") + 1 : value.find(")")])
+                error = float(value[value.find("(") + 1: value.find(")")])
                 exponent = value.find("(") - value.find(".") - 1
 
                 if "*10-15" in value:
