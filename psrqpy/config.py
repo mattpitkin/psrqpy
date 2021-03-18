@@ -260,7 +260,6 @@ PSR_DERIVED['AGE_I'] =   {'ref': False, 'err': False, 'units': 'yr'}   # Spin do
 PSR_DERIVED['BSURF_I'] = {'ref': False, 'err': False, 'units': 'G'}   # Surface magnetic dipole from P1_i
 PSR_DERIVED['B_LC'] =    {'ref': False, 'err': False, 'units': 'G'}   # Magnetic field at light cylinder
 PSR_DERIVED['H0_UL'] =   {'ref': False, 'err': False, 'units': None}  # GW spin-down limit
-PSR_DERIVED['EDOT_GW'] = {'ref': False, 'err': False, 'units': 'J/s'}  # GW spin-down energy loss rate
 
 PSR_DERIVED_PARS = list(PSR_DERIVED.keys())
 

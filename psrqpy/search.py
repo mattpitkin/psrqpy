@@ -1167,7 +1167,6 @@ class QueryATNF(object):
         self.derived_flux()        # radio flux
         self.derived_binary()      # derived binary parameters
         self.derived_gw_h0_spindown_limit()  # derive GW parameters
-        self.derived_gw_spindown_luminosity()  # derive GW parameters
 
     def define_dist(self):
         """
@@ -2103,38 +2102,19 @@ class QueryATNF(object):
             return
 
         F0 = self.catalogue["F0"]
-        P1_I = self.catalogue["P1_I"]
+        P1I = np.full(self.catalogue_len, np.nan)
+        idx = np.isfinite(self.catalogue["P1_I"])
+        P1I[idx] = self.catalogue["P1_I"][idx]
 
         # where P1_I is not present use P1
-        idx = ~np.isfinite(P1_I) & np.isfinite(self.catalogue["P1"])
-        P1_I[idx] = self.catalogue["P1"][idx]
+        idx = ~idx & np.isfinite(self.catalogue["P1"])
+        P1I[idx] = self.catalogue["P1"][idx]
 
-        F1_I = pdot_to_fdot(P1_I, frequency=F0)
+        F1_I = pdot_to_fdot(P1I, frequency=F0)
         DIST = self.catalogue["DIST"]
 
         H0UL = gw_h0_spindown_limit(frequency=F0, fdot=F1_I, distance=DIST)
         self.update(H0UL, name="H0_UL")
-
-    def derived_gw_spindown_luminosity(self):
-        """
-        Calculate the gravitational-wave luminsity assuming a l=m=2 quadrupolar
-        mode emission and a braking index of n=5.
-        """
-
-        from .utils import gw_luminosity
-
-        if "H0_UL" not in self.columns:
-            self.derived_gw_h0_spindown_limit()
-
-        if not np.all([p in self.columns for p in ["H0_UL", "F0", "DIST"]]):
-            return
-
-        H0UL = self.catalogue["H0_UL"]
-        F0 = self.catalogue["F0"]
-        DIST = self.catalogue["DIST"]
-
-        EDOTGW = gw_luminosity(h0=H0UL, frequency=F0, distance=DIST)
-        self.update(EDOTGW, name="EDOT_GW")
 
     def derived_b_lc(self):
         """

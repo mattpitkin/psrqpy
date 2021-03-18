@@ -763,6 +763,37 @@ def test_derived_pb_pbdot(query_derived, query_atnf):
     assert round_err(pbdoterr, pbdoterratnf)
 
 
+def test_derived_gw_parameters(query):
+    """
+    Test derived gravitational-wave parameters.
+    """
+
+    from psrqpy.utils import h0_to_ellipticity
+
+    crab = query.get_pulsar('J0534+2200')
+
+    # check derived h0 spin-down upper limit
+    expectedh0 = 1.4e-24  # e.g., Table 3 of https://arxiv.org/abs/2007.14251
+    derivedh0 = crab["H0_UL"].data[0]
+
+    # make sure value is within 5% of expected value
+    assert 0.95 < derivedh0 / expectedh0 < 1.05
+
+    # check derived luminosity
+    expectedL = 4.5e31  # e.g., Table 2 of https://arxiv.org/abs/2007.14251
+    derivedL = crab["EDOT"].to("W").data[0]
+
+    # make sure value is within 5% of expected value
+    assert 0.95 < derivedL / expectedL < 1.05
+
+    # check ellipticity conversion
+    expectedell = 1.8e-4 * 4.1  # see Sec 3 of https://arxiv.org/abs/0805.4758
+    ellipticity = h0_to_ellipticity(crab["H0_UL"], crab["F0"], crab["DIST"])
+
+    # make sure value is within 5% of expected value
+    assert 0.95 < ellipticity / expectedell < 1.05
+
+
 # TEST EXCEPTIONS #
 def test_bad_database():
     """
@@ -771,7 +802,7 @@ def test_bad_database():
 
     baddbfile = 'sdhfjjdf'  # bad database file
     with pytest.raises(RuntimeError):
-        query = QueryATNF(loadfromdb=baddbfile)
+        _ = QueryATNF(loadfromdb=baddbfile)
 
 
 @pytest.mark.disable_socket
@@ -781,7 +812,7 @@ def test_download_db():
     """
 
     with pytest.raises(RuntimeError):
-        query = QueryATNF(checkupdate=True)
+        _ = QueryATNF(checkupdate=True)
 
 
 @pytest.mark.disable_socket
@@ -793,7 +824,19 @@ def test_download_glitch_table():
     from psrqpy.utils import get_glitch_catalogue
 
     with pytest.raises(RuntimeError):
-        table = get_glitch_catalogue()
+        _ = get_glitch_catalogue()
+
+
+@pytest.mark.disable_socket
+def test_download_glitch_table():
+    """
+    Try downloading the glitch table with the socket disabled.
+    """
+
+    from psrqpy.utils import get_gc_catalogue
+
+    with pytest.raises(RuntimeError):
+        _ = get_gc_catalogue()
 
 
 def test_sort_exception(query):
