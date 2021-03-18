@@ -30,6 +30,7 @@ from .config import (
     PSR_ALL,
     PSR_ALL_PARS,
     GLITCH_URL,
+    GC_URL,
 )
 
 
@@ -355,12 +356,6 @@ def get_glitch_catalogue(psr=None):
         27
     """
 
-    try:
-        from astropy.table import Table
-        from astropy.units import Unit
-    except ImportError:
-        raise ImportError("Problem importing astropy")
-
     # get webpage
     try:
         gt = requests.get(GLITCH_URL)
@@ -442,8 +437,8 @@ def get_glitch_catalogue(psr=None):
 
     # convert to an astropy table
     table = Table(tabledict)
-    table.columns["MJD"].unit = Unit("d")  # add units of days to glitch time
-    table.columns["MJD_ERR"].unit = Unit("d")
+    table.columns["MJD"].unit = aunits.Unit("d")  # add units of days to glitch time
+    table.columns["MJD_ERR"].unit = aunits.Unit("d")
 
     # correct scaling of parameters
     table["DeltaF/F"] *= 1e-9
@@ -464,6 +459,281 @@ def get_glitch_catalogue(psr=None):
                 return table[table["NAME"] == psr]
             else:
                 return table[table["JNAME"] == psr]
+
+
+def get_gc_catalogue():
+    """
+    Download and parse Paolo Freire's table of pulsars in globular clusters
+    from http://www.naic.edu/~pfreire/GCpsr.txt. This will be returned as a
+    :class:`astropy.table.Table`, but with some additional methods to extract
+    information for individual clusters. If the webpage returned an error
+    ``None`` is returned.
+
+    The additional methods of the returned :class:`~astropy.table.Table` are:
+
+    * ``clusters``: by default this returns a list if the common names of the
+      globular clusters in the table, or using the ``ngc=True`` argument will
+      return the NGC names of all clusters.
+    * ``cluster_pulsars``: returns a sub-table only containing pulsars within
+      a supplied globular cluster name.
+    """
+
+    # get the webpage
+    try:
+        gct = requests.get(GC_URL)
+    except Exception as e:
+        raise RuntimeError(
+            "Error downloading the globular cluster pulsar table: {}".format(str(e))
+        )
+
+    if gct.status_code != 200:
+        warnings.warn("Count not query the globular cluster pulsar table.", UserWarning)
+        return None
+
+    # convert from btyes to utf-8
+    tabledata = gct.content.decode("utf-8")
+
+    names = [
+        "Cluster",
+        "NGC",
+        "Pulsar",
+        "Offset",
+        "Period",
+        "dP/dt",
+        "dP/dt error",
+        "DM",
+        "DM error",
+        "Pb",
+        "x",
+        "x error",
+        "e",
+        "e error",
+        "m2",
+    ]
+
+    # create astropy table
+    gctable = Table(
+        names=names,
+        dtype=[
+            str,
+            str,
+            str,
+            float,
+            float,
+            float,
+            float,
+            float,
+            float,
+            float,
+            float,
+            float,
+            float,
+            float,
+            float,
+        ],
+        units=[
+            None,
+            None,
+            None,
+            aunits.arcmin,
+            1e-3 * aunits.s,
+            1e-20 * aunits.s / aunits.s,
+            1e-20 * aunits.s / aunits.s,
+            aunits.cm ** -3 * aunits.pc,
+            aunits.cm ** -3 * aunits.pc,
+            aunits.d,
+            aunits.s,
+            aunits.s,
+            None,
+            None,
+            aunits.Msun,
+        ],
+        masked=True,
+    )
+
+    # loop over data and add in rows
+    for line in tabledata.split("\n"):
+        line = line.strip()
+        if len(line) == 0:
+            continue
+        if line[0] == "#":  # comment line
+            continue
+
+        # make sure any en-dashes "−" are replaced with -
+        linevalues = re.sub("−", "-", line).split()
+
+        # check if line is a pulsar
+        ispulsar = False
+        if linevalues[0][0] in ["J", "B"]:
+            try:
+                if linevalues[0][5] in ["+", "-"]:
+                    ispulsar = True
+            except IndexError:
+                pass
+
+        # get globular cluster name
+        if not ispulsar:
+            # check if there's an NGC name
+            ngc = re.search(r"NGC\s\d+", line)
+
+            if ngc is not None:
+                ngc = ngc.group()
+
+            # common name
+            gcname = line.split("(")[0].strip()
+            continue
+
+        psrentry = {key: None for key in names}
+        psrentry["Cluster"] = gcname
+        psrentry["NGC"] = str(ngc)
+        psrentry["Pulsar"] = linevalues[0]
+
+        psrentry["Offset"] = float(linevalues[1]) if linevalues[1] != "*" else np.nan
+        psrentry["Period"] = float(linevalues[2])
+
+        def parse_value_error(value):
+            """
+            Parse a string value and extract the error if given.
+
+            Args:
+                value (str): A string containing a value with associated last
+                    digit error in parentheses, e.g., "-1.2324(5)"
+
+            Returns:
+                tuple: A tuple containing the value and the error as floats, or
+                    NaN for the error is not present
+            """
+            if "(" in value:
+                error = float(value[value.find("(") + 1 : value.find(")")])
+                exponent = value.find("(") - value.find(".") - 1
+
+                if "*10-15" in value:
+                    # scale to units of 10-20
+                    scale = 1e-15 / 1e-20
+                else:
+                    scale = 1.0
+
+                val = float(value[: value.find("(")]) * scale
+                error *= 10 ** -exponent * scale
+            else:
+                if "*10-15" in value:
+                    # scale to units of 10-20
+                    scale = 1e-15 / 1e-20
+                    value = value.rstrip("*10-15")
+                else:
+                    scale = 1.0
+
+                # remove any inequalities
+                val = (
+                    float(value.strip(">").strip("<"))
+                    if value != "*" and value != "i"
+                    else np.nan
+                )
+                error = np.nan
+
+            return val, error
+
+        # dP/dt
+        val, error = parse_value_error(linevalues[3])
+        psrentry["dP/dt"] = val
+        psrentry["dP/dt error"] = error
+
+        # DM
+        val, error = parse_value_error(linevalues[4])
+        psrentry["DM"] = val
+        psrentry["DM error"] = error
+
+        # binary parameters
+        val, _ = parse_value_error(linevalues[5])
+        psrentry["Pb"] = val
+
+        val, error = parse_value_error(linevalues[6])
+        psrentry["x"] = val
+        psrentry["x error"] = error
+
+        val, error = parse_value_error(linevalues[7])
+        psrentry["e"] = val
+        psrentry["e error"] = error
+
+        # due to an entry without proper spacing (J1953+1846A) one line gives an index error for m2
+        try:
+            val, _ = parse_value_error(linevalues[8])
+            psrentry["m2"] = val
+        except IndexError:
+            psrentry["m2"] = np.nan
+
+        mask = {}
+        for key, value in psrentry.items():
+            mask[key] = (
+                True if value is None or value == "None" or value is np.nan else False
+            )
+
+        gctable.add_row(psrentry, mask=mask)
+
+    class GCTable(Table):
+        def __init__(self, data=None, **kwargs):
+            super().__init__(data=data, **kwargs)
+
+        def clusters(self, ngc=False):
+            """
+            Return a list of the globular cluster names.
+
+            Args:
+                ngc (bool): Set to True to return the NGC names rather than
+                    common names (some of which may be NGC names anyway!)
+            """
+
+            if ngc:
+                return [val[0] for val in self.group_by("NGC").groups.keys.as_array()]
+            else:
+                return [
+                    val[0] for val in self.group_by("Cluster").groups.keys.as_array()
+                ]
+
+        def cluster_pulsars(self, cluster):
+            """
+            Return a table just containing the pulsars in a requested globular
+            cluster. If the cluster is not found then return None.
+
+            Args:
+                cluster (str): The name of the globular cluster for which to
+                    return the pulsars.
+
+            Returns:
+                :class:`~astropy.table.Table`: a table the pulsars in the given
+                    cluster.
+            """
+
+            clustercolumns = ["Cluster", "NGC"]
+
+            # check if name is just an integer value, which could be an NGC id
+            try:
+                gcnum = int(cluster)
+            except ValueError:
+                gcnum = None
+
+            if gcnum is not None:
+                cluster = "NGC {}".format(gcnum)
+
+            # check for cluster name in the two columns containing name info
+            gctable = None
+            for cc in clustercolumns:
+                # remove spaces from cluster names, so, e.g., 47Tuc will work
+                # as well as 47 Tuc
+                cluster = cluster.replace(" ", "")
+                clusters = [
+                    gc.replace(" ", "") for gc in self[cc] if isinstance(gc, str)
+                ]
+
+                if cluster in clusters:
+                    mask = clusters == cluster
+                    gctable = self[mask]
+                    break
+
+            return gctable
+
+    # return the table
+    return GCTable(gctable)
 
 
 def check_old_references(func):
@@ -740,7 +1010,7 @@ def get_references(
                     # get the page if given (assumed to be th last value)
                     try:
                         testpage = re.sub(
-                            "[\+\-\.]", "", extrainfo[-1].strip().split("-")[0]
+                            r"[\+\-\.]", "", extrainfo[-1].strip().split("-")[0]
                         )
                         if not testpage.startswith(
                             "eaao"
