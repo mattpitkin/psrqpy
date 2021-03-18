@@ -5,7 +5,7 @@ or an interable list of pulsars.
 
 import warnings
 
-from six import string_types, iteritems
+from six import string_types
 
 from .config import PSR_ALL_PARS, PSR_ALL
 
@@ -28,7 +28,7 @@ class Pulsar(object):
         self._name = psrname
         self._query = query
 
-        for key, value in iteritems(kwargs):
+        for key, value in kwargs.items():
             setattr(self, key, value)
 
     def __repr__(self):
@@ -61,7 +61,7 @@ class Pulsar(object):
             + [par + "_ERR" for par in PSR_ALL_PARS]
             + [par + "_REF" for par in PSR_ALL_PARS]
         )
-        return [value for key, value in iteritems(self.__dict__) if key in keys]
+        return [value for key, value in self.__dict__.items() if key in keys]
 
     @property
     def name(self):

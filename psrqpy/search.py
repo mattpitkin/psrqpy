@@ -7,9 +7,8 @@ information.
 import warnings
 from collections import OrderedDict
 import re
-import six
 
-from six.moves import cPickle as pickle
+import pickle
 from six import string_types
 
 import numpy as np
