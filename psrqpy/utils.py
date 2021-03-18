@@ -2,8 +2,6 @@
 A selection of useful functions used by the module.
 """
 
-from __future__ import print_function, division
-
 import warnings
 import re
 import os

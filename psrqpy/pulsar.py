@@ -3,8 +3,6 @@ The classes defined here are hold information on an individual pulsar
 or an interable list of pulsars.
 """
 
-from __future__ import print_function, division
-
 import warnings
 
 from six import string_types, iteritems

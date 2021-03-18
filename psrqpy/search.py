@@ -4,8 +4,6 @@ The classes defined here are for querying the `ATNF pulsar catalogue
 information.
 """
 
-from __future__ import print_function, division
-
 import warnings
 from collections import OrderedDict
 import re
