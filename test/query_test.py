@@ -960,7 +960,7 @@ def test_download_msp_table():
     """
     Try downloading the MSP table with the socket disabled.
     """
-    
+
     from psrqpy.utils import get_msp_catalogue
 
     with pytest.raises(RuntimeError):
