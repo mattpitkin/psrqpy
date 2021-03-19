@@ -273,6 +273,9 @@ download and parse:
 * Paolo Freire's `table of pulsars in globular clusters <http://www.naic.edu/~pfreire/GCpsr.txt>`_
   (note that the downloaded table does not include accompanying notes or references, and binary
   parameters that are listed as upper/lower limits within the table are just returned as equalities.)
+* Duncan Lorimer & Elizabeth Ferrara's `table of galactic millisecond pulsars
+  <http://astro.phys.wvu.edu/GalacticMSPs/>`_ (accessed via the `JSON-ified version
+  <https://github.com/astrogewgaw/galmsps>`_ by `Ujjwal Panda <https://github.com/astrogewgaw>`_)
 
 Examples
 --------
@@ -287,7 +290,7 @@ The glitches for a single pulsar can be returned with, e.g.:
 
     >>> crabglitches = get_glitch_catalogue(psr="J0534+2200")
 
-Accessing the globular cluster tables can be achieved with the
+Accessing the globular cluster table can be achieved with the
 :func:`~psrqpy.utils.get_gc_catalogue` function using:
 
     >>> from psrqpy.utils import get_gc_catalogue
@@ -296,6 +299,12 @@ Accessing the globular cluster tables can be achieved with the
 The pulsars with a single globular cluster, e.g., 47 Tuc, can the be returned with:
 
     >>> tucpulsars = gctable.cluster_pulsars("47 Tuc")
+
+Accessing the MSP table can be achieved with the :func:`~psrqpy.utils.get_msp_catalogue` function
+using:
+
+    >>> from psrqpy.utils import get_msp_catalogue
+    >>> msps = get_msp_catalogue()
 
 Differences with the ATNF Pulsar Catalogue
 ==========================================

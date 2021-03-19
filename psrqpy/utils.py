@@ -25,6 +25,7 @@ from .config import (
     ATNF_BASE_URL,
     ADS_URL,
     ATNF_TARBALL,
+    MSP_URL,
     PSR_ALL,
     PSR_ALL_PARS,
     GLITCH_URL,
@@ -732,6 +733,75 @@ def get_gc_catalogue():
 
     # return the table
     return GCTable(gctable)
+
+
+def get_msp_catalogue():
+    """
+    Download and parse Dunc Lorimer's `catalogue
+    <http://astro.phys.wvu.edu/GalacticMSPs/GalacticMSPs.txt>`_ of galactic
+    millisecond pulsars. This makes use of `@astrogewgaw <https://github.com/astrogewgaw>`_'s
+    scraped version of the `table <https://github.com/astrogewgaw/galmsps>`_.
+
+    Returns:
+        :class:`~astropy.table.Table`: a table the MSPs.
+    """
+
+    import json
+
+    # get the webpage
+    try:
+        mspt = requests.get(MSP_URL)
+    except Exception as e:
+        raise RuntimeError("Error downloading the MSP table: {}".format(str(e)))
+
+    if mspt.status_code != 200:
+        warnings.warn("Count not query the MSP table.", UserWarning)
+        return None
+
+    # convert from btyes to utf-8
+    tabledata = json.loads(mspt.content.decode("utf-8"))
+
+    # conversion between column names to be consistent with ATNF
+    colnames = {
+        "NAME": "NAME",
+        "P": "P0",  # period
+        "DM": "DM",  # dispersion measure
+        "GAL_L": "GL",  # galactic longitude
+        "GAL_B": "GB",  # galactic latitude,
+        "PBIN": "PB",  # binary period
+        "PSMA": "A1",  # projected semi-major axis
+        "YEAR": "DISCOVERY YEAR",  # discovery year
+        "NOTES": "NOTES",
+    }
+
+    # units for the columns
+    units = {
+        "NAME": None,
+        "P0": aunits.s * 1e-3,
+        "DM": aunits.cm ** -3 * aunits.pc,
+        "GL": aunits.deg,
+        "GB": aunits.deg,
+        "PB": aunits.d,
+        "A1": aunits.s,
+        "DISCOVERY YEAR": aunits.year,
+        "NOTES": None,
+    }
+
+    # create dictionary in form usable by astropy Table
+    tabledict = {
+        colnames[key]: [item[key] for item in tabledata.values()]
+        for key in list(tabledata.values())[0]
+    }
+
+    # convert into astropy Table
+    msptable = Table(
+        data=tabledict,
+        units=units,
+        dtype=[str, float, float, float, float, float, float, int, str],
+        masked=True,
+    )
+
+    return msptable
 
 
 def check_old_references(func):
