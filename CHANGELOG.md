@@ -1,11 +1,16 @@
 # Notable changes between versions
 
+## [1.1.1] 2021-03-19
+
+- Add function to download and parse the galactic MSP table. See [#80](https://github.com/mattpitkin/psrqpy/pull/80).
+- Add functions to calculate derived gravitational wave parameters. See [#79](https://github.com/mattpitkin/psrqpy/pull/79).
+
 ## [1.1.0] 2021-03-18
 
 The major change for this release is that it no longer supports Python 2.7, and only supports Python versions
 greater than 3.5.
 
-- Add a function to download and parse the [globular cluster pulsar](http://www.naic.edu/~pfreire/GCpsr.html) table. See [#77](https://github.com/mattpitkin/psrqpy/pull/77)
+- Add a function to download and parse the [globular cluster pulsar](http://www.naic.edu/~pfreire/GCpsr.html) table. See [#77](https://github.com/mattpitkin/psrqpy/pull/77).
 
 ## [1.0.11] 2020-10-19
 
