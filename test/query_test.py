@@ -763,6 +763,71 @@ def test_derived_pb_pbdot(query_derived, query_atnf):
     assert round_err(pbdoterr, pbdoterratnf)
 
 
+def test_pdot_to_fdot(query):
+    """
+    Test the conversion functions from Pdot to fdot and vice versa.
+    """
+
+    from psrqpy.utils import pdot_to_fdot, fdot_to_pdot
+
+    vela = query.get_pulsar('J0835-4510')
+    crab = query.get_pulsar('J0534+2200')
+
+    F1v = vela["F1"].data[0]
+    P1v = vela["P1"].data[0]
+
+    F0v = vela["F0"].data[0]
+    P0v = vela["P0"].data[0]
+
+    F1c = crab["F1"].data[0]
+    P1c = crab["P1"].data[0]
+
+    F0c = crab["F0"].data[0]
+    P0c = crab["P0"].data[0]
+
+    # test pdot to fdot
+    with pytest.raises(ValueError):
+        pdot_to_fdot(P1v)
+
+    # test individual value
+    f1calcv1 = pdot_to_fdot(P1v, period=P0v)
+    f1calcv2 = pdot_to_fdot(P1v, frequency=F0v)
+
+    assert isinstance(f1calcv1, float)
+    assert isinstance(f1calcv2, float)
+    assert f1calcv1 == f1calcv2
+    assert np.allclose([f1calcv1], [F1v])
+
+    # test pair of values
+    f1calc1 = pdot_to_fdot([P1v, P1c], period=[P0v, P0c])
+    f1calc2 = pdot_to_fdot([P1v, P1c], frequency=[F0v, F0c])
+
+    assert len(f1calc1) == 2
+    assert len(f1calc2) == 2
+    assert np.allclose(f1calc1, f1calc2)
+
+    # test fdot to pdot
+    with pytest.raises(ValueError):
+        fdot_to_pdot(F1v)
+
+    # test individual value
+    p1calcv1 = fdot_to_pdot(F1v, period=P0v)
+    p1calcv2 = fdot_to_pdot(F1v, frequency=F0v)
+
+    assert isinstance(p1calcv1, float)
+    assert isinstance(p1calcv2, float)
+    assert p1calcv1 == p1calcv2
+    assert np.allclose([p1calcv1], [P1v])
+
+    # test pair of values
+    p1calc1 = fdot_to_pdot([F1v, F1c], period=[P0v, P0c])
+    p1calc2 = fdot_to_pdot([F1v, F1c], frequency=[F0v, F0c])
+
+    assert len(p1calc1) == 2
+    assert len(p1calc2) == 2
+    assert np.allclose(p1calc1, p1calc2)
+
+
 def test_derived_gw_parameters(query):
     """
     Test derived gravitational-wave parameters.
