@@ -442,6 +442,31 @@ def test_gc_table():
     assert "J0023-7204C" in table.cluster_pulsars("47Tuc")["Pulsar"]
 
 
+def test_msp_table(query):
+    """
+    Try downloading the MSP table.
+    """
+
+    from psrqpy.utils import get_msp_catalogue
+
+    table = get_msp_catalogue()
+
+    # when added there were 400 pulsars in the table
+    assert len(table) >= 400
+    psrcheck = "J0023+0923"
+    assert psrcheck in table["NAME"]
+
+    # compare values to ATNF values to with 1%
+    psr = query.get_pulsar(psrcheck)
+    msppsr = table[table["NAME"] == psrcheck]
+
+    assert 0.99 < psr["GB"] / msppsr["GB"] < 1.01
+    assert 0.99 < psr["GL"] / msppsr["GL"] < 1.01
+    assert 0.99 < psr["DM"] / msppsr["DM"] < 1.01
+    assert 0.99 < psr["A1"] / msppsr["A1"] < 1.01
+    assert 0.99 < psr["PB"] / msppsr["PB"] < 1.01
+
+
 # TEST DERIVED PARAMETERS #
 def test_derived_p0_p1(query_derived, query_atnf):
     """
@@ -919,15 +944,27 @@ def test_download_glitch_table():
 
 
 @pytest.mark.disable_socket
-def test_download_glitch_table():
+def test_download_gc_table():
     """
-    Try downloading the glitch table with the socket disabled.
+    Try downloading the globular cluster table with the socket disabled.
     """
 
     from psrqpy.utils import get_gc_catalogue
 
     with pytest.raises(RuntimeError):
         _ = get_gc_catalogue()
+
+
+@pytest.mark.disable_socket
+def test_download_msp_table():
+    """
+    Try downloading the MSP table with the socket disabled.
+    """
+    
+    from psrqpy.utils import get_msp_catalogue
+
+    with pytest.raises(RuntimeError):
+        _ = get_msp_catalogue()
 
 
 def test_sort_exception(query):
