@@ -24,7 +24,7 @@ from pandas import DataFrame, Series
 from copy import deepcopy
 
 from .config import ATNF_BASE_URL, PSR_ALL, PSR_ALL_PARS, PSR_TYPE, PSR_ASSOC_TYPE, PSR_BINARY_TYPE
-from .utils import condition, age_pdot, B_field_pdot
+from .utils import condition, age_pdot, B_field_pdot, h0_to_q22, q22_to_ellipticity
 
 
 # set default astropy galactocentric frame values
@@ -2662,7 +2662,7 @@ class QueryATNF(object):
     def catalogue_len(self):
         """
         The length of the entire catalogue, i.e., the number of pulsars it
-        contains. This should be the same as `catalogue_nrows`.
+        contains. This should be the same as ``catalogue_nrows``.
         """
 
         return len(self.catalogue)
@@ -3027,3 +3027,50 @@ class QueryATNF(object):
 
         # return the figure
         return fig
+
+    def gw_mass_quadrupole(self):
+        """
+        Return the :math:`l=m=2` mass quadrupoles based on the spin-down limits
+        for the pulsars in the catalogue using :func:`~psrqpy.utils.h0_to_q22`.
+
+        Returns:
+            :class:`astropy.table.Table`: a table containing ``PSRJ`` names and
+                :math:`Q_{22}` values as a column called ``Q22``.
+        """
+
+        # parameters required to calculate the mass quadrupole
+        requiredpars = ["PSRJ", "H0_SD", "F0", "DIST"]
+
+        table = self.query_table(query_params=requiredpars)
+
+        q22 = h0_to_q22(
+            table["H0_SD"],
+            table["F0"],
+            table["DIST"]
+        )
+
+        idx = np.isfinite(q22)
+        return Table(
+            data=[table["PSRJ"][idx], q22[idx]],
+            names=["PSRJ", "Q22"],
+            units=[None, aunits.kg * aunits.m ** 2],
+        )
+
+    def gw_ellipticity(self):
+        """
+        Return the :math:`l=m=2` mass quadrupoles based on the spin-down limits
+        for the pulsars in the catalogue using
+        :func:`~psrqpy.utils.h0_to_ellipticity`.
+
+        Returns:
+            :class:`astropy.table.Table`: a table containing ``PSRJ`` names and
+                :math:`\\varepsilon` values as a column called ``ELL``.
+        """
+
+        q22 = self.gw_mass_quadrupole()
+        ell = q22_to_ellipticity(q22["Q22"])
+
+        return Table(
+            data=[q22["PSRJ"], ell],
+            names=["PSRJ", "ELL"],
+        )

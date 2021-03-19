@@ -874,6 +874,16 @@ def test_derived_gw_parameters(query):
     # make sure value is within 10% of expected value
     assert 0.9 < lumrat / expectedrat < 1.1
 
+    # use query table functions
+    ell = query.gw_ellipticity()
+    ellipticity = ell[ell["PSRJ"] == "J0534+2200"]["ELL"]
+    assert 0.95 < ellipticity / expectedell < 1.05
+
+    # use query table functions
+    q22t = query.gw_mass_quadrupole()
+    q22 = q22t[q22t["PSRJ"] == "J0534+2200"]["Q22"]
+    assert 0.95 < q22 / expectedQ22 < 1.05
+
 
 # TEST EXCEPTIONS #
 def test_bad_database():
