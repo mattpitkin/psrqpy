@@ -602,7 +602,7 @@ def get_gc_catalogue():
                     NaN for the error is not present
             """
             if "(" in value:
-                error = float(value[value.find("(") + 1: value.find(")")])
+                error = float(value[value.find("(") + 1 : value.find(")")])
                 exponent = value.find("(") - value.find(".") - 1
 
                 if "*10-15" in value:
@@ -1439,12 +1439,9 @@ def characteristic_age(period, pdot, braking_idx=3.0):
         float: the characteristic age in years
     """
 
-    # try converting period and pdot to numpy arrays
-    try:
-        periodarr = np.array(period).flatten()
-        pdotarr = np.array(pdot).flatten()
-    except Exception as e:
-        raise ValueError("Could not convert period/pdot to " "array: {}".format(str(e)))
+    # convert period and pdot to numpy arrays
+    periodarr = np.array(period).flatten()
+    pdotarr = np.array(pdot).flatten()
 
     assert periodarr.dtype == np.float, "Periods must be floats"
     assert pdotarr.dtype == np.float, "Period derivatives must be floats"
@@ -1520,12 +1517,9 @@ def B_field(period, pdot):
         float: the magnetic field strength in gauss.
     """
 
-    # try converting period and pdot to numpy arrays
-    try:
-        periodarr = np.array(period).flatten()
-        pdotarr = np.array(pdot).flatten()
-    except Exception as e:
-        raise ValueError("Could not convert period/pdot to " "array: {}".format(str(e)))
+    # convert period and pdot to numpy arrays
+    periodarr = np.array(period).flatten()
+    pdotarr = np.array(pdot).flatten()
 
     assert periodarr.dtype == np.float, "Periods must be floats"
     assert pdotarr.dtype == np.float, "Period derivatives must be floats"
@@ -1573,6 +1567,363 @@ def B_field_pdot(period, Bfield=1e10):
     pdots[pdots < 0] = np.nan  # set any non zero values to NaN
 
     return pdots
+
+
+def pdot_to_fdot(pdot, period=None, frequency=None):
+    """
+    Convert period derivatives to frequency derivatives. Either periods or
+    frequencies must be supplied.
+
+    .. math::
+
+       \\dot{f} = -\\frac{\\dot{P}}{P^2}
+
+    Args:
+        pdot (list, :class:`~numpy.ndarray`): a list of period derivative
+            values.
+        period (list, :class:`~numpy.ndarray`): a list of periods (seconds)
+        frequency (list, :class:`~numpy.ndarray`): a list of frequencies (Hz)
+
+    Returns:
+        :class:`numpy.ndarray`: an array of frequency derivatives.
+    """
+
+    if period is None and frequency is None:
+        raise ValueError("Either periods or frequencies must be provided")
+
+    # convert to numpy arrays
+    if period is not None:
+        periodarr = np.array(period).flatten()
+        pdotarr = np.array(pdot).flatten()
+    else:
+        periodarr = 1.0 / np.array(frequency).flatten()
+        pdotarr = np.array(pdot).flatten()
+
+    assert periodarr.dtype == np.float, "Periods must be floats"
+    assert pdotarr.dtype == np.float, "Period derivatives must be floats"
+    assert len(periodarr) == len(
+        pdotarr
+    ), "Period and period derivative arrays must be equal lengths"
+
+    fdot = np.full(len(periodarr), np.nan)
+    with np.errstate(invalid="ignore"):
+        idx = np.isfinite(pdotarr) & np.isfinite(periodarr)
+    fdot[idx] = -pdotarr[idx] / periodarr[idx] ** 2
+
+    # period derivates were just a float return values rather than arrays
+    if isinstance(pdot, float):
+        return fdot[0]
+
+    return fdot
+
+
+def fdot_to_pdot(fdot, period=None, frequency=None):
+    """
+    Convert frequency derivatives to period derivatives. Either periods or
+    frequencies must be supplied.
+
+    .. math::
+
+       \\dot{P} = -\\frac{\\dot{f}}{f^2}
+
+    Args:
+        fdot (list, :class:`~numpy.ndarray`): a list of frequency derivative
+            values.
+        period (list, :class:`~numpy.ndarray`): a list of periods (seconds)
+        frequency (list, :class:`~numpy.ndarray`): a list of frequencies (Hz)
+
+    Returns:
+        :class:`numpy.ndarray`: an array of period derivatives.
+    """
+
+    if period is None and frequency is None:
+        raise ValueError("Either periods or frequencies must be provided")
+
+    # convert to numpy arrays
+    if period is not None:
+        frequencyarr = 1.0 / np.array(period).flatten()
+        fdotarr = np.array(fdot).flatten()
+    else:
+        frequencyarr = np.array(frequency).flatten()
+        fdotarr = np.array(fdot).flatten()
+
+    assert frequencyarr.dtype == np.float, "Frequencies must be floats"
+    assert fdotarr.dtype == np.float, "Frequency derivatives must be floats"
+    assert len(frequencyarr) == len(
+        fdotarr
+    ), "Frequency and frequency derivative arrays must be equal lengths"
+
+    pdot = np.full(len(frequencyarr), np.nan)
+    with np.errstate(invalid="ignore"):
+        idx = np.isfinite(fdotarr) & np.isfinite(frequencyarr)
+    pdot[idx] = -fdotarr[idx] / frequencyarr[idx] ** 2
+
+    # period derivates were just a float return values rather than arrays
+    if isinstance(fdot, float):
+        return pdot[0]
+
+    return pdot
+
+
+def gw_h0_spindown_limit(frequency, fdot, distance, Izz=1e38):
+    """
+    The gravitational-wave amplutitude at Earth assuming all rotational energy
+    loss is radiated via emission from an :math:`l=m=2` mass quadrupole mode,
+    using (see Equation A7 of [LVC]_)
+
+    .. math::
+
+        h_0^{\\text{sd}} = \\frac{1}{d}\\left(\\frac{5}{2} \\frac{G I_{zz}}{c^3} \\frac{|\\dot{f}|}{f}\\right)^{1/2}
+
+    Args:
+        frequency (list, :class:`~numpy.ndarray`): a list of frequencies (Hz).
+        fdot (list, :class:`~numpy.ndarray`): a list of frequency derivatives
+            (Hz/s).
+        distance (list, :class:`~numpy.ndarray`): a list of distances (kpc).
+        Izz (float): the moment of inertia along the principle axis (defaults
+            to 1e38 kg m\\ :sup:`2`).
+
+    Returns:
+        :class:`numpy.ndarray`: an array of spin-down limits.
+
+    .. [LVC] Abbott et al, *ApJ*, **879**, 28 (2019),
+        `arXiv:1902.08507 <https://arxiv.org/abs/1902.08507>`_
+    """
+
+    from astropy.constants import G, c
+
+    # convert values to numpy arrays
+    frequencyarr = np.array(frequency).flatten()
+    fdotarr = np.array(fdot).flatten()
+    distancearr = (np.array(distance).flatten() * aunits.pc * 1e3).to("m").value
+
+    assert frequencyarr.dtype == np.float, "Frequencies must be floats"
+    assert fdotarr.dtype == np.float, "Frequency derivatives must be floats"
+    assert len(frequencyarr) == len(fdotarr) and len(frequencyarr) == len(
+        distancearr
+    ), "Input arrays must be equal lengths"
+
+    h0ul = np.full(len(frequencyarr), np.nan)
+    # only use negative fdots
+    with np.errstate(invalid="ignore"):
+        idx = (
+            np.isfinite(fdotarr)
+            & np.isfinite(frequencyarr)
+            & np.isfinite(distancearr)
+            & (fdotarr < 0.0)
+        )
+    h0ul[idx] = (
+        np.sqrt(
+            (5.0 * G.value * Izz * np.fabs(fdotarr[idx]))
+            / (2.0 * c.value ** 3 * frequencyarr[idx])
+        )
+        / distancearr[idx]
+    )
+
+    if isinstance(frequency, float):
+        return h0ul[0]
+
+    return h0ul
+
+
+def gw_luminosity(h0, frequency, distance):
+    """
+    The gravitational-wave luminosity as derived from a given gravitatonal-wave
+    amplitude measured at Earth, assuming all rotational energy loss is
+    radiated via emission from an :math:`l=m=2` mass quadrupole mode, using
+    (see Equation A5 of [LVC]_)
+
+    .. math::
+
+        \\dot{E}_{\\text{gw}} = \\frac{8\\pi^2c^3}{5G} f^2 h_0^2 d^2
+
+    Args:
+        h0 (list, :class:`~numpy.ndarray`): a list of gravitational-wave
+            amplitudes.
+        frequency (list, :class:`~numpy.ndarray`): a list of frequencies (Hz).
+        distance (list, :class:`~numpy.ndarray`): a list of distances (kpc).
+
+    Returns:
+        :class:`numpy.ndarray`: an array of luminosities.
+    """
+
+    from astropy.constants import G, c
+
+    # convert values to numpy arrays
+    frequencyarr = np.array(frequency).flatten()
+    h0arr = np.array(h0).flatten()
+    distancearr = (np.array(distance).flatten() * aunits.pc * 1e3).to("m").value
+
+    assert frequencyarr.dtype == np.float, "Frequencies must be floats"
+    assert h0arr.dtype == np.float, "h0 must be floats"
+    assert len(frequencyarr) == len(h0arr) and len(frequencyarr) == len(
+        distancearr
+    ), "Input arrays must be equal lengths"
+
+    edot = np.full(len(frequencyarr), np.nan)
+    with np.errstate(invalid="ignore"):
+        idx = np.isfinite(h0arr) & np.isfinite(frequencyarr) & np.isfinite(distancearr)
+    edot[idx] = (
+        8.0
+        * np.pi ** 2
+        * c.value ** 3
+        * (frequencyarr[idx] * h0arr[idx] * distancearr[idx]) ** 2
+        / (5.0 * G.value)
+    )
+
+    if isinstance(frequency, float):
+        return edot[0]
+
+    return edot
+
+
+def h0_to_q22(h0, frequency, distance):
+    """
+    Convert a gravitational-wave amplitude :math:`h_0` at Earth to an
+    equivalent :math:`l=m=2` mass quadrupole :math:`Q_{22}` of the pulsar
+    using (see Equations A3 and A4 of [LVC]_):
+
+    .. math::
+
+        Q_{22} = h_0 \\left(\\frac{c^4 d}{16\\pi^2 G f^2} \\right) \\sqrt{\\frac{15}{8\\pi}}
+
+    Args:
+        h0 (list, :class:`~numpy.ndarray`): a list of gravitational-wave
+            amplitudes.
+        frequency (list, :class:`~numpy.ndarray`): a list of frequencies (Hz).
+        distance (list, :class:`~numpy.ndarray`): a list of distances (kpc).
+
+    Returns:
+        :class:`numpy.ndarray`: an array of :math:`Q_{22}` values.
+    """
+
+    from astropy.constants import G, c
+
+    # convert values to numpy arrays
+    frequencyarr = np.array(frequency).flatten()
+    h0arr = np.array(h0).flatten()
+    distancearr = (np.array(distance).flatten() * aunits.pc * 1e3).to("m").value
+
+    assert frequencyarr.dtype == np.float, "Frequencies must be floats"
+    assert h0arr.dtype == np.float, "h0 must be floats"
+    assert len(frequencyarr) == len(h0arr) and len(frequencyarr) == len(
+        distancearr
+    ), "Input arrays must be equal lengths"
+
+    q22 = np.full(len(frequencyarr), np.nan)
+    with np.errstate(invalid="ignore"):
+        idx = np.isfinite(h0arr) & np.isfinite(frequencyarr) & np.isfinite(distancearr)
+    q22[idx] = (
+        h0arr[idx]
+        * np.sqrt(15.0 / (8.0 * np.pi))
+        * (
+            c.value ** 4
+            * distancearr[idx]
+            / (16.0 * np.pi ** 2 * G.value * frequencyarr[idx] ** 2)
+        )
+    )
+
+    if isinstance(frequency, float):
+        return q22[0]
+
+    return q22
+
+
+def q22_to_ellipticity(q22, Izz=1e38):
+    """
+    Convert a :math:`l=m=2` mass quadrupole :math:`Q_{22}` to an
+    equivalent fiducial ellipticity :math:`\\varepsilon` of the pulsar
+    using (see Equation A3 of [LVC]_):
+
+    .. math::
+
+        \\varepsilon = \\frac{Q_{22}}{I_{zz}}\\sqrt{\\frac{8\\pi}{15}}
+
+    Args:
+        q22 (list, :class:`~numpy.ndarray`): a list of mass quadrupole values
+            (kg m\\ :sup:`2`).
+        Izz (float): the moment of inertia of the principle axis (defaults to
+            1e38 kg m\\ :sup:`2`).
+
+    Returns:
+        :class:`numpy.ndarray`: an array of :math:`\\varepsilon` values.
+    """
+
+    q22arr = np.array(q22).flatten()
+
+    ellipticity = np.full(len(q22arr), np.nan)
+    with np.errstate(invalid="ignore"):
+        idx = np.isfinite(q22arr)
+
+    ellipticity[idx] = q22arr[idx] * np.sqrt(8.0 * np.pi / 15.0) / Izz
+
+    if isinstance(q22, float):
+        return ellipticity[0]
+
+    return ellipticity
+
+
+def ellipticity_to_q22(ellipticity, Izz=1e38):
+    """
+    Convert a fiducial ellipticity :math:`\\varepsilon` of the pulsar to the
+    equivalent :math:`l=m=2` mass quadrupole :math:`Q_{22}` using (see
+    Equation A3 of [LVC]_):
+
+    .. math::
+
+        Q_{22} = \\varepsilon I_{zz} \\sqrt{\\frac{15}{8\\pi}}
+
+    Args:
+        ellipticity (list, :class:`~numpy.ndarray`): a list of ellipticity
+            values.
+        Izz (float): the moment of inertia of the principle axis (defaults to
+            1e38 kg m\\ :sup:`2`).
+
+    Returns:
+        :class:`numpy.ndarray`: an array of :math:`Q_{22}` values.
+    """
+
+    ellipticityarr = np.array(ellipticity).flatten()
+
+    q22 = np.full(len(ellipticityarr), np.nan)
+    with np.errstate(invalid="ignore"):
+        idx = np.isfinite(ellipticityarr)
+
+    q22[idx] = ellipticityarr[idx] * np.sqrt(15.0 / (8.0 * np.pi)) * Izz
+
+    if isinstance(ellipticity, float):
+        return q22[0]
+
+    return q22
+
+
+def h0_to_ellipticity(h0, frequency, distance, Izz=1e38):
+    """
+    Convert a gravitational-wave amplitude :math:`h_0` at Earth to an
+    equivalent fiducial ellipticity :math:`\\varepsilon` of the pulsar
+    using (see Equation A4 of [LVC]_):
+
+    .. math::
+
+        \\varepsilon = h_0 \\left(\\frac{c^4 d}{16\\pi^2 G f^2} \\right) \\sqrt{\\frac{15}{8\\pi}}
+
+    Args:
+        h0 (list, :class:`~numpy.ndarray`): a list of gravitational-wave
+            amplitudes.
+        frequency (list, :class:`~numpy.ndarray`): a list of frequencies (Hz).
+        distance (list, :class:`~numpy.ndarray`): a list of distances (kpc).
+        Izz (float): the moment of inertia of the principle axis (defaults to
+            1e38 kg m\\ :sup:`2`).
+
+    Returns:
+        :class:`numpy.ndarray`: an array of :math:`Q_{22}` values.
+    """
+
+    # use q22
+    q22 = h0_to_q22(h0, frequency, distance)
+    ellipticity = q22_to_ellipticity(q22)
+
+    return ellipticity
 
 
 def death_line(logP, linemodel="Ip", rho6=1.0):

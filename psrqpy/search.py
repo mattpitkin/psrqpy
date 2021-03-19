@@ -13,7 +13,7 @@ from six import string_types
 
 import numpy as np
 import astropy
-from astropy.coordinates import SkyCoord, ICRS, Galactic
+from astropy.coordinates import SkyCoord, ICRS, Galactic, BarycentricMeanEcliptic
 from astropy.table.column import MaskedColumn, Column
 import astropy.units as aunits
 from astropy.constants import c, GM_sun
@@ -24,16 +24,7 @@ from pandas import DataFrame, Series
 from copy import deepcopy
 
 from .config import ATNF_BASE_URL, PSR_ALL, PSR_ALL_PARS, PSR_TYPE, PSR_ASSOC_TYPE, PSR_BINARY_TYPE
-from .utils import condition, age_pdot, B_field_pdot
-
-
-# check whether to use BarycentricTrueEcliptic of BarycentricMeanEcliptic
-if version.parse(astropy.__version__) >= version.parse("3.2"):
-    from astropy.coordinates import BarycentricMeanEcliptic
-    ASTROPY_V32 = True
-else:
-    from astropy.coordinates import BarycentricTrueEcliptic as BarycentricMeanEcliptic
-    ASTROPY_V32 = False
+from .utils import condition, age_pdot, B_field_pdot, h0_to_q22, q22_to_ellipticity
 
 
 # set default astropy galactocentric frame values
@@ -1175,6 +1166,7 @@ class QueryATNF(object):
         self.derived_edot_i()      # intrinsic luminosity
         self.derived_flux()        # radio flux
         self.derived_binary()      # derived binary parameters
+        self.derived_gw_h0_spindown_limit()  # derive GW parameters
 
     def define_dist(self):
         """
@@ -1373,12 +1365,8 @@ class QueryATNF(object):
         sc = SkyCoord(RAJD[idx].values*aunits.deg,
                       DECJD[idx].values*aunits.deg)
 
-        if ASTROPY_V32:
-            ELONGnew[idx] = sc.barycentricmeanecliptic.lon.value
-            ELATnew[idx] = sc.barycentricmeanecliptic.lat.value
-        else:
-            ELONGnew[idx] = sc.barycentrictrueecliptic.lon.value
-            ELATnew[idx] = sc.barycentrictrueecliptic.lat.value
+        ELONGnew[idx] = sc.barycentricmeanecliptic.lon.value
+        ELATnew[idx] = sc.barycentricmeanecliptic.lat.value
 
         self.update(ELONGnew, name='ELONG')
         self.update(ELATnew, name='ELAT')
@@ -2096,6 +2084,38 @@ class QueryATNF(object):
         BSURFI = B_field(P0, P1_I)
         self.update(BSURFI, name='BSURF_I')
 
+    def derived_gw_h0_spindown_limit(self):
+        """
+        Calculate the limit on the gravitational-wave emission amplitude at
+        Earth assuming all rotational kinetic energy is lost via
+        gravitational-waves generated from an l=m=2 mass quadrupole (i.e., a
+        braking index of n=5). This uses the intrinsic spin-down values rather
+        than the observed spin-downs.
+        """
+
+        from .utils import gw_h0_spindown_limit, pdot_to_fdot
+
+        if 'P1_I' not in self.columns:
+            self.derived_p1_i()
+
+        if not np.all([p in self.columns for p in ["F0", "P1_I", "P1", "DIST"]]):
+            return
+
+        F0 = self.catalogue["F0"]
+        P1I = np.full(self.catalogue_len, np.nan)
+        idx = np.isfinite(self.catalogue["P1_I"])
+        P1I[idx] = self.catalogue["P1_I"][idx]
+
+        # where P1_I is not present use P1
+        idx = ~idx & np.isfinite(self.catalogue["P1"])
+        P1I[idx] = self.catalogue["P1"][idx]
+
+        F1_I = pdot_to_fdot(P1I, frequency=F0)
+        DIST = self.catalogue["DIST"]
+
+        H0UL = gw_h0_spindown_limit(frequency=F0, fdot=F1_I, distance=DIST)
+        self.update(H0UL, name="H0_SD")
+
     def derived_b_lc(self):
         """
         Calculate the magnetic field strength at the light cylinder.
@@ -2642,7 +2662,7 @@ class QueryATNF(object):
     def catalogue_len(self):
         """
         The length of the entire catalogue, i.e., the number of pulsars it
-        contains. This should be the same as `catalogue_nrows`.
+        contains. This should be the same as ``catalogue_nrows``.
         """
 
         return len(self.catalogue)
@@ -3007,3 +3027,50 @@ class QueryATNF(object):
 
         # return the figure
         return fig
+
+    def gw_mass_quadrupole(self):
+        """
+        Return the :math:`l=m=2` mass quadrupoles based on the spin-down limits
+        for the pulsars in the catalogue using :func:`~psrqpy.utils.h0_to_q22`.
+
+        Returns:
+            :class:`astropy.table.Table`: a table containing ``PSRJ`` names and
+                :math:`Q_{22}` values as a column called ``Q22``.
+        """
+
+        # parameters required to calculate the mass quadrupole
+        requiredpars = ["PSRJ", "H0_SD", "F0", "DIST"]
+
+        table = self.query_table(query_params=requiredpars)
+
+        q22 = h0_to_q22(
+            table["H0_SD"],
+            table["F0"],
+            table["DIST"]
+        )
+
+        idx = np.isfinite(q22)
+        return Table(
+            data=[table["PSRJ"][idx], q22[idx]],
+            names=["PSRJ", "Q22"],
+            units=[None, aunits.kg * aunits.m ** 2],
+        )
+
+    def gw_ellipticity(self):
+        """
+        Return the :math:`l=m=2` mass quadrupoles based on the spin-down limits
+        for the pulsars in the catalogue using
+        :func:`~psrqpy.utils.h0_to_ellipticity`.
+
+        Returns:
+            :class:`astropy.table.Table`: a table containing ``PSRJ`` names and
+                :math:`\\varepsilon` values as a column called ``ELL``.
+        """
+
+        q22 = self.gw_mass_quadrupole()
+        ell = q22_to_ellipticity(q22["Q22"])
+
+        return Table(
+            data=[q22["PSRJ"], ell],
+            names=["PSRJ", "ELL"],
+        )
