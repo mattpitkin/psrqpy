@@ -2114,7 +2114,7 @@ class QueryATNF(object):
         DIST = self.catalogue["DIST"]
 
         H0UL = gw_h0_spindown_limit(frequency=F0, fdot=F1_I, distance=DIST)
-        self.update(H0UL, name="H0_UL")
+        self.update(H0UL, name="H0_SD")
 
     def derived_b_lc(self):
         """

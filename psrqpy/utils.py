@@ -1889,12 +1889,12 @@ def ellipticity_to_q22(ellipticity, Izz=1e38):
     with np.errstate(invalid="ignore"):
         idx = np.isfinite(ellipticityarr)
 
-    q22 = ellipticityarr[idx] * np.sqrt(15.0 / (8.0 * np.pi)) * Izz
+    q22[idx] = ellipticityarr[idx] * np.sqrt(15.0 / (8.0 * np.pi)) * Izz
 
-    if isinstance(q22, float):
-        return ellipticity[0]
+    if isinstance(ellipticity, float):
+        return q22[0]
 
-    return ellipticity
+    return q22
 
 
 def h0_to_ellipticity(h0, frequency, distance, Izz=1e38):

@@ -833,13 +833,13 @@ def test_derived_gw_parameters(query):
     Test derived gravitational-wave parameters.
     """
 
-    from psrqpy.utils import h0_to_ellipticity
+    from psrqpy.utils import h0_to_ellipticity, ellipticity_to_q22, gw_luminosity
 
     crab = query.get_pulsar('J0534+2200')
 
     # check derived h0 spin-down upper limit
     expectedh0 = 1.4e-24  # e.g., Table 3 of https://arxiv.org/abs/2007.14251
-    derivedh0 = crab["H0_UL"].data[0]
+    derivedh0 = crab["H0_SD"].data[0]
 
     # make sure value is within 5% of expected value
     assert 0.95 < derivedh0 / expectedh0 < 1.05
@@ -853,10 +853,26 @@ def test_derived_gw_parameters(query):
 
     # check ellipticity conversion
     expectedell = 1.8e-4 * 4.1  # see Sec 3 of https://arxiv.org/abs/0805.4758
-    ellipticity = h0_to_ellipticity(crab["H0_UL"], crab["F0"], crab["DIST"])
+    ellipticity = h0_to_ellipticity(crab["H0_SD"], crab["F0"], crab["DIST"])
 
     # make sure value is within 5% of expected value
     assert 0.95 < ellipticity / expectedell < 1.05
+
+    # check ellipticity to q22
+    expectedQ22 = 12.6e32 / 0.021  # see Table 3 of https://arxiv.org/abs/2007.14251
+    q22 = ellipticity_to_q22(ellipticity)
+
+    # make sure value is within 5% of expected value
+    assert 0.95 < q22 / expectedQ22 < 1.05
+
+    # check GW luminosity
+    h0ul = 1.5e-26  # see Table 3 of https://arxiv.org/abs/2007.14251
+    gwlum = gw_luminosity(h0ul, crab["F0"], crab["DIST"])
+    lumrat = gwlum / crab["EDOT"].to("W").data[0]
+    expectedrat = 0.01 ** 2
+
+    # make sure value is within 10% of expected value
+    assert 0.9 < lumrat / expectedrat < 1.1
 
 
 # TEST EXCEPTIONS #
