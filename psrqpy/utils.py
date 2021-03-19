@@ -1439,12 +1439,9 @@ def characteristic_age(period, pdot, braking_idx=3.0):
         float: the characteristic age in years
     """
 
-    # try converting period and pdot to numpy arrays
-    try:
-        periodarr = np.array(period).flatten()
-        pdotarr = np.array(pdot).flatten()
-    except Exception as e:
-        raise ValueError("Could not convert period/pdot to " "array: {}".format(str(e)))
+    # convert period and pdot to numpy arrays
+    periodarr = np.array(period).flatten()
+    pdotarr = np.array(pdot).flatten()
 
     assert periodarr.dtype == np.float, "Periods must be floats"
     assert pdotarr.dtype == np.float, "Period derivatives must be floats"
@@ -1520,12 +1517,9 @@ def B_field(period, pdot):
         float: the magnetic field strength in gauss.
     """
 
-    # try converting period and pdot to numpy arrays
-    try:
-        periodarr = np.array(period).flatten()
-        pdotarr = np.array(pdot).flatten()
-    except Exception as e:
-        raise ValueError("Could not convert period/pdot to array: {}".format(str(e)))
+    # convert period and pdot to numpy arrays
+    periodarr = np.array(period).flatten()
+    pdotarr = np.array(pdot).flatten()
 
     assert periodarr.dtype == np.float, "Periods must be floats"
     assert pdotarr.dtype == np.float, "Period derivatives must be floats"
@@ -1597,23 +1591,13 @@ def pdot_to_fdot(pdot, period=None, frequency=None):
     if period is None and frequency is None:
         raise ValueError("Either periods or frequencies must be provided")
 
-    # try converting to numpy arrays
+    # convert to numpy arrays
     if period is not None:
-        try:
-            periodarr = np.array(period).flatten()
-            pdotarr = np.array(pdot).flatten()
-        except Exception as e:
-            raise ValueError(
-                "Could not convert period/pdot to array: {}".format(str(e))
-            )
+        periodarr = np.array(period).flatten()
+        pdotarr = np.array(pdot).flatten()
     else:
-        try:
-            periodarr = 1.0 / np.array(frequency).flatten()
-            pdotarr = np.array(pdot).flatten()
-        except Exception as e:
-            raise ValueError(
-                "Could not convert frequency/pdot to array: {}".format(str(e))
-            )
+        periodarr = 1.0 / np.array(frequency).flatten()
+        pdotarr = np.array(pdot).flatten()
 
     assert periodarr.dtype == np.float, "Periods must be floats"
     assert pdotarr.dtype == np.float, "Period derivatives must be floats"
@@ -1655,23 +1639,13 @@ def fdot_to_pdot(fdot, period=None, frequency=None):
     if period is None and frequency is None:
         raise ValueError("Either periods or frequencies must be provided")
 
-    # try converting to numpy arrays
+    # convert to numpy arrays
     if period is not None:
-        try:
-            frequencyarr = 1.0 / np.array(period).flatten()
-            fdotarr = np.array(fdot).flatten()
-        except Exception as e:
-            raise ValueError(
-                "Could not convert period/pdot to array: {}".format(str(e))
-            )
+        frequencyarr = 1.0 / np.array(period).flatten()
+        fdotarr = np.array(fdot).flatten()
     else:
-        try:
-            frequencyarr = np.array(frequency).flatten()
-            fdotarr = np.array(fdot).flatten()
-        except Exception as e:
-            raise ValueError(
-                "Could not convert frequency/pdot to array: {}".format(str(e))
-            )
+        frequencyarr = np.array(frequency).flatten()
+        fdotarr = np.array(fdot).flatten()
 
     assert frequencyarr.dtype == np.float, "Frequencies must be floats"
     assert fdotarr.dtype == np.float, "Frequency derivatives must be floats"
@@ -1719,12 +1693,9 @@ def gw_h0_spindown_limit(frequency, fdot, distance, Izz=1e38):
     from astropy.constants import G, c
 
     # convert values to numpy arrays
-    try:
-        frequencyarr = np.array(frequency).flatten()
-        fdotarr = np.array(fdot).flatten()
-        distancearr = (np.array(distance).flatten() * aunits.pc * 1e3).to("m").value
-    except Exception as e:
-        raise ValueError("Could not convert inputs to arrays: {}".format(str(e)))
+    frequencyarr = np.array(frequency).flatten()
+    fdotarr = np.array(fdot).flatten()
+    distancearr = (np.array(distance).flatten() * aunits.pc * 1e3).to("m").value
 
     assert frequencyarr.dtype == np.float, "Frequencies must be floats"
     assert fdotarr.dtype == np.float, "Frequency derivatives must be floats"
@@ -1779,12 +1750,9 @@ def gw_luminosity(h0, frequency, distance):
     from astropy.constants import G, c
 
     # convert values to numpy arrays
-    try:
-        frequencyarr = np.array(frequency).flatten()
-        h0arr = np.array(h0).flatten()
-        distancearr = (np.array(distance).flatten() * aunits.pc * 1e3).to("m").value
-    except Exception as e:
-        raise ValueError("Could not convert inputs to arrays: {}".format(str(e)))
+    frequencyarr = np.array(frequency).flatten()
+    h0arr = np.array(h0).flatten()
+    distancearr = (np.array(distance).flatten() * aunits.pc * 1e3).to("m").value
 
     assert frequencyarr.dtype == np.float, "Frequencies must be floats"
     assert h0arr.dtype == np.float, "h0 must be floats"
@@ -1832,12 +1800,9 @@ def h0_to_q22(h0, frequency, distance):
     from astropy.constants import G, c
 
     # convert values to numpy arrays
-    try:
-        frequencyarr = np.array(frequency).flatten()
-        h0arr = np.array(h0).flatten()
-        distancearr = (np.array(distance).flatten() * aunits.pc * 1e3).to("m").value
-    except Exception as e:
-        raise ValueError("Could not convert inputs to arrays: {}".format(str(e)))
+    frequencyarr = np.array(frequency).flatten()
+    h0arr = np.array(h0).flatten()
+    distancearr = (np.array(distance).flatten() * aunits.pc * 1e3).to("m").value
 
     assert frequencyarr.dtype == np.float, "Frequencies must be floats"
     assert h0arr.dtype == np.float, "h0 must be floats"
@@ -1884,10 +1849,7 @@ def q22_to_ellipticity(q22, Izz=1e38):
         :class:`numpy.ndarray`: an array of :math:`\\varepsilon` values.
     """
 
-    try:
-        q22arr = np.array(q22).flatten()
-    except Exception as e:
-        raise ValueError("Could not convert q22 to arrays: {}".format(str(e)))
+    q22arr = np.array(q22).flatten()
 
     ellipticity = np.full(len(q22arr), np.nan)
     with np.errstate(invalid="ignore"):
@@ -1921,10 +1883,7 @@ def ellipticity_to_q22(ellipticity, Izz=1e38):
         :class:`numpy.ndarray`: an array of :math:`Q_{22}` values.
     """
 
-    try:
-        ellipticityarr = np.array(ellipticity).flatten()
-    except Exception as e:
-        raise ValueError("Could not convert ellipticity to arrays: {}".format(str(e)))
+    ellipticityarr = np.array(ellipticity).flatten()
 
     q22 = np.full(len(ellipticityarr), np.nan)
     with np.errstate(invalid="ignore"):
