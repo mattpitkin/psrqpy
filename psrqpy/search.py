@@ -752,12 +752,12 @@ class QueryATNF(object):
                     # set new pulsars
                     self.psrs = usepsrs
 
-                jnames = np.zeros(len(dftable), dtype=np.bool)
+                jnames = np.zeros(len(dftable), dtype=bool)
                 if "JNAME" in dftable.columns:
                     jnames = np.array([psr in self.psrs
                                       for psr in dftable["JNAME"]])
 
-                bnames = np.zeros(len(dftable), dtype=np.bool)
+                bnames = np.zeros(len(dftable), dtype=bool)
                 if "BNAME" in dftable.columns:
                     bnames = np.array([psr in self.psrs
                                        for psr in dftable["BNAME"]])
@@ -977,12 +977,12 @@ class QueryATNF(object):
 
         # return only requested pulsars
         if self.psrs is not None:
-            jnames = np.zeros(len(dftable), dtype=np.bool)
+            jnames = np.zeros(len(dftable), dtype=bool)
             if 'JNAME' in dftable.columns:
                 jnames = np.array([psr in self.psrs
                                    for psr in dftable['JNAME']])
 
-            bnames = np.zeros(len(dftable), dtype=np.bool)
+            bnames = np.zeros(len(dftable), dtype=bool)
             if 'BNAME' in dftable.columns:
                 bnames = np.array([psr in self.psrs
                                    for psr in dftable['BNAME']])

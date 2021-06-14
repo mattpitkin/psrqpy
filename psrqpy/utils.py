@@ -1289,7 +1289,7 @@ def condition(table, expression, exactMatch=False):
 
     # check if expression is just a boolean array
     if isinstance(expression, np.ndarray):
-        if expression.dtype != np.bool:
+        if expression.dtype != bool:
             raise TypeError("Numpy array must be a boolean array")
         elif len(expression) != len(table):
             raise Exception("Boolean array and table must be the same length")
@@ -1513,8 +1513,8 @@ def characteristic_age(period, pdot, braking_idx=3.0):
     periodarr = np.array(period).flatten()
     pdotarr = np.array(pdot).flatten()
 
-    assert periodarr.dtype == np.float, "Periods must be floats"
-    assert pdotarr.dtype == np.float, "Period derivatives must be floats"
+    assert periodarr.dtype == float, "Periods must be floats"
+    assert pdotarr.dtype == float, "Period derivatives must be floats"
     assert len(periodarr) == len(
         pdotarr
     ), "Period and derivative arrays must be equal lengths"
@@ -1591,8 +1591,8 @@ def B_field(period, pdot):
     periodarr = np.array(period).flatten()
     pdotarr = np.array(pdot).flatten()
 
-    assert periodarr.dtype == np.float, "Periods must be floats"
-    assert pdotarr.dtype == np.float, "Period derivatives must be floats"
+    assert periodarr.dtype == float, "Periods must be floats"
+    assert pdotarr.dtype == float, "Period derivatives must be floats"
     assert len(periodarr) == len(
         pdotarr
     ), "Period and derivative arrays must be equal lengths"
@@ -1669,8 +1669,8 @@ def pdot_to_fdot(pdot, period=None, frequency=None):
         periodarr = 1.0 / np.array(frequency).flatten()
         pdotarr = np.array(pdot).flatten()
 
-    assert periodarr.dtype == np.float, "Periods must be floats"
-    assert pdotarr.dtype == np.float, "Period derivatives must be floats"
+    assert periodarr.dtype == float, "Periods must be floats"
+    assert pdotarr.dtype == float, "Period derivatives must be floats"
     assert len(periodarr) == len(
         pdotarr
     ), "Period and period derivative arrays must be equal lengths"
@@ -1717,8 +1717,8 @@ def fdot_to_pdot(fdot, period=None, frequency=None):
         frequencyarr = np.array(frequency).flatten()
         fdotarr = np.array(fdot).flatten()
 
-    assert frequencyarr.dtype == np.float, "Frequencies must be floats"
-    assert fdotarr.dtype == np.float, "Frequency derivatives must be floats"
+    assert frequencyarr.dtype == float, "Frequencies must be floats"
+    assert fdotarr.dtype == float, "Frequency derivatives must be floats"
     assert len(frequencyarr) == len(
         fdotarr
     ), "Frequency and frequency derivative arrays must be equal lengths"
@@ -1767,8 +1767,8 @@ def gw_h0_spindown_limit(frequency, fdot, distance, Izz=1e38):
     fdotarr = np.array(fdot).flatten()
     distancearr = (np.array(distance).flatten() * aunits.pc * 1e3).to("m").value
 
-    assert frequencyarr.dtype == np.float, "Frequencies must be floats"
-    assert fdotarr.dtype == np.float, "Frequency derivatives must be floats"
+    assert frequencyarr.dtype == float, "Frequencies must be floats"
+    assert fdotarr.dtype == float, "Frequency derivatives must be floats"
     assert len(frequencyarr) == len(fdotarr) and len(frequencyarr) == len(
         distancearr
     ), "Input arrays must be equal lengths"
@@ -1824,8 +1824,8 @@ def gw_luminosity(h0, frequency, distance):
     h0arr = np.array(h0).flatten()
     distancearr = (np.array(distance).flatten() * aunits.pc * 1e3).to("m").value
 
-    assert frequencyarr.dtype == np.float, "Frequencies must be floats"
-    assert h0arr.dtype == np.float, "h0 must be floats"
+    assert frequencyarr.dtype == float, "Frequencies must be floats"
+    assert h0arr.dtype == float, "h0 must be floats"
     assert len(frequencyarr) == len(h0arr) and len(frequencyarr) == len(
         distancearr
     ), "Input arrays must be equal lengths"
@@ -1874,8 +1874,8 @@ def h0_to_q22(h0, frequency, distance):
     h0arr = np.array(h0).flatten()
     distancearr = (np.array(distance).flatten() * aunits.pc * 1e3).to("m").value
 
-    assert frequencyarr.dtype == np.float, "Frequencies must be floats"
-    assert h0arr.dtype == np.float, "h0 must be floats"
+    assert frequencyarr.dtype == float, "Frequencies must be floats"
+    assert h0arr.dtype == float, "h0 must be floats"
     assert len(frequencyarr) == len(h0arr) and len(frequencyarr) == len(
         distancearr
     ), "Input arrays must be equal lengths"
