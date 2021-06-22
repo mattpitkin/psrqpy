@@ -1,5 +1,10 @@
 # Notable changes between versions
 
+## [1.1.2] 2021-06-22
+
+- Fix parsing of the galactic MSP table after changes to the upstream format. See [#85](https://github.com/mattpitkin/psrqpy/pull/85),
+- Remove explicit use of certain NumPy built-in types following their [deprecation](https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations). See [#83](https://github.com/mattpitkin/psrqpy/pull/83).
+
 ## [1.1.1] 2021-03-19
 
 - Add function to download and parse the galactic MSP table. See [#80](https://github.com/mattpitkin/psrqpy/pull/80).
