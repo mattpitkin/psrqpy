@@ -759,20 +759,20 @@ def get_msp_catalogue():
         return None
 
     # convert from btyes to utf-8
-    tabledata = json.loads(mspt.content.decode("utf-8"))
+    tabledata = json.loads(mspt.content.decode("utf-8"))["data"]
 
-    # conversion between column names to be consistent with ATNF
-    colnames = {
-        "NAME": "NAME",
-        "P": "P0",  # period
-        "DM": "DM",  # dispersion measure
-        "GAL_L": "GL",  # galactic longitude
-        "GAL_B": "GB",  # galactic latitude,
-        "PBIN": "PB",  # binary period
-        "PSMA": "A1",  # projected semi-major axis
-        "YEAR": "DISCOVERY YEAR",  # discovery year
-        "NOTES": "NOTES",
-    }
+    # column names
+    colnames = [
+        "NAME",
+        "P0",  # period
+        "DM",  # dispersion measure
+        "GL",  # galactic longitude
+        "GB",  # galactic latitude,
+        "PB",  # binary period
+        "A1",  # projected semi-major axis
+        "DISCOVERY YEAR",  # discovery year
+        "NOTES",
+    ]
 
     # units for the columns
     units = {
@@ -789,8 +789,8 @@ def get_msp_catalogue():
 
     # create dictionary in form usable by astropy Table
     tabledict = {
-        colnames[key]: [item[key] for item in tabledata.values()]
-        for key in list(tabledata.values())[0]
+        colnames[i]: [item[colnames[i]] for item in tabledata.values()]
+        for i in range(len(colnames))
     }
 
     # convert into astropy Table
