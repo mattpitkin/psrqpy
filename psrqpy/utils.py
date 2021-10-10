@@ -739,14 +739,16 @@ def get_msp_catalogue():
     """
     Download and parse Dunc Lorimer's `catalogue
     <http://astro.phys.wvu.edu/GalacticMSPs/GalacticMSPs.txt>`_ of galactic
-    millisecond pulsars. This makes use of `@astrogewgaw <https://github.com/astrogewgaw>`_'s
-    scraped version of the `table <https://github.com/astrogewgaw/galmsps>`_.
+    millisecond pulsars. This makes use of code from the now deleted `galmsps
+    <https://github.com/astrogewgaw/galmsps>`_ respository that scraped the
+    database into JSON every month, contributed by `@astrogewgaw
+    <https://github.com/astrogewgaw>`_ before deletion via PR #.
 
     Returns:
         :class:`~astropy.table.Table`: a table the MSPs.
     """
 
-    import json
+    import re
 
     # get the webpage
     try:
@@ -758,8 +760,45 @@ def get_msp_catalogue():
         warnings.warn("Count not query the MSP table.", UserWarning)
         return None
 
-    # convert from btyes to utf-8
-    tabledata = json.loads(mspt.content.decode("utf-8"))["data"]
+    numeric = (
+        lambda _: float(_)
+        if re.search(re.compile(r"^[-+]?[0-9]*[.]?[0-9]+([eE][-+]?[0-9]+)?$"), _)
+        else None
+    )
+
+    # parse the text file into a dict
+    tabledata = {
+        str(i + 1): {
+            key: conv(value)  # type: ignore
+            for (key, conv), value in zip(
+                [
+                    ("NAME", str),
+                    ("P0", numeric),
+                    ("DM", numeric),
+                    ("GL", numeric),
+                    ("GB", numeric),
+                    ("PB", numeric),
+                    ("A1", numeric),
+                    ("DISCOVERY YEAR", int),
+                    ("NOTES", str),
+                ],
+                values,
+            )
+        }
+        for i, values in enumerate(
+            [
+                [_ for _ in re.split(r"\s+", _) if _]
+                for _ in re.split(
+                    r"\n+",
+                    re.sub(
+                        re.compile(r"^([^#]*)[#](.*)$", re.MULTILINE),
+                        "",
+                        mspt.content.decode(),
+                    ).strip(),
+                )
+            ]
+        )
+    }
 
     # column names
     colnames = [

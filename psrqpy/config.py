@@ -19,8 +19,8 @@ GLITCH_URL = r"http://www.jb.man.ac.uk/pulsar/glitches/gTable.html"
 #: Paolo Freire's globular cluster pulsar table URL
 GC_URL = r"http://www.naic.edu/~pfreire/GCpsr.txt"
 
-#: JSON-ified version of Dunc Lorimer's MSP table URL
-MSP_URL = r"https://raw.githubusercontent.com/astrogewgaw/galmsps/main/galmsps.json"
+#: Dunc Lorimer's MSP table URL
+MSP_URL = r"http://astro.phys.wvu.edu/GalacticMSPs/GalacticMSPs.txt"
 
 # Pulsar parameters (http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html) that can be
 # queried. For each parameter there is a dictionary giving:
