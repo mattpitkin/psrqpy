@@ -742,7 +742,8 @@ def get_msp_catalogue():
     millisecond pulsars. This makes use of code from the now deleted `galmsps
     <https://github.com/astrogewgaw/galmsps>`_ respository that scraped the
     database into JSON every month, contributed by `@astrogewgaw
-    <https://github.com/astrogewgaw>`_ before deletion via PR #.
+    <https://github.com/astrogewgaw>`_ before deletion via `PR #88
+    <https://github.com/mattpitkin/psrqpy/pull/88>`_.
 
     Returns:
         :class:`~astropy.table.Table`: a table the MSPs.
