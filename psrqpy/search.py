@@ -1270,9 +1270,9 @@ class QueryATNF(object):
     def derived_equatorial(self):
         """
         Calculate equatorial coordinates if only ecliptic coordinates are
-        given. Unlike `psrcat` this function does not currently convert
-        errors on ecliptic coordinates into equavalent errors on equatorial
-        coordinates.
+        given. Errors on ecliptical coordinates are converted into
+        equavalent errors on equatorial coordinates using a different
+        algorithm to that used in `psrcat`.
         """
 
         reqpar = ['ELONG', 'ELAT']
@@ -1303,6 +1303,36 @@ class QueryATNF(object):
         self.update(RAJnew, name='RAJ')
         self.update(DECJnew, name='DECJ')
 
+        ELONG_ERR = self.catalogue['ELONG_ERR']
+        ELAT_ERR = self.catalogue['ELAT_ERR']
+        RAJD_ERRnew = np.full(self.catalogue_len, np.nan)
+        DECJD_ERRnew = np.full(self.catalogue_len, np.nan)
+        RAJ_ERRnew = np.full(self.catalogue_len, np.nan)
+        DECJ_ERRnew = np.full(self.catalogue_len, np.nan)
+
+        # get position angle towards Northern ecliptic pole and rotate
+        # ecliptical error ellipse to equatorial coordinates
+        # (Jean Meeus, Astronomal Algorithms, 2nd edition, p. 100)
+        ecl = 23.4392911 * aunits.deg
+        l, b = ELONG.values[idx] * aunits.deg, ELAT.values[idx] * aunits.deg
+        el, eb = ELONG_ERR.values[idx], ELAT_ERR.values[idx]
+        elcosb = el * np.cos(b)
+        q = np.arctan2(np.cos(l) * np.tan(ecl),
+                       np.sin(b) * np.sin(l) * np.tan(ecl) - np.cos(b))
+        cq, sq = np.cos(q), np.sin(q)
+        eracosdec, edec = np.abs(elcosb * cq - eb * sq), np.abs(elcosb * sq + eb * cq)
+        era = eracosdec / np.cos(sc.dec.radian)
+
+        RAJD_ERRnew[idx] = era 
+        DECJD_ERRnew[idx] = edec
+        RAJ_ERRnew[idx] = 3600 * era / 15
+        DECJ_ERRnew[idx] = 3600 * edec
+        
+        self.update(RAJD_ERRnew, name='RAJD_ERR')
+        self.update(DECJD_ERRnew, name='DECJD_ERR')
+        self.update(RAJ_ERRnew, name='RAJ_ERR')
+        self.update(DECJ_ERRnew, name='DECJ_ERR')
+                
         # set references
         if 'ELONG_REF' in self.columns:
             RAJREFnew = np.full(self.catalogue_len, '', dtype='U32')
