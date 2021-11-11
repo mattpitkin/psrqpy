@@ -1306,11 +1306,11 @@ class QueryATNF(object):
         if 'ELONG_ERR' in self.columns:
             ELONG_ERR = self.catalogue['ELONG_ERR']
         else:
-            ELONG_ERR = np.full(self.catalogue_len, np.nan)
+            ELONG_ERR = np.full(self.catalogue_len, np.nan) * aunits.deg
         if 'ELAT_ERR' in self.columns:
             ELAT_ERR = self.catalogue['ELAT_ERR']
         else:
-            ELAT_ERR = np.full(self.catalogue_len, np.nan)
+            ELAT_ERR = np.full(self.catalogue_len, np.nan) * aunits.deg
         RAJD_ERRnew = np.full(self.catalogue_len, np.nan)
         DECJD_ERRnew = np.full(self.catalogue_len, np.nan)
         RAJ_ERRnew = np.full(self.catalogue_len, np.nan)
