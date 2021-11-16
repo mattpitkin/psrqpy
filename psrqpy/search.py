@@ -1270,9 +1270,9 @@ class QueryATNF(object):
     def derived_equatorial(self):
         """
         Calculate equatorial coordinates if only ecliptic coordinates are
-        given. Unlike `psrcat` this function does not currently convert
-        errors on ecliptic coordinates into equavalent errors on equatorial
-        coordinates.
+        given. Errors on ecliptical coordinates are converted into
+        equavalent errors on equatorial coordinates using a different
+        algorithm to that used in `psrcat`.
         """
 
         reqpar = ['ELONG', 'ELAT']
@@ -1289,9 +1289,10 @@ class QueryATNF(object):
         idx = np.isfinite(ELONG) & np.isfinite(ELAT)
 
         # get sky coordinates
-        sc = BarycentricMeanEcliptic(ELONG.values[idx]*aunits.deg,
-                                     ELAT.values[idx]*aunits.deg
-                                     ).transform_to(ICRS())
+        sc = BarycentricMeanEcliptic(
+            ELONG.values[idx]*aunits.deg,
+            ELAT.values[idx]*aunits.deg
+        ).transform_to(ICRS())
 
         RAJDnew[idx] = sc.ra.value
         DECJDnew[idx] = sc.dec.value
@@ -1302,6 +1303,42 @@ class QueryATNF(object):
         self.update(DECJDnew, name='DECJD')
         self.update(RAJnew, name='RAJ')
         self.update(DECJnew, name='DECJ')
+
+        reqpar = ['ELONG_ERR', 'ELAT_ERR']
+        if np.all([p in self.columns for p in reqpar]):
+            ELONG_ERR = self.catalogue['ELONG_ERR'].values.copy()
+            ELAT_ERR = self.catalogue['ELAT_ERR'].values.copy()
+            RAJD_ERRnew = np.full(self.catalogue_len, np.nan)
+            DECJD_ERRnew = np.full(self.catalogue_len, np.nan)
+            RAJ_ERRnew = np.full(self.catalogue_len, np.nan)
+            DECJ_ERRnew = np.full(self.catalogue_len, np.nan)
+
+            idxerr = idx & np.isfinite(ELONG_ERR) & np.isfinite(ELAT_ERR)
+
+            # get position angle towards Northern ecliptic pole and rotate
+            # ecliptical error ellipse to equatorial coordinates
+            # (Jean Meeus, Astronomal Algorithms, 2nd edition, p. 100)
+            ecl = 23.4392911 * aunits.deg
+            l, b = ELONG.values[idxerr] * aunits.deg, ELAT.values[idxerr] * aunits.deg
+            el, eb = ELONG_ERR[idxerr], ELAT_ERR[idxerr]
+            elcosb = el * np.cos(b)
+            q = np.arctan2(
+                np.cos(l) * np.tan(ecl),
+                np.sin(b) * np.sin(l) * np.tan(ecl) - np.cos(b)
+            )
+            cq, sq = np.cos(q), np.sin(q)
+            eracosdec, edec = np.abs(elcosb * cq - eb * sq), np.abs(elcosb * sq + eb * cq)
+            era = eracosdec / np.cos(np.deg2rad(DECJDnew[idxerr]))
+
+            RAJD_ERRnew[idxerr] = era
+            DECJD_ERRnew[idxerr] = edec
+            RAJ_ERRnew[idxerr] = 3600 * era / 15
+            DECJ_ERRnew[idxerr] = 3600 * edec
+
+            self.update(RAJD_ERRnew, name='RAJD_ERR')
+            self.update(DECJD_ERRnew, name='DECJD_ERR')
+            self.update(RAJ_ERRnew, name='RAJ_ERR')
+            self.update(DECJ_ERRnew, name='DECJ_ERR')
 
         # set references
         if 'ELONG_REF' in self.columns:
@@ -2850,7 +2887,7 @@ class QueryATNF(object):
             # use '!=' to find GC indexes
             nongcidxs = np.flatnonzero(
                 np.char.find(np.array(assocs.tolist(),
-                                      dtype=np.str), 'GC:') == -1)
+                                      dtype=str), 'GC:') == -1)
             periods = periods[nongcidxs]
             pdots = pdots[nongcidxs]
             if 'ASSOC' in table.columns:
