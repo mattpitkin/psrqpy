@@ -5,11 +5,9 @@ information.
 """
 
 import warnings
-from collections import OrderedDict
 import re
 
 import pickle
-from six import string_types
 
 import numpy as np
 import astropy
@@ -159,8 +157,8 @@ class QueryATNF(object):
             self._coord1 = self._coord2 = ''
             self._radius = 0.
         else:
-            if (not isinstance(self._coord1, string_types)
-                    or not isinstance(self._coord2, string_types)):
+            if (not isinstance(self._coord1, str)
+                    or not isinstance(self._coord2, str)):
                 raise ValueError("Circular boundary centre coordinates must "
                                  "be strings")
             if not isinstance(self._radius, float) and not isinstance(self._radius, int):
@@ -271,7 +269,7 @@ class QueryATNF(object):
             self.get_references(useads=useadst)
 
         singleref = False
-        if isinstance(refs, string_types):
+        if isinstance(refs, str):
             singleref = True
             refs = [refs]
 
@@ -281,7 +279,7 @@ class QueryATNF(object):
 
         refstrs = []
         for ref in refs:
-            if isinstance(ref, string_types):
+            if isinstance(ref, str):
                 if ref in self._refs:
                     if useadst:
                         if ref in self._adsrefs:
@@ -429,7 +427,7 @@ class QueryATNF(object):
         Set the parameter to sort on.
         """
 
-        if not isinstance(value, string_types):
+        if not isinstance(value, str):
             raise ValueError("Sort parameter must be a string")
 
         self._sort_attr = value
@@ -596,7 +594,7 @@ class QueryATNF(object):
         if psrnames is None:
             self._psrs = None
         else:
-            if isinstance(psrnames, string_types):
+            if isinstance(psrnames, str):
                 self._psrs = [psrnames]
             elif isinstance(psrnames, list):
                 self._psrs = psrnames
@@ -712,7 +710,7 @@ class QueryATNF(object):
         if not self.empty:  # convert to Table if DataFrame is not empty
             if query_params is None:
                 query_params = self.columns
-            elif isinstance(query_params, string_types):
+            elif isinstance(query_params, str):
                 query_params = [query_params]
             elif not isinstance(query_params, list):
                 raise TypeError("query_params must be a string or list.")
@@ -732,9 +730,9 @@ class QueryATNF(object):
 
             # return given the condition
             expression = None
-            if usecondition is True and isinstance(self.condition, string_types):
+            if usecondition is True and isinstance(self.condition, str):
                 expression = self.condition
-            elif isinstance(usecondition, string_types):
+            elif isinstance(usecondition, str):
                 expression = usecondition
 
             # sort table
@@ -831,7 +829,7 @@ class QueryATNF(object):
                 to queried pulsars.
         """
 
-        if not isinstance(expression, string_types) and expression is not None:
+        if not isinstance(expression, str) and expression is not None:
             raise TypeError("Condition must be a string")
 
         self._condition = expression
@@ -911,12 +909,12 @@ class QueryATNF(object):
                 print('No query parameters have been specified')
 
             for p in params:
-                if not isinstance(p, string_types):
+                if not isinstance(p, str):
                     raise TypeError("Non-string value '{}' found in params "
                                     "list".format(p))
 
             self._query_params = [p.upper() for p in params]
-        elif isinstance(params, string_types):
+        elif isinstance(params, str):
             # make sure parameter is all upper case
             self._query_params = [params.upper()]
         elif params is not None:
@@ -2589,12 +2587,12 @@ class QueryATNF(object):
                     raise Exception("No pulsar types in list")
 
                 for p in psrtype:
-                    if not isinstance(p, string_types):
+                    if not isinstance(p, str):
                         raise Exception("Non-string value '{}' found in pulsar type list"
                                         .format(p))
                 self._query_psr_types = psrtype
             else:
-                if isinstance(psrtype, string_types):
+                if isinstance(psrtype, str):
                     self._query_psr_types = [psrtype]
                 else:
                     raise Exception("'psrtype' must be a list or string")
@@ -2617,12 +2615,12 @@ class QueryATNF(object):
                     raise Exception("No pulsar types in list")
 
                 for p in assoc:
-                    if not isinstance(p, string_types):
+                    if not isinstance(p, str):
                         raise Exception("Non-string value '{}' found in associations list"
                                         .format(p))
                 self._query_assocs = assoc
             else:
-                if isinstance(assoc, string_types):
+                if isinstance(assoc, str):
                     self._query_assocs = [assoc]
                 else:
                     raise Exception("'assoc' must be a list or string")
@@ -2645,12 +2643,12 @@ class QueryATNF(object):
                     raise Exception("No pulsar types in list")
 
                 for p in bincomp:
-                    if not isinstance(p, string_types):
+                    if not isinstance(p, str):
                         raise Exception("Non-string value '{}' found in binary "
                                         "companions list".format(p))
                 self._query_bincomps = bincomp
             else:
-                if isinstance(bincomp, string_types):
+                if isinstance(bincomp, str):
                     self._query_bincomps = [bincomp]
                 else:
                     raise Exception("'bincomp' must be a list or string")
@@ -2806,7 +2804,7 @@ class QueryATNF(object):
             print("No pulsars found, so no P-Pdot plot has been produced")
             return None
 
-        if isinstance(showtypes, string_types):
+        if isinstance(showtypes, str):
             nshowtypes = [showtypes]
         else:
             nshowtypes = showtypes
@@ -2974,7 +2972,7 @@ class QueryATNF(object):
         if showSNRs:
             nshowtypes.append('SNR')
 
-        handles = OrderedDict()
+        handles = dict()
 
         for stype in nshowtypes:
             if stype.upper() in PSR_TYPE + ['GC', 'SNR']:
@@ -3014,7 +3012,7 @@ class QueryATNF(object):
                           numpoints=1)
 
         # add characteristic age lines
-        tlines = OrderedDict()
+        tlines = dict()
         if showtau:
             if tau is None:
                 taus = [1e5, 1e6, 1e7, 1e8, 1e9]  # default characteristic ages
@@ -3035,7 +3033,7 @@ class QueryATNF(object):
                            .format(numv, taupow)] = tline
 
         # add magnetic field lines
-        Blines = OrderedDict()
+        Blines = dict()
         if showB:
             if Bfield is None:
                 Bs = [1e10, 1e11, 1e12, 1e13, 1e14]
