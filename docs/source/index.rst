@@ -44,8 +44,8 @@ The requirements for installing the code are:
  * :mod:`astropy`
  * :mod:`pandas`
  * :mod:`scipy`
-
-The :mod:`ads` module and :mod:`matplotlib` are optional requirements to get the full functionality.
+ * :mod:`ads`
+ * :mod:`matplotlib`
 
 Examples
 ========

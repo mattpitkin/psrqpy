@@ -39,16 +39,14 @@ conda install -c conda-forge psrqpy
 
 The [requirements](requirements.txt) for installing the code are:
 
- * [`six`](https://six.readthedocs.io/)
  * [`requests`](http://docs.python-requests.org/en/master/)
  * [`beautifulsoup4`](https://www.crummy.com/software/BeautifulSoup/bs4/doc/)
  * [`numpy`](http://www.numpy.org/)
  * [`scipy`](https://www.scipy.org/)
  * [`astropy`](http://www.astropy.org/)
  * [`pandas`](https://pandas.pydata.org/)
-
-The [`ads`](https://ads.readthedocs.io/en/latest/) module is an optional requirement that is needed to get ADS URLs for references,
-and [`matplotlib`](https://matplotlib.org/) is required for making period-period derivative plots.
+ * [`ads`](https://ads.readthedocs.io/en/latest/)
+ * [`matplotlib`](https://matplotlib.org/)
 
 ## Examples
 
