@@ -1320,7 +1320,7 @@ class QueryATNF(object):
             # (Jean Meeus, Astronomal Algorithms, 2nd edition, p. 100)
             ecl = 23.4392911 * aunits.deg
             l, b = ELONG.values[idxerr] * aunits.deg, ELAT.values[idxerr] * aunits.deg
-            el, eb = ELONG_ERR.values[idxerr], ELAT_ERR.values[idxerr]
+            el, eb = ELONG_ERR[idxerr], ELAT_ERR[idxerr]
             elcosb = el * np.cos(b)
             q = np.arctan2(
                 np.cos(l) * np.tan(ecl),
