@@ -1,5 +1,10 @@
 # Notable changes between versions
 
+## [1.1.4] 2021-11-17
+
+- Propagate errors on ecliptical coordinates to equatorial. See [#90](https://github.com/mattpitkin/psrqpy/pull/90).
+- Update build system. See [#91](https://github.com/mattpitkin/psrqpy/pull/91).
+
 ## [1.1.3] 2021-10-11
 
 - Move scraping of Galactic MSP catalogue into PSRQPy. See [#88](https://github.com/mattpitkin/psrqpy/pull/88).
