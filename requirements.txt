@@ -1,8 +1,0 @@
-six
-requests
-beautifulsoup4
-numpy>=1.16
-scipy
-pandas>0.21
-astropy>=3.2
-packaging

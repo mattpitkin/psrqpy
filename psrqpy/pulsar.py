@@ -3,9 +3,6 @@ The classes defined here are hold information on an individual pulsar
 or an interable list of pulsars.
 """
 
-import warnings
-
-from six import string_types
 
 from .config import PSR_ALL_PARS, PSR_ALL
 
@@ -303,7 +300,7 @@ class Pulsars(object):
             psrname (str): a string with the name of a pulsar
         """
 
-        assert isinstance(psrname, string_types), "psrname is not a string"
+        assert isinstance(psrname, str), "psrname is not a string"
 
         if psrname in self._psrs:
             del self._psrs[psrname]
@@ -316,7 +313,7 @@ class Pulsars(object):
         Args:
             psrname (str): a string with the name of a pulsar
         """
-        assert isinstance(psrname, string_types), "psrname is not a string"
+        assert isinstance(psrname, str), "psrname is not a string"
 
         if psrname in self._psrs:
             self._num_pulsars -= 1

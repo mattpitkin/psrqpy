@@ -11,10 +11,6 @@ import requests
 import tarfile
 from bs4 import BeautifulSoup
 
-from six import string_types
-
-from collections import OrderedDict
-
 from astropy.table import Table
 from astropy.coordinates import SkyCoord, Angle
 import astropy.units as aunits
@@ -101,7 +97,7 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
 
     # loop through lines in dbfile
     for line in dbfile.readlines():
-        if isinstance(line, string_types):
+        if isinstance(line, str):
             dataline = line.split()
         else:
             dataline = line.decode().split()  # Splits on whitespace
@@ -378,7 +374,7 @@ def get_glitch_catalogue(psr=None):
     rows = soup.table.find_all("tr")
 
     # set the table headings
-    tabledict = OrderedDict()
+    tabledict = dict()
     tabledict["NAME"] = []
     tabledict["JNAME"] = []
     tabledict["Glitch number"] = []
@@ -1336,7 +1332,7 @@ def condition(table, expression, exactMatch=False):
         else:
             return table[expression]
     else:
-        if not isinstance(expression, string_types):
+        if not isinstance(expression, str):
             raise TypeError("Expression must be a boolean array or a string")
         else:
             if len(expression) == 0:

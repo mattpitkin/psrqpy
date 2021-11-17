@@ -4,7 +4,6 @@ URLs used for queries.
 """
 
 import itertools
-from collections import OrderedDict
 
 
 #: The ATNF pulsar catalogue base URL.
@@ -27,7 +26,7 @@ MSP_URL = r"http://astro.phys.wvu.edu/GalacticMSPs/GalacticMSPs.txt"
 #  - 'ref': True if the parameter can have an associated reference in the ATNF catalogue
 #  - 'err': True if the parameter can have an associated error value
 #  - 'unit': a string giving the units for the parameter (to be used if generating an astropy table)
-PSR_GENERAL = OrderedDict()
+PSR_GENERAL = dict()
 PSR_GENERAL['NAME'] =     {'ref': True,  'err': False, 'units': None}  # Pulsar name. Default: B name
 PSR_GENERAL['JNAME'] =    {'ref': True,  'err': False, 'units': None}  # Pulsar name (J2000)
 PSR_GENERAL['BNAME'] =    {'ref': True,  'err': False, 'units': None}  # Pulsar Besselian name
@@ -100,7 +99,7 @@ PSR_GENERAL['EPHEM'] =    {'ref': True,  'err': False, 'units': None}
 PSR_GENERAL_PARS = list(PSR_GENERAL.keys())
 
 # timing solution and profile parameters
-PSR_TIMING = OrderedDict()
+PSR_TIMING = dict()
 PSR_TIMING['P0'] =      {'ref': True,  'err': True,  'units': 's'}  # Barycentric period
 # P1: Time derivative of barcycentric period
 PSR_TIMING['P1'] =      {'ref': True,  'err': True,  'units': None}
@@ -164,7 +163,7 @@ PSR_TIMING['SPINDX'] =  {'ref': True,  'err': True,  'units': None}   # Radio sp
 PSR_TIMING_PARS = list(PSR_TIMING.keys())
 
 # binary system parameters
-PSR_BINARY = OrderedDict()
+PSR_BINARY = dict()
 PSR_BINARY['BINARY'] =   {'ref': True,  'err': False, 'units': None}   # Binary model
 PSR_BINARY['T0'] =       {'ref': True,  'err': True,  'units': 'd'}   # Epoch of periastron (MJD)
 PSR_BINARY['PB'] =       {'ref': True,  'err': True,  'units': 'd'}   # Binary period of pulsar
@@ -247,7 +246,7 @@ PSR_BINARY['MINOMDOT'] = {'ref': False, 'err': False, 'units': 'deg/yr'}
 PSR_BINARY_PARS = list(PSR_BINARY.keys())
 
 # derived parameters
-PSR_DERIVED = OrderedDict()
+PSR_DERIVED = dict()
 PSR_DERIVED['R_LUM'] =   {'ref': False, 'err': False, 'units': 'mJy kpc^2'}   # Radio luminosity at 400 MHz
 PSR_DERIVED['R_LUM14'] = {'ref': False, 'err': False, 'units': 'mJy kpc^2'}   # Radio luminosity at 1400 MHz
 PSR_DERIVED['AGE'] =     {'ref': False, 'err': False, 'units': 'yr'}   # Spin down age
@@ -267,8 +266,8 @@ PSR_DERIVED['H0_SD'] =   {'ref': False, 'err': False, 'units': None}  # GW spin-
 PSR_DERIVED_PARS = list(PSR_DERIVED.keys())
 
 # a list of all allowed parameters for querying
-PSR_ALL = OrderedDict(itertools.chain(PSR_GENERAL.items(), PSR_TIMING.items(),
-                                      PSR_BINARY.items(), PSR_DERIVED.items()))
+PSR_ALL = dict(itertools.chain(PSR_GENERAL.items(), PSR_TIMING.items(),
+                               PSR_BINARY.items(), PSR_DERIVED.items()))
 """: A dictionary of allowed pulsars parameters (e.g., name, position,
 distance...)
 
