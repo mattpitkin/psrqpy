@@ -1659,7 +1659,9 @@ class QueryATNF(object):
             idxn = idx & (ECCnew != 0.)
             OMnew[idxn] = np.arctan2(EPS1[idxn],
                                      EPS2[idxn])*180./np.pi
-            OMnew = np.mod(OMnew+360., 360.)  # make sure angles are positive
+
+            with np.errstate(invalid='ignore'):
+                OMnew = np.mod(OMnew+360., 360.)  # make sure angles are positive
 
             self.update(OMnew, name='OM')
 
