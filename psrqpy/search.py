@@ -485,11 +485,16 @@ class QueryATNF(object):
                                                 ascending=sortorder)
 
     def __getitem__(self, key):
-        if key not in self.pandas.columns:
-            raise KeyError("Key '{}' not in queried results".format(key))
-
-        # return astropy table column
-        return self.table[key]
+        if key in self.pandas.columns:
+            # return astropy table column
+            return self.table[key]
+        else:
+            psrrow = self.get_pulsar(key)
+            
+            if psrrow is None:
+                raise KeyError("Key '{}' not in queried results".format(key))
+            else:
+                return psrrow
 
     def __getstate__(self):
         """
