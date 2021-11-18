@@ -109,9 +109,20 @@ Other parameters could be selected using the same ``query`` object with, e.g.,
 
 The number of pulsars can easily be accessed, e.g.,
 
-   >>> numstring = 'Version {} of the ATNF catalogue contains {} pulsars'
-   >>> print(numstring.format(query.get_version, query.num_pulsars))
-   Version 1.59 of the ATNF catalogue contains 2659 pulsars
+    >>> numstring = 'Version {} of the ATNF catalogue contains {} pulsars'
+    >>> print(numstring.format(query.get_version, query.num_pulsars))
+    Version 1.59 of the ATNF catalogue contains 2659 pulsars
+
+You can access a table row for a particular pulsar in the ATNF catalogue by giving the name as a
+key to an instance of the :class:`~psrqpy.search.QueryATNF` class, e.g.
+
+    >>> from psrqpy import QueryATNF
+    >>> query = QueryATNF()
+    >>> print(query["J0534+2200"])
+       PSRJ    PSRJ_REF     RAJ      ...       TYPE_REF      BINCOMP_ORIG
+                                     ...
+    ---------- -------- ------------ ... ------------------- ------------
+    J0534+2200       -- 05:34:31.973 ... cdt69,fhm+69,hjm+70           --
 
 More complex queries
 --------------------

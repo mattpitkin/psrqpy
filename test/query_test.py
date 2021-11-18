@@ -129,6 +129,25 @@ def test_get_pulsars(query):
     assert f01 == float(f0str)
 
 
+def test_getitem(query):
+    """
+    Test using the __getitem__ method.
+    """
+
+    with pytest.raises(KeyError):
+        query["BLah"]
+
+    # get a pulsar
+    crabeph = query["J0534+2200"]
+
+    assert np.floor(crabeph["F0"][0]) == 29.0
+
+    # get a column
+    psrjs = query["PSRJ"]
+
+    assert "J0534+2200" in psrjs
+
+
 def test_save_load_file(query):
     """
     Test saving and reloading a query as a pickle file.

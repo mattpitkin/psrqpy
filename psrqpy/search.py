@@ -485,11 +485,16 @@ class QueryATNF(object):
                                                 ascending=sortorder)
 
     def __getitem__(self, key):
-        if key not in self.pandas.columns:
-            raise KeyError("Key '{}' not in queried results".format(key))
+        if key in self.pandas.columns:
+            # return astropy table column
+            return self.table[key]
+        else:
+            psrrow = self.get_pulsar(key)
 
-        # return astropy table column
-        return self.table[key]
+            if psrrow is None:
+                raise KeyError("Key '{}' not in queried results".format(key))
+            else:
+                return psrrow
 
     def __getstate__(self):
         """
@@ -1654,7 +1659,9 @@ class QueryATNF(object):
             idxn = idx & (ECCnew != 0.)
             OMnew[idxn] = np.arctan2(EPS1[idxn],
                                      EPS2[idxn])*180./np.pi
-            OMnew = np.mod(OMnew+360., 360.)  # make sure angles are positive
+
+            with np.errstate(invalid='ignore'):
+                OMnew = np.mod(OMnew+360., 360.)  # make sure angles are positive
 
             self.update(OMnew, name='OM')
 
