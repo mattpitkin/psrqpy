@@ -490,7 +490,7 @@ class QueryATNF(object):
             return self.table[key]
         else:
             psrrow = self.get_pulsar(key)
-            
+
             if psrrow is None:
                 raise KeyError("Key '{}' not in queried results".format(key))
             else:

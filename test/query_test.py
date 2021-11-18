@@ -136,15 +136,15 @@ def test_getitem(query):
 
     with pytest.raises(KeyError):
         query["BLah"]
-        
+
     # get a pulsar
     crabeph = query["J0534+2200"]
-    
+
     assert np.floor(crabeph["F0"][0]) == 29.0
 
     # get a column
     psrjs = query["PSRJ"]
-    
+
     assert "J0534+2200" in psrjs
 
 
