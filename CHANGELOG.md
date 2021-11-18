@@ -1,5 +1,9 @@
 # Notable changes between versions
 
+## [1.1.5] 2021-11-18
+
+- Extend `__getitem__` for `QueryATNF` class so that individual pulsar can be extracted using keys from a class instance. See [#92](https://github.com/mattpitkin/psrqpy/pull/92).
+
 ## [1.1.4] 2021-11-17
 
 - Propagate errors on ecliptical coordinates to equatorial. See [#90](https://github.com/mattpitkin/psrqpy/pull/90).
