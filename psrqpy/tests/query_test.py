@@ -148,7 +148,7 @@ def test_getitem(query):
     assert "J0534+2200" in psrjs
 
 
-def test_save_load_file(query):
+def test_save_load_file(tmp_path, query):
     """
     Test saving and reloading a query as a pickle file.
     """
@@ -163,7 +163,7 @@ def test_save_load_file(query):
     with pytest.raises(IOError):
         querynew = QueryATNF(loadquery=testfilebad)
 
-    testfile = os.path.join(os.getcwd(), 'query.pkl')
+    testfile = tmp_path / 'query.pkl'
     query.save(testfile)
 
     # re-load in as a new query
