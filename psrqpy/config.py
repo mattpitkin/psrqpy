@@ -12,6 +12,10 @@ ATNF_BASE_URL = r"http://www.atnf.csiro.au/people/pulsar/psrcat/"
 #: The name of the tarball containing the entire catalogue database.
 ATNF_TARBALL = ATNF_BASE_URL + r"downloads/psrcat_pkg.tar.gz"
 
+# The name of the tarball containing the entire catalogue database (allowing version string to
+# be added).
+ATNF_VERSION_TARBALL = ATNF_BASE_URL + r"downloads/psrcat_pkg.v{}.tar.gz"
+
 #: The Jodrell Bank glitch catalogue table URL.
 GLITCH_URL = r"http://www.jb.man.ac.uk/pulsar/glitches/gTable.html"
 

@@ -21,6 +21,7 @@ from .config import (
     ATNF_BASE_URL,
     ADS_URL,
     ATNF_TARBALL,
+    ATNF_VERSION_TARBALL,
     MSP_URL,
     PSR_ALL,
     PSR_ALL_PARS,
@@ -29,7 +30,7 @@ from .config import (
 )
 
 
-def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
+def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False, version="latest"):
     """
     This function will attempt to download and cache the entire ATNF Pulsar
     Catalogue database `tarball
@@ -54,6 +55,9 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
         pandas (bool): if True the catalogue will be returned as a
             :class:`pandas.DataFrame` rather than the default of an
             :class:`~astropy.table.Table`.
+        version (str): the version string (without the leading "v") of the ATNF
+            catalogue version to download. This defaults to "latest" to get the
+            most up-to-date version.
 
     Returns:
         :class:`~astropy.table.Table` or :class:`~pandas.DataFrame`: a table
@@ -67,11 +71,18 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False):
             if check_update():
                 clear_download_cache(ATNF_TARBALL)
 
+        if version == "latest":
+            atnftarball = ATNF_TARBALL
+        else:
+            atnftarball = ATNF_VERSION_TARBALL.format(version)
+
         # get the tarball
         try:
-            dbtarfile = download_file(ATNF_TARBALL, cache=cache)
+            dbtarfile = download_file(atnftarball, cache=cache)
         except IOError:
-            raise IOError("Problem accessing ATNF catalogue tarball")
+            raise IOError(
+                "Problem accessing ATNF catalogue tarball: {}".format(atnftarball)
+            )
 
         try:
             # open tarball

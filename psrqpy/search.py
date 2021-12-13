@@ -109,6 +109,9 @@ class QueryATNF(object):
         checkupdate (bool): If True then check whether a cached catalogue file
             has an update available, and re-download if there is an update.
             Defaults to False.
+        version (str): the version string (without the leading "v") of the ATNF
+            catalogue version to download. This defaults to "latest" to get the
+            most up-to-date version.
         frompandas (:class:`pandas.DataFrame`): create a new
             :class:`psrqpy.QueryATNF` object from an existing
             :class:`pandas.DataFrame`.
@@ -123,7 +126,8 @@ class QueryATNF(object):
                  include_refs=False, adsref=False, loadfromfile=None,
                  loadquery=None, loadfromdb=None, cache=True,
                  checkupdate=False, circular_boundary=None, coord1=None,
-                 coord2=None, radius=0., frompandas=None, fromtable=None):
+                 coord2=None, radius=0., frompandas=None, fromtable=None,
+                 version="latest"):
         if loadfromfile is not None and loadquery is None:
             loadquery = loadfromfile
         if loadquery:
@@ -210,7 +214,7 @@ class QueryATNF(object):
         # download and cache (if requested) the database file
         try:
             _ = self.get_catalogue(path_to_db=loadfromdb, cache=cache,
-                                   update=checkupdate)
+                                   update=checkupdate, version=version)
         except IOError:
             raise IOError("Could not get catalogue database file")
 
@@ -306,7 +310,7 @@ class QueryATNF(object):
         return refstrs
 
     def get_catalogue(self, path_to_db=None, cache=True, update=False,
-                      overwrite=True):
+                      overwrite=True, version="latest"):
         """
         Call the :func:`psrqpy.utils.get_catalogue` function to download the
         ATNF Pulsar Catalogue, or load a given catalogue path.
@@ -324,6 +328,9 @@ class QueryATNF(object):
                 catalogue currently contained within the :class:`~psrqpy.QueryATNF`
                 class. If False then a new :class:`~psrqpy.QueryATNF` copy of the
                 catalogue will be returned.
+            version (str): the version string (without the leading "v") of the ATNF
+                catalogue version to download. This defaults to "latest" to get the
+                most up-to-date version.
 
         Returns:
             :class:`psrqpy.QueryATNF`: a table containing the catalogue.
@@ -332,7 +339,8 @@ class QueryATNF(object):
 
         try:
             dbtable = get_catalogue(path_to_db=path_to_db, cache=cache,
-                                    update=update, pandas=True)
+                                    update=update, pandas=True,
+                                    version=version)
         except Exception as e:
             raise RuntimeError("Problem getting catalogue: {}".format(str(e)))
 
