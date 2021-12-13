@@ -1,5 +1,9 @@
 # Notable changes between versions
 
+## [1.1.6] 2021-12-13
+
+- Allow specific versions of the ATNF pulsar catalogue to be downloaded. See [#95](https://github.com/mattpitkin/psrqpy/pull/95).
+
 ## [1.1.5] 2021-11-18
 
 - Extend `__getitem__` for `QueryATNF` class so that individual pulsar can be extracted using keys from a class instance. See [#92](https://github.com/mattpitkin/psrqpy/pull/92).
