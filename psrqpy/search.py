@@ -3001,11 +3001,11 @@ class QueryATNF(object):
                 elif thistype in ['GC', 'SNR']:
                     typeidx = np.flatnonzero(
                         np.char.find(np.array(assocs.tolist(),
-                                              dtype=np.str), thistype) != -1)
+                                              dtype=str), thistype) != -1)
                 else:
                     typeidx = np.flatnonzero(
                         np.char.find(np.array(types.tolist(),
-                                              dtype=np.str), thistype) != -1)
+                                              dtype=str), thistype) != -1)
 
                 if len(typeidx) == 0:
                     continue

@@ -8,7 +8,6 @@ from psrqpy import QueryATNF
 import numpy as np
 from pandas import Series
 import pytest_socket
-from six import string_types
 from astropy.table.column import MaskedColumn
 
 
@@ -119,7 +118,7 @@ def test_get_pulsars(query):
 
     crabeph = query.get_ephemeris('J0534+2200')
 
-    assert isinstance(crabeph, string_types)
+    assert isinstance(crabeph, str)
 
     for line in crabeph.split('\n'):
         if line.split()[0].strip() == 'F0':
@@ -344,7 +343,7 @@ def test_get_references(query):
     # test parsing a reference
     ref = query.parse_ref('ksm+06')
 
-    assert isinstance(ref, string_types)
+    assert isinstance(ref, str)
     assert "Kramer" in ref and "Science" in ref and "314" in ref and "2006" in ref
 
     # test parsing two references
