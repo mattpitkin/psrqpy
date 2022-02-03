@@ -1,5 +1,10 @@
 # Notable changes between versions
 
+## [1.1.7] 2022-02-3
+
+- Set position epoch to period epoch if the latter is not given. See [#96](https://github.com/mattpitkin/psrqpy/pull/96). 
+- Allow discovery data tp be derived from the catalogue. See [#97](https://github.com/mattpitkin/psrqpy/pull/97). 
+
 ## [1.1.6] 2021-12-13
 
 - Allow specific versions of the ATNF pulsar catalogue to be downloaded. See [#95](https://github.com/mattpitkin/psrqpy/pull/95).
