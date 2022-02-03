@@ -254,6 +254,13 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False, versi
 
                 psrlist[i]["DECJD_ERR"] = (psr["DECJ_ERR"] * decunit).to("deg").value
 
+        # always include a value for POSEPOCH if PEPOCH is present
+        # this matches the behaviour of the psrcat v1.66 CLI (definePosEpoch.c:202-213)
+        if not "POSEPOCH" in psr.keys() and "PEPOCH" in psr.keys():
+            psrlist[i]["POSEPOCH"] = psrlist[i]["PEPOCH"]
+            if "PEPOCH_REF" in psr.keys():
+                psrlist[i]["POSEPOCH_REF"] = psrlist[i]["PEPOCH_REF"]
+
     # convert to a pandas DataFrame - this will fill in empty spaces
     dftable = DataFrame(psrlist)
 
