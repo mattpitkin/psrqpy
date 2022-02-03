@@ -254,6 +254,16 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False, versi
 
                 psrlist[i]["DECJD_ERR"] = (psr["DECJ_ERR"] * decunit).to("deg").value
 
+        # derive the 'DATE' parameter from the 'POSEPOCH' reference
+        # implementation based upon the psrcat v1.66 CLI (definePosEpoch.c:214-242)
+        if "POSEPOCH_REF" in psr.keys():
+            refyear = int(re.search(r"(\d{2})(?!.*\d)", psrlist[i]["POSEPOCH_REF"]).group(0))
+            if refyear > 65:
+                refyear += 1900
+            else:
+                refyear += 2000
+            psrlist[i]['DATE'] = refyear
+
     # convert to a pandas DataFrame - this will fill in empty spaces
     dftable = DataFrame(psrlist)
 
