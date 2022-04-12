@@ -2190,7 +2190,8 @@ def label_line(ax, line, label, color="k", fs=14, frachoffset=0.1):
         yy = np.interp(xx, xdata, ydata)
 
     ylim = ax.get_ylim()
-    xytext = (0, 5)
+    xytext = (0, 10)
+
     text = ax.annotate(
         label,
         xy=(xx, yy),
@@ -2214,3 +2215,4 @@ def label_line(ax, line, label, color="k", fs=14, frachoffset=0.1):
     text.set_rotation(slope_degrees)
     ax.set_ylim(ylim)
     return text
+
