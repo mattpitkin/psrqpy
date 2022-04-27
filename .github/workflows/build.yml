@@ -10,25 +10,8 @@ jobs:
   build:
     strategy:
       matrix:
-        include:
-          - os: ubuntu-20.04
-            XVFB_RUN: xvfb-run -a
-            python-version: 3.7
-          - os: ubuntu-20.04
-            XVFB_RUN: xvfb-run -a
-            python-version: 3.8
-          - os: ubuntu-20.04
-            XVFB_RUN: xvfb-run -a
-            python-version: 3.9
-          - os: macos-latest
-            XVFB_RUN: ""
-            python-version: 3.7
-          - os: macos-latest
-            XVFB_RUN: ""
-            python-version: 3.8
-          - os: macos-latest
-            XVFB_RUN: ""
-            python-version: 3.9
+        os: [ubuntu-20.04]
+        python-version: [3.7, 3.8, 3.9]
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -44,53 +27,44 @@ jobs:
     - name: Install OS dependencies
       run: |
         # see https://github.com/matplotlib/matplotlib/blob/main/.github/workflows/tests.yml
-        case "${{ runner.os }}" in
-          Linux)
-            sudo apt-get update -yy
-            sudo apt-get install -yy \
-              ccache \
-              cm-super \
-              dvipng \
-              ffmpeg \
-              fonts-noto-cjk \
-              gdb \
-              gir1.2-gtk-3.0 \
-              graphviz \
-              inkscape \
-              lcov \
-              libcairo2 \
-              libcairo2-dev \
-              libffi-dev \
-              libgeos-dev \
-              libgirepository1.0-dev \
-              libsdl2-2.0-0 \
-              libxkbcommon-x11-0 \
-              libxcb-icccm4 \
-              libxcb-image0 \
-              libxcb-keysyms1 \
-              libxcb-randr0 \
-              libxcb-render-util0 \
-              libxcb-xinerama0 \
-              lmodern \
-              fonts-freefont-otf \
-              texlive-pictures \
-              pkg-config \
-              qtbase5-dev \
-              texlive-fonts-recommended \
-              texlive-latex-base \
-              texlive-latex-extra \
-              texlive-latex-recommended \
-              texlive-luatex \
-              texlive-xetex \
-              ttf-wqy-zenhei \
-              libopengl0
-            ;;
-          macOS)
-            brew install ccache
-            brew tap homebrew/cask-fonts
-            brew install font-noto-sans-cjk-sc
-            ;;
-          esac
+        sudo apt-get update -yy
+        sudo apt-get install -yy \
+          ccache \
+          cm-super \
+          dvipng \
+          ffmpeg \
+          fonts-noto-cjk \
+          gdb \
+          gir1.2-gtk-3.0 \
+          graphviz \
+          inkscape \
+          lcov \
+          libcairo2 \
+          libcairo2-dev \
+          libffi-dev \
+          libgeos-dev \
+          libgirepository1.0-dev \
+          libsdl2-2.0-0 \
+          libxkbcommon-x11-0 \
+          libxcb-icccm4 \
+          libxcb-image0 \
+          libxcb-keysyms1 \
+          libxcb-randr0 \
+          libxcb-render-util0 \
+          libxcb-xinerama0 \
+          lmodern \
+          fonts-freefont-otf \
+          texlive-pictures \
+          pkg-config \
+          qtbase5-dev \
+          texlive-fonts-recommended \
+          texlive-latex-base \
+          texlive-latex-extra \
+          texlive-latex-recommended \
+          texlive-luatex \
+          texlive-xetex \
+          ttf-wqy-zenhei \
+          libopengl0
     - name: Install setup requirements
       run: |
         conda install -n test -q -y pip setuptools setuptools_scm
@@ -103,16 +77,16 @@ jobs:
         python -m pip install -e .[test,docs] -vv --no-build-isolation
     - name: Run test suite
       run: |
-        ${{ matrix.XVFB_RUN }} python -m pytest --cov=psrqpy
+        xvfb-run -a python -m pytest --cov=psrqpy
     - name: Test building docs
-      if: ${{ matrix.os == 'ubuntu-20.04' && matrix.python-version == '3.8' }} 
+      if: ${{ matrix.python-version == '3.8' }} 
       run: |
         cd docs
         mkdir source/_static
         make html
         cd ..
     - name: Upload coverage to Codecov
-      if: ${{ matrix.os == 'ubuntu-20.04' && matrix.python-version == '3.8' }} 
+      if: ${{ matrix.python-version == '3.8' }} 
       uses: codecov/codecov-action@v2
       with:
         fail_ci_if_error: true
