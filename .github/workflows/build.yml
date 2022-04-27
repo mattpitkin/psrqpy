@@ -13,10 +13,22 @@ jobs:
         include:
           - os: ubuntu-20.04
             XVFB_RUN: xvfb-run -a
-            python-version: [3.7, 3.8, 3.9]
+            python-version: 3.7
+          - os: ubuntu-20.04
+            XVFB_RUN: xvfb-run -a
+            python-version: 3.8
+          - os: ubuntu-20.04
+            XVFB_RUN: xvfb-run -a
+            python-version: 3.9
           - os: macos-latest
             XVFB_RUN: ""
-            python-version: [3.7, 3.8, 3.9]
+            python-version: 3.7
+          - os: macos-latest
+            XVFB_RUN: ""
+            python-version: 3.8
+          - os: macos-latest
+            XVFB_RUN: ""
+            python-version: 3.9
     runs-on: ${{ matrix.os }}
     defaults:
       run:
