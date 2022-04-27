@@ -18,7 +18,7 @@ from astropy.constants import c, GM_sun
 from astropy.table import Table
 from packaging import version
 
-from pandas import DataFrame, Series
+from pandas import concat, DataFrame, Series
 from copy import deepcopy
 
 from .config import ATNF_BASE_URL, PSR_ALL, PSR_ALL_PARS, PSR_TYPE, PSR_ASSOC_TYPE, PSR_BINARY_TYPE
@@ -418,7 +418,9 @@ class QueryATNF(object):
                                      "supplied column")
             else:
                 try:
-                    self.catalogue[colname] = column
+                    version = self.catalogue.version  # retain version information
+                    self.__dataframe = concat([self.catalogue, Series(column, name=name)], axis=1)
+                    self.__dataframe.version = version
                 except Exception as e:
                     raise ValueError("Could not add supplied columns to "
                                      "table: {}".format(str(e)))
