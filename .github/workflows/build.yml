@@ -77,7 +77,7 @@ jobs:
         python -m pip install -e .[test,docs] -vv --no-build-isolation
     - name: Run test suite
       run: |
-        xvfb-run -a python -m pytest --cov=psrqpy
+        xvfb-run -a python -m pytest --cov-report=xml --cov=psrqpy
     - name: Test building docs
       if: ${{ matrix.python-version == '3.8' }} 
       run: |
@@ -91,5 +91,4 @@ jobs:
       with:
         fail_ci_if_error: true
         verbose: true
-        name: psrqpy
 
