@@ -615,7 +615,7 @@ def get_gc_catalogue():
         psrentry["Pulsar"] = linevalues[0]
 
         psrentry["Offset"] = float(linevalues[1]) if linevalues[1] != "*" else np.nan
-        psrentry["Period"] = float(linevalues[2])
+        psrentry["Period"] = float(linevalues[2]) if linevalues[2] != "*" else np.nan
 
         def parse_value_error(value):
             """
