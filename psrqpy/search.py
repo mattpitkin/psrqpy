@@ -418,8 +418,9 @@ class QueryATNF(object):
                                      "supplied column")
             else:
                 try:
-                    #self.catalogue[colname] = column
-                    self.__dataframe = concat([self.catalogue, column], axis=1)
+                    version = self.catalogue.version  # retain version information
+                    self.__dataframe = concat([self.catalogue, Series(column, name=name)], axis=1)
+                    self.__dataframe.version = version
                 except Exception as e:
                     raise ValueError("Could not add supplied columns to "
                                      "table: {}".format(str(e)))
