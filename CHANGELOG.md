@@ -1,5 +1,11 @@
 # Notable changes between versions
 
+## [1.1.8] 2022-04-28
+
+- Fix pandas "Performance warning" about highly fragmented DataFrame. See [#100](https://github.com/mattpitkin/psrqpy/pull/100).
+- Fix error reading globular cluster catalogue due to an asterisk period value. See [#99](https://github.com/mattpitkin/psrqpy/pull/99).
+- Move CI to use GitHib Actions rather than Travis. See [#101](https://github.com/mattpitkin/psrqpy/pull/101).
+
 ## [1.1.7] 2022-02-3
 
 - Set position epoch to period epoch if the latter is not given. See [#96](https://github.com/mattpitkin/psrqpy/pull/96). 
