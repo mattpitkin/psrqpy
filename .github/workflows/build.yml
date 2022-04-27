@@ -36,8 +36,9 @@ jobs:
         python -m pip install -e .[test,docs] -vv --no-build-isolation
     - name: Run test suite (using xvfb for headless test, so Matplotlib test work)
       uses: GabrielBB/xvfb-action@v1
-      run: |
-        pytest --cov=psrqpy
+      with:
+         run: |
+           pytest --cov=psrqpy
     - name: Test building docs
       if: ${{ matrix.os == 'ubuntu-20.04' && matrix.python-version == '3.8' }} 
       run: |
