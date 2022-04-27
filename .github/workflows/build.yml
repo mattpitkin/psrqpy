@@ -34,7 +34,8 @@ jobs:
     - name: Install psrqpy
       run: |
         python -m pip install -e .[test,docs] -vv --no-build-isolation
-    - name: Run test suite
+    - name: Run test suite (using xvfb for headless test, so Matplotlib test work)
+      uses: GabrielBB/xvfb-action@v1
       run: |
         pytest --cov=psrqpy
     - name: Test building docs
