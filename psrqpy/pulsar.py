@@ -6,6 +6,9 @@ or an interable list of pulsars.
 
 from .config import PSR_ALL_PARS, PSR_ALL
 
+# Create a local cache variable fo a QueryATNF object
+import copy
+_cached_query = None
 
 class Pulsar(object):
     """
@@ -100,12 +103,14 @@ class Pulsar(object):
             else:
                 # generate a query for the key and add it
                 if self._query is None:
-                    try:
-                        from .search import QueryATNF
-
-                        self._query = QueryATNF()
-                    except IOError:
-                        raise Exception("Problem querying ATNF catalogue")
+                    global _cached_query
+                    if _cached_query is None:
+                        try:
+                            from .search import QueryATNF
+                            _cached_query = QueryATNF()
+                        except IOError:
+                            raise Exception("Problem querying ATNF catalogue")
+                    self._query = copy.deepcopy(_cached_query)
 
             psrrow = self._query.get_pulsar(pulsarname)
 
