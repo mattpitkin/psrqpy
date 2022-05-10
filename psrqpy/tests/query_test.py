@@ -3,7 +3,6 @@ Test script.
 """
 
 import pytest
-import os
 from psrqpy import QueryATNF
 import numpy as np
 from pandas import Series

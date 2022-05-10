@@ -4,13 +4,14 @@ The classes defined here are for querying the `ATNF pulsar catalogue
 information.
 """
 
-import warnings
-import re
-
+import os
 import pickle
+import re
+import warnings
 
 import numpy as np
 import astropy
+from astropy.config.paths import get_cache_dir
 from astropy.coordinates import SkyCoord, ICRS, Galactic, BarycentricMeanEcliptic
 from astropy.table.column import MaskedColumn, Column
 import astropy.units as aunits
@@ -337,6 +338,17 @@ class QueryATNF(object):
         """
         from .utils import get_catalogue
 
+        cachedir = get_cache_dir("psrqpy")
+        cachefile = os.path.join(cachedir, f"query_{version}.pkl")
+
+        if cache and not update and path_to_db is None:
+            # check if cache file exists
+            try:
+                self.load(cachefile, cleardfonly=True)
+                return self
+            except IOError:
+                pass
+
         try:
             dbtable = get_catalogue(path_to_db=path_to_db, cache=cache,
                                     update=update, pandas=True,
@@ -344,19 +356,22 @@ class QueryATNF(object):
         except Exception as e:
             raise RuntimeError("Problem getting catalogue: {}".format(str(e)))
 
-        if not overwrite:
-            newcatalogue = QueryATNF(params=self.query_params,
-                                     condition=self.condition,
-                                     exactmatch=self.exactmatch,
-                                     sort_attr=self._sort_attr,
-                                     sort_order=self._sort_order,
-                                     psrs=self.psrs,
-                                     include_errs=self._include_errs,
-                                     include_refs=self._include_refs,
-                                     adsref=self._useads, cache=False,
-                                     coord1=self._coord1, coord2=self._coord2,
-                                     radius=self._radius,
-                                     frompandas=dbtable)
+        if not cache:
+            if not overwrite:
+                newcatalogue = QueryATNF(
+                    params=self.query_params,
+                    condition=self.condition,
+                    exactmatch=self.exactmatch,
+                    sort_attr=self._sort_attr,
+                    sort_order=self._sort_order,
+                    psrs=self.psrs,
+                    include_errs=self._include_errs,
+                    include_refs=self._include_refs,
+                    adsref=self._useads, cache=False,
+                    coord1=self._coord1, coord2=self._coord2,
+                    radius=self._radius,
+                    frompandas=dbtable
+                )
             return newcatalogue
 
         # update current catalogue
@@ -369,6 +384,19 @@ class QueryATNF(object):
         # calculate derived parameters
         self.set_derived()
         self.parse_types()
+
+        if cache:
+            # save Query to cache file
+            if not os.path.exists(cachedir):
+                try:
+                    os.makedirs(cachedir)
+                except OSError:
+                    if not os.path.exists(cachedir):
+                        raise
+            elif not os.path.isdir(cachedir):
+                raise OSError(f"Query cache directory {cachedir} is not a directory")
+
+            self.save(cachefile)
 
         return self
 
@@ -554,27 +582,31 @@ class QueryATNF(object):
         """
 
         try:
-            fp = open(fname, 'wb')
-            pickle.dump(self, fp, 2)
-            fp.close()
+            with open(fname, 'wb') as fp:
+                pickle.dump(self, fp, 2)
             self._savefile = fname
         except IOError:
             raise IOError("Error outputing class to pickle file")
 
-    def load(self, fname):
+    def load(self, fname, cleardfonly=False):
         """
         Load a previously saved pickle of this class.
 
         Args:
             fname (str): the filename of the pickled object
+            cleardfonly (bool): set to True to only clear the catalogue
+                DataFrame from the current object, but leave other attributes
+                intact.
         """
 
         try:
-            fp = open(fname, 'rb')
-            tmpdict = pickle.load(fp)
-            fp.close()
-            self.__dict__.clear()  # clear current self
-            self.__dict__.update(tmpdict.__dict__)
+            with open(fname, 'rb') as fp:
+                tmpdict = pickle.load(fp)
+            if not cleardfonly:
+                self.__dict__.clear()  # clear current self
+                self.__dict__.update(tmpdict.__dict__)
+            else:
+                self.__dict__["_QueryATNF__dataframe"] = tmpdict.__dict__["_QueryATNF__dataframe"]
             self._loadfile = fname
         except IOError:
             raise IOError("Error reading in pickle")
