@@ -69,7 +69,7 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False, versi
         # remove any cached file if requested
         if update:
             if check_update():
-                clear_download_cache(ATNF_TARBALL)
+                clear_download_cache(ATNF_TARBALL, pkgname="psrqpy")
 
         if version == "latest":
             atnftarball = ATNF_TARBALL
@@ -78,7 +78,7 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False, versi
 
         # get the tarball
         try:
-            dbtarfile = download_file(atnftarball, cache=cache)
+            dbtarfile = download_file(atnftarball, cache=cache, pkgname="psrqpy")
         except IOError:
             raise IOError(
                 "Problem accessing ATNF catalogue tarball: {}".format(atnftarball)
