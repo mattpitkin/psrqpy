@@ -1,5 +1,9 @@
 # Notable changes between versions
 
+## [1.2.0] 2022-05-11
+
+- When caching, store the full catalogue (including derived values) within the `QueryATNF` object to a file. This improves the speed with which the catalogue can be requeried. See [#103](https://github.com/mattpitkin/psrqpy/pull/103).
+
 ## [1.1.8] 2022-04-28
 
 - Fix pandas "Performance warning" about highly fragmented DataFrame. See [#100](https://github.com/mattpitkin/psrqpy/pull/100).
