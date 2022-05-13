@@ -282,7 +282,10 @@ def test_num_pulsars(query):
     query.psrs = 'J9999+9999'  # bad pulsar
 
     # length should be zero
-    assert len(query) == 0
+    with pytest.warns(UserWarning):
+        lq = len(query)
+
+    assert lq == 0
 
     query.psrs = 'J0534+2200'  # Crab pulsar
 

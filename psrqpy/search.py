@@ -385,7 +385,7 @@ class QueryATNF(object):
         self.set_derived()
         self.parse_types()
 
-        if cache:
+        if cache and path_to_db is None:
             # save Query to cache file
             if not os.path.exists(cachedir):
                 try:
