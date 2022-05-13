@@ -55,7 +55,10 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False, versi
             is given then that will be read in rather than attempting to
             download the file (defaults to None).
         cache (bool): cache the downloaded ATNF Pulsar Catalogue file. Defaults
-            to True. This is ignored if `path_to_db` is given.
+            to True. This is ignored if `path_to_db` is given. The cache file
+            path uses the specification in the `appdirs
+            <https://github.com/ActiveState/appdirs>`_ package to set the
+            location.
         update (bool): if True the ATNF Pulsar Catalogue will be
             re-downloaded and cached if there has been a change compared to the
             currently cached version. This is ignored if `path_to_db` is given.
