@@ -37,7 +37,9 @@ CACHEDIR = user_cache_dir(appname="psrqpy", appauthor=False)
 DEFAULTCACHENAME = os.path.basename(ATNF_TARBALL)
 
 
-def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False, version="latest"):
+def get_catalogue(
+    path_to_db=None, cache=True, update=False, pandas=False, version="latest"
+):
     """
     This function will attempt to download and cache the entire ATNF Pulsar
     Catalogue database `tarball
@@ -88,7 +90,9 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False, versi
 
         # get the tarball
         try:
-            dbtarfile = download_atnf_tarball(atnftarball, usecache=cache, version=version)
+            dbtarfile = download_atnf_tarball(
+                atnftarball, usecache=cache, version=version
+            )
         except RuntimeError as e:
             raise IOError(
                 f"Problem accessing ATNF catalogue tarball: {atnftarball}\n{e}"
@@ -275,12 +279,14 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False, versi
         # implementation based upon the psrcat v1.66 CLI (definePosEpoch.c:214-242)
         if "POSEPOCH_REF" in psr.keys():
             try:
-                refyear = int(re.search(r"(\d{2})(?!.*\d)", psrlist[i]["POSEPOCH_REF"]).group(0))
+                refyear = int(
+                    re.search(r"(\d{2})(?!.*\d)", psrlist[i]["POSEPOCH_REF"]).group(0)
+                )
                 if refyear > 65:
                     refyear += 1900
                 else:
                     refyear += 2000
-                psrlist[i]['DATE'] = refyear
+                psrlist[i]["DATE"] = refyear
             except (AttributeError, TypeError):
                 pass
 
@@ -356,7 +362,7 @@ def check_update():
 def download_atnf_tarball(url, usecache=True, version="latest"):
     """
     Download and cache the ATNF catalogue database.
-    
+
     Args:
         url (str): the URL of the ATNF Pulsar Catalogue tarball.
         usecache (bool): if True try and get the cached version
@@ -366,8 +372,7 @@ def download_atnf_tarball(url, usecache=True, version="latest"):
         cachefile = os.path.join(CACHEDIR, DEFAULTCACHENAME)
     else:
         cachefile = os.path.join(
-            CACHEDIR,
-            os.path.basename(ATNF_VERSION_TARBALL.format(version))
+            CACHEDIR, os.path.basename(ATNF_VERSION_TARBALL.format(version))
         )
 
     if usecache and os.path.isfile(cachefile):
@@ -620,8 +625,8 @@ def get_gc_catalogue():
             1e-3 * aunits.s,
             1e-20 * aunits.s / aunits.s,
             1e-20 * aunits.s / aunits.s,
-            aunits.cm ** -3 * aunits.pc,
-            aunits.cm ** -3 * aunits.pc,
+            aunits.cm**-3 * aunits.pc,
+            aunits.cm**-3 * aunits.pc,
             aunits.d,
             aunits.s,
             aunits.s,
@@ -695,7 +700,7 @@ def get_gc_catalogue():
                     scale = 1.0
 
                 val = float(value[: value.find("(")]) * scale
-                error *= 10 ** -exponent * scale
+                error *= 10**-exponent * scale
             else:
                 if "*10-15" in value:
                     # scale to units of 10-20
@@ -900,7 +905,7 @@ def get_msp_catalogue():
     units = {
         "NAME": None,
         "P0": aunits.s * 1e-3,
-        "DM": aunits.cm ** -3 * aunits.pc,
+        "DM": aunits.cm**-3 * aunits.pc,
         "GL": aunits.deg,
         "GB": aunits.deg,
         "PB": aunits.d,
@@ -1291,7 +1296,6 @@ def get_references(
                 json.dump(cachedic, fp, indent=2)
         except IOError:
             raise IOError("Could not output the ADS references to a file")
-
 
     if bibtex:
         if showfails:
@@ -1893,7 +1897,7 @@ def gw_h0_spindown_limit(frequency, fdot, distance, Izz=1e38):
     h0ul[idx] = (
         np.sqrt(
             (5.0 * G.value * Izz * np.fabs(fdotarr[idx]))
-            / (2.0 * c.value ** 3 * frequencyarr[idx])
+            / (2.0 * c.value**3 * frequencyarr[idx])
         )
         / distancearr[idx]
     )
@@ -1943,8 +1947,8 @@ def gw_luminosity(h0, frequency, distance):
         idx = np.isfinite(h0arr) & np.isfinite(frequencyarr) & np.isfinite(distancearr)
     edot[idx] = (
         8.0
-        * np.pi ** 2
-        * c.value ** 3
+        * np.pi**2
+        * c.value**3
         * (frequencyarr[idx] * h0arr[idx] * distancearr[idx]) ** 2
         / (5.0 * G.value)
     )
@@ -1995,9 +1999,9 @@ def h0_to_q22(h0, frequency, distance):
         h0arr[idx]
         * np.sqrt(15.0 / (8.0 * np.pi))
         * (
-            c.value ** 4
+            c.value**4
             * distancearr[idx]
-            / (16.0 * np.pi ** 2 * G.value * frequencyarr[idx] ** 2)
+            / (16.0 * np.pi**2 * G.value * frequencyarr[idx] ** 2)
         )
     )
 
@@ -2222,11 +2226,11 @@ def label_line(ax, line, label, color="k", fs=14, frachoffset=0.1):
 
     if ax.get_xscale() == "log" and ax.get_yscale() == "log":
         yy = np.interp(xx, np.log10(xdata), np.log10(ydata))
-        xx = 10 ** xx
-        yy = 10 ** yy
+        xx = 10**xx
+        yy = 10**yy
     elif ax.get_xscale() == "log" and ax.get_yscale() != "log":
         yy = np.interp(xx, np.log10(xdata), ydata)
-        xx = 10 ** xx
+        xx = 10**xx
     else:
         yy = np.interp(xx, xdata, ydata)
 
@@ -2256,4 +2260,3 @@ def label_line(ax, line, label, color="k", fs=14, frachoffset=0.1):
     text.set_rotation(slope_degrees)
     ax.set_ylim(ylim)
     return text
-
