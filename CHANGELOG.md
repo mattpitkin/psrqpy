@@ -1,5 +1,9 @@
 # Notable changes between versions
 
+## [1.2.1] 2022-05-13
+
+- Fix bug that meant that if loading from a local database file it would be cached by default and overwrite the full ATNF catalogue cache. See [#104](https://github.com/mattpitkin/psrqpy/pull/103).
+
 ## [1.2.0] 2022-05-11
 
 - When caching, store the full catalogue (including derived values) within the `QueryATNF` object to a file. This improves the speed with which the catalogue can be requeried. See [#103](https://github.com/mattpitkin/psrqpy/pull/103).
