@@ -2877,7 +2877,7 @@ class QueryATNF(object):
         rcparams['figure.dpi'] = rcparams['figure.dpi'] if \
             'figure.dpi' in rcparams else 250
         rcparams['text.usetex'] = rcparams['text.usetex'] if \
-            'text.usetex' in rcparams else True
+            'text.usetex' in rcparams else False
         rcparams['axes.linewidth'] = rcparams['axes.linewidth'] if \
             'axes.linewidth' in rcparams else 0.5
         rcparams['axes.grid'] = rcparams['axes.grid'] if \
