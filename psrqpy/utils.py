@@ -11,10 +11,10 @@ import requests
 import tarfile
 from bs4 import BeautifulSoup
 
+from appdirs import user_cache_dir
 from astropy.table import Table
 from astropy.coordinates import SkyCoord, Angle
 import astropy.units as aunits
-from astropy.utils.data import download_file, clear_download_cache
 from pandas import DataFrame
 
 from .config import (
@@ -28,6 +28,13 @@ from .config import (
     GLITCH_URL,
     GC_URL,
 )
+
+
+#: set cache location
+CACHEDIR = user_cache_dir(appname="psrqpy", appauthor=False)
+
+#: set ATNF tarball cache file name
+DEFAULTCACHENAME = os.path.basename(ATNF_TARBALL)
 
 
 def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False, version="latest"):
@@ -69,7 +76,7 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False, versi
         # remove any cached file if requested
         if update:
             if check_update():
-                clear_download_cache(ATNF_TARBALL, pkgname="psrqpy")
+                os.remove(os.path.join(CACHEDIR, DEFAULTCACHENAME))
 
         if version == "latest":
             atnftarball = ATNF_TARBALL
@@ -78,10 +85,10 @@ def get_catalogue(path_to_db=None, cache=True, update=False, pandas=False, versi
 
         # get the tarball
         try:
-            dbtarfile = download_file(atnftarball, cache=cache, pkgname="psrqpy")
-        except IOError:
+            dbtarfile = download_atnf_tarball(atnftarball, usecache=cache, version=version)
+        except RuntimeError as e:
             raise IOError(
-                "Problem accessing ATNF catalogue tarball: {}".format(atnftarball)
+                f"Problem accessing ATNF catalogue tarball: {atnftarball}\n{e}"
             )
 
         try:
@@ -320,17 +327,17 @@ def check_update():
 
     """
 
-    from astropy.utils.data import download_file, get_cached_urls, compute_hash
+    from astropy.utils.data import compute_hash
 
-    if ATNF_TARBALL not in get_cached_urls():
+    if not os.path.isfile(os.path.join(CACHEDIR, DEFAULTCACHENAME)):
         # can update cache as file is not cached yet
         return True
 
     # get the cached file name
-    cachefile = download_file(ATNF_TARBALL, cache=True)
+    cachefile = download_atnf_tarball(ATNF_TARBALL, usecache=True)
 
     # download a new version of the file and check the hash
-    tmpcache = download_file(ATNF_TARBALL, cache=False)
+    tmpcache = download_atnf_tarball(ATNF_TARBALL, usecache=False)
 
     curhash = compute_hash(cachefile)
     tmphash = compute_hash(tmpcache)
@@ -341,6 +348,51 @@ def check_update():
     else:
         # an update can be obtained
         return True
+
+
+def download_atnf_tarball(url, usecache=True, version="latest"):
+    """
+    Download and cache the ATNF catalogue database.
+    
+    Args:
+        url (str): the URL of the ATNF Pulsar Catalogue tarball.
+        usecache (bool): if True try and get the cached version
+    """
+
+    if version == "latest":
+        cachefile = os.path.join(CACHEDIR, DEFAULTCACHENAME)
+    else:
+        cachefile = os.path.join(
+            CACHEDIR,
+            os.path.basename(ATNF_VERSION_TARBALL.format(version))
+        )
+
+    if usecache and os.path.isfile(cachefile):
+        # return cached file
+        return cachefile
+
+    try:
+        tarfile = requests.get(url)
+    except Exception as e:
+        raise RuntimeError("Error downloading pulsar catalogue: {}".format(str(e)))
+
+    if tarfile.status_code != 200:
+        raise RuntimeError("Error downloading pulsar catalogue: {}".format(str(e)))
+
+    if not os.path.exists(CACHEDIR):
+        try:
+            os.makedirs(CACHEDIR)
+        except OSError:
+            if not os.path.exists(CACHEDIR):
+                raise
+    elif not os.path.isdir(CACHEDIR):
+        raise OSError(f"Query cache directory {CACHEDIR} is not a directory")
+
+    # write out file to cache
+    with open(cachefile, "wb") as fp:
+        fp.write(tarfile.content)
+
+    return cachefile
 
 
 def get_glitch_catalogue(psr=None):
@@ -954,12 +1006,11 @@ def get_references(
         dict: a dictionary of references.
     """
 
-    import tempfile
     import json
 
     # get the tarball
     try:
-        dbtarfile = download_file(ATNF_TARBALL, cache=not updaterefcache)
+        dbtarfile = download_atnf_tarball(ATNF_TARBALL, usecache=not updaterefcache)
     except IOError:
         raise IOError("Problem accessing ATNF catalogue tarball")
 
@@ -1000,18 +1051,12 @@ def get_references(
     if not cache:
         adsrefs = {}
     else:
-        from astropy.utils.data import is_url_in_cache
-
-        tmpdir = tempfile.gettempdir()  # get system "temporary" directory
-        dummyurl = "file://{}/ads_cache".format(tmpdir)
-        dummyfile = os.path.join("{}".format(tmpdir), "ads_cache")
+        cachefile = os.path.join(CACHEDIR, "ads_cache")
 
         # check if cached ADS refs list exists (using dummy URL)
-        if is_url_in_cache(dummyurl) and not updaterefcache:
-            adsfile = download_file(dummyurl, cache=True, show_progress=False)
-
+        if os.path.exists(cachefile) and not updaterefcache:
             try:
-                fp = open(adsfile, "r")
+                fp = open(cachefile, "r")
             except IOError:
                 warnings.warn(
                     "Could not load ADS URL cache for references", UserWarning
@@ -1230,27 +1275,20 @@ def get_references(
         # output adsrefs to cache file
         try:
             # output to dummy temporary file and then "download" to cache
-            fp = open(dummyfile, "w")
+            with open(cachefile, "w") as fp:
+                cachedic = {}
+                cachedic["urls"] = adsrefs
 
-            cachedic = {}
-            cachedic["urls"] = adsrefs
+                if bibtex:
+                    cachedic["bibtex"] = adsbibtex
 
-            if bibtex:
-                cachedic["bibtex"] = adsbibtex
+                if showfails:
+                    cachedic["failures"] = failures
 
-            if showfails:
-                cachedic["failures"] = failures
-
-            json.dump(cachedic, fp, indent=2)
-            fp.close()
+                json.dump(cachedic, fp, indent=2)
         except IOError:
             raise IOError("Could not output the ADS references to a file")
 
-        # cache the file
-        _ = download_file(dummyurl, cache=True, show_progress=False)
-
-        # remove the temporary file
-        os.remove(dummyfile)
 
     if bibtex:
         if showfails:
