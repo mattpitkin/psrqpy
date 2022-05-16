@@ -205,7 +205,7 @@ This code is licensed under the [MIT License](http://opensource.org/licenses/MIT
 [![PyPI version](https://badge.fury.io/py/psrqpy.svg)](https://badge.fury.io/py/psrqpy)
 [![Anaconda-Server Badge](https://anaconda.org/conda-forge/psrqpy/badges/version.svg)](https://anaconda.org/conda-forge/psrqpy)
 [![version](https://img.shields.io/pypi/pyversions/psrqpy.svg)](https://pypi.org/project/psrqpy/)
-[![Build Status](https://travis-ci.org/mattpitkin/psrqpy.svg?branch=master)](https://travis-ci.org/mattpitkin/psrqpy)
+[![Build Status](https://github.com/mattpitkin/psrqpy/workflows/build/badge.svg)](https://github.com/mattpitkin/psrqpy/actions?query=workflow%3Abuild)
 [![codecov](https://codecov.io/gh/mattpitkin/psrqpy/branch/master/graph/badge.svg)](https://codecov.io/gh/mattpitkin/psrqpy)
 [![Documentation Status](https://readthedocs.org/projects/psrqpy/badge/?version=latest)](http://psrqpy.readthedocs.io/en/latest/?badge=latest)
 [![status](http://joss.theoj.org/papers/711dc5566159f6e9f8ea5d07dbfaf5d2/status.svg)](http://joss.theoj.org/papers/711dc5566159f6e9f8ea5d07dbfaf5d2)
