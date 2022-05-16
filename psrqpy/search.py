@@ -11,7 +11,6 @@ import warnings
 
 import numpy as np
 import astropy
-from astropy.config.paths import get_cache_dir
 from astropy.coordinates import SkyCoord, ICRS, Galactic, BarycentricMeanEcliptic
 from astropy.table.column import MaskedColumn, Column
 import astropy.units as aunits
@@ -23,7 +22,7 @@ from pandas import concat, DataFrame, Series
 from copy import deepcopy
 
 from .config import ATNF_BASE_URL, PSR_ALL, PSR_ALL_PARS, PSR_TYPE, PSR_ASSOC_TYPE, PSR_BINARY_TYPE
-from .utils import condition, age_pdot, B_field_pdot, h0_to_q22, q22_to_ellipticity
+from .utils import CACHEDIR, condition, age_pdot, B_field_pdot, h0_to_q22, q22_to_ellipticity
 
 
 # set default astropy galactocentric frame values
@@ -338,8 +337,7 @@ class QueryATNF(object):
         """
         from .utils import get_catalogue
 
-        cachedir = get_cache_dir("psrqpy")
-        cachefile = os.path.join(cachedir, f"query_{version}.pkl")
+        cachefile = os.path.join(CACHEDIR, f"query_{version}.pkl")
 
         if cache and not update and path_to_db is None:
             # check if cache file exists
@@ -387,14 +385,14 @@ class QueryATNF(object):
 
         if cache and path_to_db is None:
             # save Query to cache file
-            if not os.path.exists(cachedir):
+            if not os.path.exists(CACHEDIR):
                 try:
-                    os.makedirs(cachedir)
+                    os.makedirs(CACHEDIR)
                 except OSError:
-                    if not os.path.exists(cachedir):
+                    if not os.path.exists(CACHEDIR):
                         raise
-            elif not os.path.isdir(cachedir):
-                raise OSError(f"Query cache directory {cachedir} is not a directory")
+            elif not os.path.isdir(CACHEDIR):
+                raise OSError(f"Query cache directory {CACHEDIR} is not a directory")
 
             self.save(cachefile)
 
