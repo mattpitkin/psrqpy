@@ -1,5 +1,11 @@
 # Notable changes between versions
 
+## [1.2.2] 2022-05-16
+
+- Use [appdirs](https://pypi.org/project/appdirs/) package to set cache file location rather than using the astropy [`download_file`](https://docs.astropy.org/en/stable/api/astropy.utils.data.download_file.html) function. See [#108](https://github.com/mattpitkin/psrqpy/pull/108).
+
+- Matplotlib will no longer default to have `text.usetex = True` for P-P plots. See [#107](https://github.com/mattpitkin/psrqpy/pull/107).
+
 ## [1.2.1] 2022-05-13
 
 - Fix bug that meant that if loading from a local database file it would be cached by default and overwrite the full ATNF catalogue cache. See [#104](https://github.com/mattpitkin/psrqpy/pull/103).
