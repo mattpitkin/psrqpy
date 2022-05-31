@@ -381,10 +381,8 @@ def download_atnf_tarball(url, usecache=True, version="latest"):
 
     try:
         tarfile = requests.get(url)
+        tarfile.raise_for_status()
     except Exception as e:
-        raise RuntimeError("Error downloading pulsar catalogue: {}".format(str(e)))
-
-    if tarfile.status_code != 200:
         raise RuntimeError("Error downloading pulsar catalogue: {}".format(str(e)))
 
     if not os.path.exists(CACHEDIR):
