@@ -150,6 +150,7 @@ PSR_TIMING['S100'] =    {'ref': True,  'err': True,  'units': 'mJy'}  # Mean flu
 PSR_TIMING['S150'] =    {'ref': True,  'err': True,  'units': 'mJy'}  # Mean flux at 150 MHz
 PSR_TIMING['S200'] =    {'ref': True,  'err': True,  'units': 'mJy'}  # Mean flux at 200 MHz
 PSR_TIMING['S300'] =    {'ref': True,  'err': True,  'units': 'mJy'}  # Mean flux at 300 MHz
+PSR_TIMING['S350'] =    {'ref': True,  'err': True,  'units': 'mJy'}  # Mean flux at 350 MHz
 PSR_TIMING['S600'] =    {'ref': True,  'err': True,  'units': 'mJy'}  # Mean flux at 600 MHz
 PSR_TIMING['S700'] =    {'ref': True,  'err': True,  'units': 'mJy'}  # Mean flux at 700 MHz
 PSR_TIMING['S800'] =    {'ref': True,  'err': True,  'units': 'mJy'}  # Mean flux at 800 MHz
