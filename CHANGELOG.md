@@ -1,5 +1,10 @@
 # Notable changes between versions
 
+## [1.2.3] 2022-09-08
+
+- Add the S350 flux value. See [#113](https://github.com/mattpitkin/psrqpy/pull/113).
+- Fix exception raising when there is an error downloading the catalogue. See [#110](https://github.com/mattpitkin/psrqpy/pull/110)
+
 ## [1.2.2] 2022-05-16
 
 - Use [appdirs](https://pypi.org/project/appdirs/) package to set cache file location rather than using the astropy [`download_file`](https://docs.astropy.org/en/stable/api/astropy.utils.data.download_file.html) function. See [#108](https://github.com/mattpitkin/psrqpy/pull/108).
