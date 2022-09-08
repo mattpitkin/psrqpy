@@ -138,8 +138,7 @@ class Pulsar(object):
     def __getattr__(self, key):
         """
         If the class has a attribute given by the key then return it, otherwise
-        generate a query for that key to set it (use the already defined
-        __getitem__)
+        raise an error.
         """
 
         ukey = key.upper()
