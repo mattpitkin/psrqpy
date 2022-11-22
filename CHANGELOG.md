@@ -1,9 +1,13 @@
 # Notable changes between versions
 
+## [1.2.4] 2022-11-22
+
+- Allow references to be extracted for a given ATNF catalogue version. See [#115](https://github.com/mattpitkin/psrqpy/pull/115).
+
 ## [1.2.3] 2022-09-08
 
 - Add the S350 flux value. See [#113](https://github.com/mattpitkin/psrqpy/pull/113).
-- Fix exception raising when there is an error downloading the catalogue. See [#110](https://github.com/mattpitkin/psrqpy/pull/110)
+- Fix exception raising when there is an error downloading the catalogue. See [#110](https://github.com/mattpitkin/psrqpy/pull/110).
 
 ## [1.2.2] 2022-05-16
 
