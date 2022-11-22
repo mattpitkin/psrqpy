@@ -980,7 +980,7 @@ def check_old_references(func):
 
 @check_old_references
 def get_references(
-    useads=False, cache=True, updaterefcache=False, bibtex=False, showfails=False
+    useads=False, cache=True, updaterefcache=False, bibtex=False, showfails=False, version="latest"
 ):
     """
     Return a dictionary of paper
@@ -1007,6 +1007,9 @@ def get_references(
         showfails (bool): if outputting NASA ADS references set this flag to
             True to output the reference tags of references that fail to be
             found (mainly for debugging purposes).
+        version (str): the version string (without the leading "v") of the ATNF
+            catalogue version to download. This defaults to "latest" to get the
+            most up-to-date version.
 
     Returns:
         dict: a dictionary of references.
@@ -1014,9 +1017,13 @@ def get_references(
 
     import json
 
+    if version == "latest":
+        atnftarball = ATNF_TARBALL
+    else:
+        atnftarball = ATNF_VERSION_TARBALL.format(version)
     # get the tarball
     try:
-        dbtarfile = download_atnf_tarball(ATNF_TARBALL, usecache=not updaterefcache)
+        dbtarfile = download_atnf_tarball(atnftarball, usecache=not updaterefcache, version=version)
     except IOError:
         raise IOError("Problem accessing ATNF catalogue tarball")
 
