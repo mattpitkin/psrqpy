@@ -1,5 +1,9 @@
 # Notable changes between versions
 
+## [1.2.5] 2023-01-16
+
+- Update `get_gc_catalogue` for parsing the [Globular Cluster pulsar catalogue](https://www.naic.edu/~pfreire/GCpsr.txt) to allow the "Offset" value to have an associated error value.
+
 ## [1.2.4] 2022-11-22
 
 - Allow references to be extracted for a given ATNF catalogue version. See [#115](https://github.com/mattpitkin/psrqpy/pull/115).
