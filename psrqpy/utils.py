@@ -582,6 +582,7 @@ def get_gc_catalogue():
         "NGC",
         "Pulsar",
         "Offset",
+        "Offset error",
         "Period",
         "dP/dt",
         "dP/dt error",
@@ -614,11 +615,13 @@ def get_gc_catalogue():
             float,
             float,
             float,
+            float,
         ],
         units=[
             None,
             None,
             None,
+            aunits.arcmin,
             aunits.arcmin,
             1e-3 * aunits.s,
             1e-20 * aunits.s / aunits.s,
@@ -672,7 +675,6 @@ def get_gc_catalogue():
         psrentry["NGC"] = str(ngc)
         psrentry["Pulsar"] = linevalues[0]
 
-        psrentry["Offset"] = float(linevalues[1]) if linevalues[1] != "*" else np.nan
         psrentry["Period"] = float(linevalues[2]) if linevalues[2] != "*" else np.nan
 
         def parse_value_error(value):
@@ -716,6 +718,11 @@ def get_gc_catalogue():
                 error = np.nan
 
             return val, error
+
+        # Offset
+        val, error = parse_value_error(linevalues[1])
+        psrentry["Offset"] = val
+        psrentry["Offset error"] = error
 
         # dP/dt
         val, error = parse_value_error(linevalues[3])
