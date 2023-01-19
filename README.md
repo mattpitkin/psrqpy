@@ -146,7 +146,7 @@ query.ppdot(showSNRs=True, showtypes='all')
 
 gives
 
-![PPdot](../master/docs/source/images/ppdot.png)
+![PPdot](../main/docs/source/images/ppdot.png)
 
 ## Development and Support
 
