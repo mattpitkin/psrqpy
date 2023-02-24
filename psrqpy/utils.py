@@ -504,7 +504,7 @@ def get_glitch_catalogue(psr=None):
             ):
                 try:
                     val = float(tds[4 + j].contents[0].string)
-                except ValueError:
+                except (ValueError, TypeError):
                     val = np.nan
 
                 tabledict[pname].append(val)
