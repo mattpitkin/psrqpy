@@ -7,7 +7,7 @@ import itertools
 
 
 #: The ATNF pulsar catalogue base URL.
-ATNF_BASE_URL = r"http://www.atnf.csiro.au/people/pulsar/psrcat/"
+ATNF_BASE_URL = r"https://www.atnf.csiro.au/people/pulsar/psrcat/"
 
 #: The name of the tarball containing the entire catalogue database.
 ATNF_TARBALL = ATNF_BASE_URL + r"downloads/psrcat_pkg.tar.gz"
@@ -17,13 +17,13 @@ ATNF_TARBALL = ATNF_BASE_URL + r"downloads/psrcat_pkg.tar.gz"
 ATNF_VERSION_TARBALL = ATNF_BASE_URL + r"downloads/psrcat_pkg.v{}.tar.gz"
 
 #: The Jodrell Bank glitch catalogue table URL.
-GLITCH_URL = r"http://www.jb.man.ac.uk/pulsar/glitches/gTable.html"
+GLITCH_URL = r"https://www.jb.man.ac.uk/pulsar/glitches/gTable.html"
 
 #: Paolo Freire's globular cluster pulsar table URL
-GC_URL = r"http://www.naic.edu/~pfreire/GCpsr.txt"
+GC_URL = r"https://www.naic.edu/~pfreire/GCpsr.txt"
 
 #: Dunc Lorimer's MSP table URL
-MSP_URL = r"http://astro.phys.wvu.edu/GalacticMSPs/GalacticMSPs.txt"
+MSP_URL = r"https://astro.phys.wvu.edu/GalacticMSPs/GalacticMSPs.txt"
 
 # Pulsar parameters (http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html) that can be
 # queried. For each parameter there is a dictionary giving:
