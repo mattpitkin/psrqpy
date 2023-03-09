@@ -23,7 +23,7 @@ GLITCH_URL = r"https://www.jb.man.ac.uk/pulsar/glitches/gTable.html"
 GC_URL = r"https://www.naic.edu/~pfreire/GCpsr.txt"
 
 #: Dunc Lorimer's MSP table URL
-MSP_URL = r"https://astro.phys.wvu.edu/GalacticMSPs/GalacticMSPs.txt"
+MSP_URL = r"http://astro.phys.wvu.edu/GalacticMSPs/GalacticMSPs.txt"
 
 # Pulsar parameters (http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html) that can be
 # queried. For each parameter there is a dictionary giving:
