@@ -1,6 +1,6 @@
 # Notable changes between versions
 
-## [1.2.6] 2023-04-24]
+## [1.2.6] 2023-04-24
 
 - Make the `NAME` attribute default to using the PSRB name if available to be consistent with `psrcat`. See [#122](https://github.com/mattpitkin/psrqpy/pull/122).
 - Fix parsing of the glitch catalogue table. See [#121](https://github.com/mattpitkin/psrqpy/pull/121).
