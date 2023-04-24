@@ -1009,8 +1009,8 @@ def test_name(query):
     Test that the PSRB name is used as default for NAME if it exists, else use PSRJ.
     """
 
-    psr = query.get_pulsar("J0034-0721") # This pulsar has a BName and a JName
+    psr = query.get_pulsar("J0034-0721")  # This pulsar has a BName and a JName
     assert psr["NAME"][0] == psr["BNAME"][0]
 
-    psr = query.get_pulsar("J1906+1854") # This pulsar only has a JName
+    psr = query.get_pulsar("J1906+1854")  # This pulsar only has a JName
     assert psr["NAME"][0] == psr["JNAME"][0]
