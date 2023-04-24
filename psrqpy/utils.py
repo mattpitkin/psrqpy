@@ -199,20 +199,23 @@ def get_catalogue(
         # add 'JNAME', 'BNAME' and 'NAME'
         if "PSRJ" in psr.keys():
             psrlist[i]["JNAME"] = psr["PSRJ"]
-            psrlist[i]["NAME"] = psr["PSRJ"]
             if "PSRJ_REF" in psr.keys():
                 psrlist[i]["JNAME_REF"] = psr["PSRJ_REF"]
-                psrlist[i]["NAME_REF"] = psr["PSRJ_REF"]
 
         if "PSRB" in psr.keys():
             psrlist[i]["BNAME"] = psr["PSRB"]
             if "PSRB_REF" in psr.keys():
                 psrlist[i]["BNAME_REF"] = psr["PSRB_REF"]
 
-            if "NAME" not in psrlist[i].keys():
-                psrlist[i]["NAME"] = psr["PSRB"]
-                if "PSRB_REF" in psr.keys():
-                    psrlist[i]["NAME_REF"] = psr["PSRB_REF"]
+        if "PSRB" in psr.keys() and "PSRJ" in psr.keys():
+            psrlist[i]["NAME"] = psr["PSRB"]
+            if "PSRB_REF" in psr.keys():
+                psrlist[i]["NAME_REF"] = psr["PSRB_REF"]
+
+        else:
+            psrlist[i]["NAME"] = psr["PSRJ"]
+            if "PSRJ_REF" in psr.keys():
+                psrlist[i]["NAME_REF"] = psr["PSRJ_REF"]
 
         if "RAJ" in psr.keys() and "DECJ" in psr.keys():
             # check if the string can be converted to a float (there are a few
