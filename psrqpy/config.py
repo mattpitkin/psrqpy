@@ -20,7 +20,7 @@ ATNF_VERSION_TARBALL = ATNF_BASE_URL + r"downloads/psrcat_pkg.v{}.tar.gz"
 GLITCH_URL = r"https://www.jb.man.ac.uk/pulsar/glitches/gTable.html"
 
 #: Paolo Freire's globular cluster pulsar table URL
-GC_URL = r"https://www.naic.edu/~pfreire/GCpsr.txt"
+GC_URL = r"https://www3.mpifr-bonn.mpg.de/staff/pfreire/GCpsr.txt"
 
 #: Dunc Lorimer's MSP table URL
 MSP_URL = r"http://astro.phys.wvu.edu/GalacticMSPs/GalacticMSPs.txt"
