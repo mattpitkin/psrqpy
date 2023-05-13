@@ -1,5 +1,9 @@
 # Notable changes between versions
 
+## [1.2.7] 2023-05-19
+
+- Fix URL for the Globular Cluster pulsar catalogue, which recently moved to [here](https://www3.mpifr-bonn.mpg.de/staff/pfreire/GCpsr.txt). See [#123](https://github.com/mattpitkin/psrqpy/issues/123).
+
 ## [1.2.6] 2023-04-24
 
 - Make the `NAME` attribute default to using the PSRB name if available to be consistent with `psrcat`. See [#122](https://github.com/mattpitkin/psrqpy/pull/122).
