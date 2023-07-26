@@ -1,0 +1,31 @@
+cff-version: "1.2.0"
+authors:
+- family-names: Pitkin
+  given-names: Matthew
+  orcid: "https://orcid.org/0000-0003-4548-526X"
+contact:
+- family-names: Pitkin
+  given-names: Matthew
+  orcid: "https://orcid.org/0000-0003-4548-526X"
+doi: 10.5281/zenodo.1489692
+message: If you use this software, please cite my article in the
+  Journal of Open Source Software.
+preferred-citation:
+  authors:
+  - family-names: Pitkin
+    given-names: Matthew
+    orcid: "https://orcid.org/0000-0003-4548-526X"
+  date-published: 2018-02-19
+  doi: 10.21105/joss.00538
+  issn: 2475-9066
+  issue: 22
+  journal: Journal of Open Source Software
+  publisher:
+    name: Open Journals
+  start: 538
+  title: "psrqpy: a python interface for querying the ATNF pulsar
+    catalogue"
+  type: article
+  url: "https://joss.theoj.org/papers/10.21105/joss.05582"
+  volume: 3
+title: "psrqpy: a python interface for querying the ATNF pulsar catalogue"
