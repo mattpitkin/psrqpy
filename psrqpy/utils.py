@@ -863,8 +863,8 @@ def characteristic_age(period, pdot, braking_idx=3.):
         raise ValueError("Could not convert period/pdot to "
                          "array: {}".format(str(e)))
 
-    assert periodarr.dtype == np.float, "Periods must be floats"
-    assert pdotarr.dtype == np.float, "Period derivatives must be floats"
+    assert periodarr.dtype == float, "Periods must be floats"
+    assert pdotarr.dtype == float, "Period derivatives must be floats"
     assert len(periodarr) == len(pdotarr), "Period and derivative arrays must be equal lengths"
     assert braking_idx > 1., "Braking index must be greater than 1"
 
@@ -941,8 +941,8 @@ def B_field(period, pdot):
         raise ValueError("Could not convert period/pdot to "
                          "array: {}".format(str(e)))
 
-    assert periodarr.dtype == np.float, "Periods must be floats"
-    assert pdotarr.dtype == np.float, "Period derivatives must be floats"
+    assert periodarr.dtype == float, "Periods must be floats"
+    assert pdotarr.dtype == float, "Period derivatives must be floats"
     assert len(periodarr) == len(pdotarr), "Period and derivative arrays must be equal lengths"
 
     # check pdot is positive, otherwise return NaN
