@@ -7,7 +7,11 @@ from .search import QueryATNF
 from .pulsar import Pulsar, Pulsars
 from .utils import *
 
-__version__ = "1.0.0"
+try:
+    from ._version import version as __version__
+except ModuleNotFoundError:
+    __version__ = ""
+
 
 __citation__ = """@article{psrqpy,
   author = {{Pitkin}, M.},

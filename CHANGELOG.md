@@ -1,5 +1,138 @@
 # Notable changes between versions
 
+## [1.2.7] 2023-05-19
+
+- Fix URL for the Globular Cluster pulsar catalogue, which recently moved to [here](https://www3.mpifr-bonn.mpg.de/staff/pfreire/GCpsr.txt). See [#123](https://github.com/mattpitkin/psrqpy/issues/123).
+
+## [1.2.6] 2023-04-24
+
+- Make the `NAME` attribute default to using the PSRB name if available to be consistent with `psrcat`. See [#122](https://github.com/mattpitkin/psrqpy/pull/122).
+- Fix parsing of the glitch catalogue table. See [#121](https://github.com/mattpitkin/psrqpy/pull/121).
+
+## [1.2.5] 2023-01-16
+
+- Update `get_gc_catalogue` for parsing the [Globular Cluster pulsar catalogue](https://www.naic.edu/~pfreire/GCpsr.txt) to allow the "Offset" value to have an associated error value.
+
+## [1.2.4] 2022-11-22
+
+- Allow references to be extracted for a given ATNF catalogue version. See [#115](https://github.com/mattpitkin/psrqpy/pull/115).
+
+## [1.2.3] 2022-09-08
+
+- Add the S350 flux value. See [#113](https://github.com/mattpitkin/psrqpy/pull/113).
+- Fix exception raising when there is an error downloading the catalogue. See [#110](https://github.com/mattpitkin/psrqpy/pull/110).
+
+## [1.2.2] 2022-05-16
+
+- Use [appdirs](https://pypi.org/project/appdirs/) package to set cache file location rather than using the astropy [`download_file`](https://docs.astropy.org/en/stable/api/astropy.utils.data.download_file.html) function. See [#108](https://github.com/mattpitkin/psrqpy/pull/108).
+
+- Matplotlib will no longer default to have `text.usetex = True` for P-P plots. See [#107](https://github.com/mattpitkin/psrqpy/pull/107).
+
+## [1.2.1] 2022-05-13
+
+- Fix bug that meant that if loading from a local database file it would be cached by default and overwrite the full ATNF catalogue cache. See [#104](https://github.com/mattpitkin/psrqpy/pull/103).
+
+## [1.2.0] 2022-05-11
+
+- When caching, store the full catalogue (including derived values) within the `QueryATNF` object to a file. This improves the speed with which the catalogue can be requeried. See [#103](https://github.com/mattpitkin/psrqpy/pull/103).
+
+## [1.1.8] 2022-04-28
+
+- Fix pandas "Performance warning" about highly fragmented DataFrame. See [#100](https://github.com/mattpitkin/psrqpy/pull/100).
+- Fix error reading globular cluster catalogue due to an asterisk period value. See [#99](https://github.com/mattpitkin/psrqpy/pull/99).
+- Move CI to use GitHib Actions rather than Travis. See [#101](https://github.com/mattpitkin/psrqpy/pull/101).
+
+## [1.1.7] 2022-02-3
+
+- Set position epoch to period epoch if the latter is not given. See [#96](https://github.com/mattpitkin/psrqpy/pull/96). 
+- Allow discovery data tp be derived from the catalogue. See [#97](https://github.com/mattpitkin/psrqpy/pull/97). 
+
+## [1.1.6] 2021-12-13
+
+- Allow specific versions of the ATNF pulsar catalogue to be downloaded. See [#95](https://github.com/mattpitkin/psrqpy/pull/95).
+
+## [1.1.5] 2021-11-18
+
+- Extend `__getitem__` for `QueryATNF` class so that individual pulsar can be extracted using keys from a class instance. See [#92](https://github.com/mattpitkin/psrqpy/pull/92).
+
+## [1.1.4] 2021-11-17
+
+- Propagate errors on ecliptical coordinates to equatorial. See [#90](https://github.com/mattpitkin/psrqpy/pull/90).
+- Update build system. See [#91](https://github.com/mattpitkin/psrqpy/pull/91).
+
+## [1.1.3] 2021-10-11
+
+- Move scraping of Galactic MSP catalogue into PSRQPy. See [#88](https://github.com/mattpitkin/psrqpy/pull/88).
+
+## [1.1.2] 2021-06-22
+
+- Fix parsing of the galactic MSP table after changes to the upstream format. See [#85](https://github.com/mattpitkin/psrqpy/pull/85).
+- Remove explicit use of certain NumPy built-in types following their [deprecation](https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations). See [#83](https://github.com/mattpitkin/psrqpy/pull/83).
+
+## [1.1.1] 2021-03-19
+
+- Add function to download and parse the galactic MSP table. See [#80](https://github.com/mattpitkin/psrqpy/pull/80).
+- Add functions to calculate derived gravitational wave parameters. See [#79](https://github.com/mattpitkin/psrqpy/pull/79).
+
+## [1.1.0] 2021-03-18
+
+The major change for this release is that it no longer supports Python 2.7, and only supports Python versions
+greater than 3.5.
+
+- Add a function to download and parse the [globular cluster pulsar](http://www.naic.edu/~pfreire/GCpsr.html) table. See [#77](https://github.com/mattpitkin/psrqpy/pull/77).
+
+## [1.0.11] 2020-10-19
+
+- Allow `psrqpy` query to work using ATNF catalogue v1.64, which contains a position typo. See [#74](https://github.com/mattpitkin/psrqpy/pull/74).
+- More fixes to enable parsing of more references using NASA ADS and fixes changes that occurred with v1.64. See [#70](https://github.com/mattpitkin/psrqpy/pull/70).
+
+## [1.0.10] 2020-10-08
+
+- Allow the `Pulsar` objects to access parameter references. See [#71](https://github.com/mattpitkin/psrqpy/pull/71).
+
+## [1.0.9] 2020-06-08
+
+- A minor fix to get ADS references to work. See [#66](https://github.com/mattpitkin/psrqpy/pull/66).
+
+## [1.0.8] 2020-06-05
+
+Changes for this release:
+
+- The way references are stored in the ATNF pulsar catalogue has changed, so the `get_references` function has been changed to work with this new format. This breaks that function for older cached catalogue, but a warning is provided. See [#64](https://github.com/mattpitkin/psrqpy/pull/64).
+- The astropy Galactocentric coordinates have been set to use default values from the pre-v4.0 release. See [#65](https://github.com/mattpitkin/psrqpy/pull/65).
+
+## [1.0.7] 2020-03-29
+
+Changes for this release:
+
+- Fix an issue with Tables in Astropy v4.0 (see [#61](https://github.com/mattpitkin/psrqpy/pull/61)).
+
+## [1.0.6] 2020-03-19
+
+Changes for this release:
+
+- Adds position errors on the right ascension and declination when converted into degrees (see [#60](https://github.com/mattpitkin/psrqpy/pull/60)).
+
+## [1.0.5] 2019-09-04
+
+Changes for this release:
+
+- The version 1.61 of the ATNF Pulsar Catalogue containing the declinations with the unicode "−" character in place of an ascii minus sign "-" has been fixed upstream, so the code fix to account for this has been removed (it was also causing issues with the Python 2 version of the code).
+
+## [1.0.4] 2019-09-04
+
+Changes for this release:
+
+- Update the P-Pdot diagram, so that the user can specify which pulsars to include, either via the pulsars passed to the original query request (which is the default option) or by directly passing names to the P-Pdot function. If no particular pulsars were requested then all pulsars will be included.
+- Version 1.61 of the ATNF Pulsar Catalogue contains some declinations with the unicode "−" character in place of an ascii minus sign "-". This release switched the unicode "−" to the "-", so that the values can be parsed to float numbers. This version of the ATNF Pulsar Catalogue also contains a couple of negative parallax values, so this release does not allow these to be used for calculating distances.
+
+## [1.0.3] 2019-07-29
+
+Changes for this release:
+
+- Updates to the [`BarycentricTrueEcliptic`](http://docs.astropy.org/en/stable/api/astropy.coordinates.BarycentricTrueEcliptic.html) in astropy v3.2 caused test to fail (due to ["correcting"](http://docs.astropy.org/en/v3.2.1/changelog.html#id12) bugs and including nutation). This version updates to use [`BarycentricMeanEcliptic`](http://docs.astropy.org/en/stable/api/astropy.coordinates.BarycentricMeanEcliptic.html), for which the tests no-longer fail. For earlier versions of astropy the former function is still used.
+- The `version` attribute of the catalogue table is now set if loading a query from a previously read table (see [#53](https://github.com/mattpitkin/psrqpy/pull/53)).
+
 ## [1.0.0] 2018-11-15
 
 This release involves major changes to the API.

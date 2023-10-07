@@ -3,12 +3,11 @@ Test script.
 """
 
 import pytest
-import os
 from psrqpy import QueryATNF
 import numpy as np
 from pandas import Series
 import pytest_socket
-from six import string_types
+from astropy.table.column import MaskedColumn
 
 
 def sf_scale(value):
@@ -70,6 +69,10 @@ def test_crab(query):
 
     assert f0 == f0B
 
+    # check reference and error are not None
+    assert query.get_pulsar('B0531+21')['F0_ERR'][0] is not None
+    assert query.get_pulsar('B0531+21')['F0_REF'][0] is not None
+
 
 def test_catalogue_shape(query):
     """
@@ -114,7 +117,7 @@ def test_get_pulsars(query):
 
     crabeph = query.get_ephemeris('J0534+2200')
 
-    assert isinstance(crabeph, string_types)
+    assert isinstance(crabeph, str)
 
     for line in crabeph.split('\n'):
         if line.split()[0].strip() == 'F0':
@@ -124,7 +127,26 @@ def test_get_pulsars(query):
     assert f01 == float(f0str)
 
 
-def test_save_load_file(query):
+def test_getitem(query):
+    """
+    Test using the __getitem__ method.
+    """
+
+    with pytest.raises(KeyError):
+        query["BLah"]
+
+    # get a pulsar
+    crabeph = query["J0534+2200"]
+
+    assert np.floor(crabeph["F0"][0]) == 29.0
+
+    # get a column
+    psrjs = query["PSRJ"]
+
+    assert "J0534+2200" in psrjs
+
+
+def test_save_load_file(tmp_path, query):
     """
     Test saving and reloading a query as a pickle file.
     """
@@ -139,7 +161,7 @@ def test_save_load_file(query):
     with pytest.raises(IOError):
         querynew = QueryATNF(loadquery=testfilebad)
 
-    testfile = os.path.join(os.getcwd(), 'query.pkl')
+    testfile = tmp_path / 'query.pkl'
     query.save(testfile)
 
     # re-load in as a new query
@@ -172,7 +194,10 @@ def test_condition(query):
     f0s = psrs['F0']
     binary = psrs['BINARY']
 
-    assert not np.any(f0s < 100.) and not np.any(binary.mask)
+    if type(binary) == MaskedColumn:
+        assert not np.any(f0s < 100.) and not np.any(binary.mask)
+    else:
+        assert not np.any(f0s < 100.)
 
     # test 'OR'
     query.condition = 'F0 > 100 || type(binary)'
@@ -181,7 +206,8 @@ def test_condition(query):
     f0s = psrs['F0']
     binary = psrs['BINARY']
 
-    assert np.all(~binary[f0s < 100.].mask)
+    if type(binary) == MaskedColumn:
+        assert np.all(~binary[f0s < 100.].mask)
 
     # test 'NOT'
     query.condition = 'F0 > 100 and not type(binary)'
@@ -190,7 +216,10 @@ def test_condition(query):
     f0s = psrs['F0']
     binary = psrs['BINARY']
 
-    assert not np.any(f0s < 100) and np.all(binary.mask)
+    if type(binary) == MaskedColumn:
+        assert not np.any(f0s < 100) and np.all(binary.mask)
+    else:
+        assert not np.any(f0s < 100)
 
     # test type (not binary)
     query.condition = 'type(HE)'
@@ -224,7 +253,22 @@ def test_condition(query):
     psrs = query.table
     pmras = psrs['PMRA']
 
-    assert len(pmras) == np.sum(~allpsrs['PMRA'].mask)
+    if type(allpsrs['PMRA']) == MaskedColumn:
+        assert len(pmras) == np.sum(~allpsrs['PMRA'].mask)
+
+    # test survey
+    query.condition = "survey(gb350)"
+    psrs = query.table
+    surveys = psrs["SURVEY"]
+
+    assert np.all(["gb350" in survey for survey in surveys])
+
+    # test discovery
+    query.condition = "discovery(htru_eff)"
+    psrs = query.table
+    discoveries = psrs["SURVEY"]
+
+    assert np.all(["htru_eff" == disc.split(",")[0] for disc in discoveries])
 
     # reset condition
     query.condition = None
@@ -238,7 +282,10 @@ def test_num_pulsars(query):
     query.psrs = 'J9999+9999'  # bad pulsar
 
     # length should be zero
-    assert len(query) == 0
+    with pytest.warns(UserWarning):
+        lq = len(query)
+
+    assert lq == 0
 
     query.psrs = 'J0534+2200'  # Crab pulsar
 
@@ -298,21 +345,21 @@ def test_get_references(query):
     # test parsing a reference
     ref = query.parse_ref('ksm+06')
 
-    assert isinstance(ref, string_types)
-    assert "Tests of General Relativity from Timing the Double Pulsar" in ref
+    assert isinstance(ref, str)
+    assert "Kramer" in ref and "Science" in ref and "314" in ref and "2006" in ref
 
     # test parsing two references
     ref = query.parse_ref(['ksm+06', 'abb+18'])
 
     assert len(ref) == 2
-    assert "Tests of General Relativity from Timing the Double Pulsar" in ref[0]
-    assert "The NANOGrav 11-year Data Set" in ref[1]
+    assert "Kramer" in ref[0] and "Science" in ref[0] and "314" in ref[0] and "2006" in ref[0]
+    assert "2018" in ref[1] and "ApJS" in ref[1] and "235" in ref[1] and"37" in ref[1]
 
     # test parsing two references (with the second one being gibberish)
     ref = query.parse_ref(['ksm+06', 'wlihlacljkblf'])
 
     assert len(ref) == 2
-    assert "Tests of General Relativity from Timing the Double Pulsar" in ref[0]
+    assert "Kramer" in ref[0] and "Science" in ref[0] and "314" in ref[0] and "2006" in ref[0]
     assert ref[1] is None
 
 
@@ -397,6 +444,47 @@ def test_glitch_table():
     table = get_glitch_catalogue(psr='J0534+2200')
 
     assert len(table) > 1
+
+
+def test_gc_table():
+    """
+    Try downloading the globular cluster pulsar table.
+    """
+
+    from psrqpy.utils import get_gc_catalogue
+
+    table = get_gc_catalogue()
+
+    assert "47 Tuc" in table.clusters()
+    assert "J0023-7204C" in table.cluster_pulsars("47 Tuc")["Pulsar"]
+    assert "J0023-7204C" in table.cluster_pulsars("NGC 104")["Pulsar"]
+    assert "J0023-7204C" in table.cluster_pulsars("104")["Pulsar"]
+    assert "J0023-7204C" in table.cluster_pulsars("47Tuc")["Pulsar"]
+
+
+def test_msp_table(query):
+    """
+    Try downloading the MSP table.
+    """
+
+    from psrqpy.utils import get_msp_catalogue
+
+    table = get_msp_catalogue()
+
+    # when added there were 400 pulsars in the table
+    assert len(table) >= 400
+    psrcheck = "J0023+0923"
+    assert psrcheck in table["NAME"]
+
+    # compare values to ATNF values to with 1%
+    psr = query.get_pulsar(psrcheck)
+    msppsr = table[table["NAME"] == psrcheck]
+
+    assert 0.99 < psr["GB"] / msppsr["GB"] < 1.01
+    assert 0.99 < psr["GL"] / msppsr["GL"] < 1.01
+    assert 0.99 < psr["DM"] / msppsr["DM"] < 1.01
+    assert 0.99 < psr["A1"] / msppsr["A1"] < 1.01
+    assert 0.99 < psr["PB"] / msppsr["PB"] < 1.01
 
 
 # TEST DERIVED PARAMETERS #
@@ -720,6 +808,128 @@ def test_derived_pb_pbdot(query_derived, query_atnf):
     assert round_err(pbdoterr, pbdoterratnf)
 
 
+def test_pdot_to_fdot(query):
+    """
+    Test the conversion functions from Pdot to fdot and vice versa.
+    """
+
+    from psrqpy.utils import pdot_to_fdot, fdot_to_pdot
+
+    vela = query.get_pulsar('J0835-4510')
+    crab = query.get_pulsar('J0534+2200')
+
+    F1v = vela["F1"].data[0]
+    P1v = vela["P1"].data[0]
+
+    F0v = vela["F0"].data[0]
+    P0v = vela["P0"].data[0]
+
+    F1c = crab["F1"].data[0]
+    P1c = crab["P1"].data[0]
+
+    F0c = crab["F0"].data[0]
+    P0c = crab["P0"].data[0]
+
+    # test pdot to fdot
+    with pytest.raises(ValueError):
+        pdot_to_fdot(P1v)
+
+    # test individual value
+    f1calcv1 = pdot_to_fdot(P1v, period=P0v)
+    f1calcv2 = pdot_to_fdot(P1v, frequency=F0v)
+
+    assert isinstance(f1calcv1, float)
+    assert isinstance(f1calcv2, float)
+    assert f1calcv1 == f1calcv2
+    assert np.allclose([f1calcv1], [F1v])
+
+    # test pair of values
+    f1calc1 = pdot_to_fdot([P1v, P1c], period=[P0v, P0c])
+    f1calc2 = pdot_to_fdot([P1v, P1c], frequency=[F0v, F0c])
+
+    assert len(f1calc1) == 2
+    assert len(f1calc2) == 2
+    assert np.allclose(f1calc1, f1calc2)
+
+    # test fdot to pdot
+    with pytest.raises(ValueError):
+        fdot_to_pdot(F1v)
+
+    # test individual value
+    p1calcv1 = fdot_to_pdot(F1v, period=P0v)
+    p1calcv2 = fdot_to_pdot(F1v, frequency=F0v)
+
+    assert isinstance(p1calcv1, float)
+    assert isinstance(p1calcv2, float)
+    assert p1calcv1 == p1calcv2
+    assert np.allclose([p1calcv1], [P1v])
+
+    # test pair of values
+    p1calc1 = fdot_to_pdot([F1v, F1c], period=[P0v, P0c])
+    p1calc2 = fdot_to_pdot([F1v, F1c], frequency=[F0v, F0c])
+
+    assert len(p1calc1) == 2
+    assert len(p1calc2) == 2
+    assert np.allclose(p1calc1, p1calc2)
+
+
+def test_derived_gw_parameters(query):
+    """
+    Test derived gravitational-wave parameters.
+    """
+
+    from psrqpy.utils import h0_to_ellipticity, ellipticity_to_q22, gw_luminosity
+
+    crab = query.get_pulsar('J0534+2200')
+
+    # check derived h0 spin-down upper limit
+    expectedh0 = 1.4e-24  # e.g., Table 3 of https://arxiv.org/abs/2007.14251
+    derivedh0 = crab["H0_SD"].data[0]
+
+    # make sure value is within 5% of expected value
+    assert 0.95 < derivedh0 / expectedh0 < 1.05
+
+    # check derived luminosity
+    expectedL = 4.5e31  # e.g., Table 2 of https://arxiv.org/abs/2007.14251
+    derivedL = crab["EDOT"].to("W").data[0]
+
+    # make sure value is within 5% of expected value
+    assert 0.95 < derivedL / expectedL < 1.05
+
+    # check ellipticity conversion
+    expectedell = 1.8e-4 * 4.1  # see Sec 3 of https://arxiv.org/abs/0805.4758
+    ellipticity = h0_to_ellipticity(crab["H0_SD"], crab["F0"], crab["DIST"])
+
+    # make sure value is within 5% of expected value
+    assert 0.95 < ellipticity / expectedell < 1.05
+
+    # check ellipticity to q22
+    expectedQ22 = 12.6e32 / 0.021  # see Table 3 of https://arxiv.org/abs/2007.14251
+    q22 = ellipticity_to_q22(ellipticity)
+
+    # make sure value is within 5% of expected value
+    assert 0.95 < q22 / expectedQ22 < 1.05
+
+    # check GW luminosity
+    h0ul = 1.5e-26  # see Table 3 of https://arxiv.org/abs/2007.14251
+    gwlum = gw_luminosity(h0ul, crab["F0"], crab["DIST"])
+    lumrat = gwlum / crab["EDOT"].to("W").data[0]
+    expectedrat = 0.01 ** 2
+
+    # make sure value is within 10% of expected value
+    assert 0.9 < lumrat / expectedrat < 1.1
+
+    # use query table functions
+    ell = query.gw_ellipticity()
+    ellipticity = ell[ell["PSRJ"] == "J0534+2200"]["ELL"]
+    assert 0.95 < ellipticity / expectedell < 1.05
+
+    # use query table functions
+    q22t = query.gw_mass_quadrupole()
+    q22 = q22t[q22t["PSRJ"] == "J0534+2200"]["Q22"]
+    assert 0.95 < q22 / expectedQ22 < 1.05
+
+
 # TEST EXCEPTIONS #
 def test_bad_database():
     """
@@ -728,7 +938,7 @@ def test_bad_database():
 
     baddbfile = 'sdhfjjdf'  # bad database file
     with pytest.raises(RuntimeError):
-        query = QueryATNF(loadfromdb=baddbfile)
+        _ = QueryATNF(loadfromdb=baddbfile)
 
 
 @pytest.mark.disable_socket
@@ -738,7 +948,7 @@ def test_download_db():
     """
 
     with pytest.raises(RuntimeError):
-        query = QueryATNF(checkupdate=True)
+        _ = QueryATNF(checkupdate=True)
 
 
 @pytest.mark.disable_socket
@@ -750,7 +960,31 @@ def test_download_glitch_table():
     from psrqpy.utils import get_glitch_catalogue
 
     with pytest.raises(RuntimeError):
-        table = get_glitch_catalogue()
+        _ = get_glitch_catalogue()
+
+
+@pytest.mark.disable_socket
+def test_download_gc_table():
+    """
+    Try downloading the globular cluster table with the socket disabled.
+    """
+
+    from psrqpy.utils import get_gc_catalogue
+
+    with pytest.raises(RuntimeError):
+        _ = get_gc_catalogue()
+
+
+@pytest.mark.disable_socket
+def test_download_msp_table():
+    """
+    Try downloading the MSP table with the socket disabled.
+    """
+
+    from psrqpy.utils import get_msp_catalogue
+
+    with pytest.raises(RuntimeError):
+        _ = get_msp_catalogue()
 
 
 def test_sort_exception(query):
@@ -769,3 +1003,14 @@ def test_sort_exception(query):
 
     # reset sort key
     query.sort_key = curkey
+
+def test_name(query):
+    """
+    Test that the PSRB name is used as default for NAME if it exists, else use PSRJ.
+    """
+
+    psr = query.get_pulsar("J0034-0721")  # This pulsar has a BName and a JName
+    assert psr["NAME"][0] == psr["BNAME"][0]
+
+    psr = query.get_pulsar("J1906+1854")  # This pulsar only has a JName
+    assert psr["NAME"][0] == psr["JNAME"][0]

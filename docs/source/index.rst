@@ -25,7 +25,7 @@ Other functionality that it includes:
 Installation
 ============
 
-This package can be installed using ``pip`` via ``pip install psrqpy``. Alternatively
+This package can be installed using ``pip`` via ``pip install psrqpy`` or ``conda`` using ``conda install -c conda-forge psrqpy``. Alternatively
 the source code can be obtained from `github <https://github.com/mattpitkin/psrqpy>`_, and installed using::
 
     python setup.py install
@@ -41,11 +41,11 @@ The requirements for installing the code are:
  * :mod:`requests`
  * :mod:`bs4`
  * :mod:`numpy`
- * :mod:`astropy` (for Python 2 astropy versions before `3.0 <http://docs.astropy.org/en/latest/whatsnew/3.0.html#whatsnew-3-0-python3>`_ must be used)
+ * :mod:`astropy`
  * :mod:`pandas`
  * :mod:`scipy`
-
-The :mod:`ads` module and :mod:`matplotlib` are optional requirements to get the full functionality.
+ * :mod:`ads`
+ * :mod:`matplotlib`
 
 Examples
 ========
@@ -109,9 +109,20 @@ Other parameters could be selected using the same ``query`` object with, e.g.,
 
 The number of pulsars can easily be accessed, e.g.,
 
-   >>> numstring = 'Version {} of the ATNF catalogue contains {} pulsars'
-   >>> print(numstring.format(query.get_version, query.num_pulsars))
-   Version 1.59 of the ATNF catalogue contains 2659 pulsars
+    >>> numstring = 'Version {} of the ATNF catalogue contains {} pulsars'
+    >>> print(numstring.format(query.get_version, query.num_pulsars))
+    Version 1.59 of the ATNF catalogue contains 2659 pulsars
+
+You can access a table row for a particular pulsar in the ATNF catalogue by giving the name as a
+key to an instance of the :class:`~psrqpy.search.QueryATNF` class, e.g.
+
+    >>> from psrqpy import QueryATNF
+    >>> query = QueryATNF()
+    >>> print(query["J0534+2200"])
+       PSRJ    PSRJ_REF     RAJ      ...       TYPE_REF      BINCOMP_ORIG
+                                     ...
+    ---------- -------- ------------ ... ------------------- ------------
+    J0534+2200       -- 05:34:31.973 ... cdt69,fhm+69,hjm+70           --
 
 More complex queries
 --------------------
@@ -183,7 +194,7 @@ What if we want the frequency of J0534+2200? Well, we just have to do
 
 We can also get the whole ephemeris for the Crab with
 
-    >>> print(query.get_ephemeris('J0534+2200))
+    >>> print(query.get_ephemeris('J0534+2200'))
     NAME      J0534+2200
     JNAME     J0534+2200
     BNAME     B0531+21
@@ -262,6 +273,49 @@ where this shows all pulsar types and pulsars in supernova remnants, to give
 .. figure::  images/ppdot.png
    :align:   center
 
+
+Additional catalogues
+=====================
+
+In addition to returning a querying the ATNF Pulsar Catalogue, psrqpy can also
+download and parse:
+
+* the `Jodrell Bank pulsar glitch table <http://www.jb.man.ac.uk/pulsar/glitches/gTable.html>`_
+* Paolo Freire's `table of pulsars in globular clusters <http://www.naic.edu/~pfreire/GCpsr.txt>`_
+  (note that the downloaded table does not include accompanying notes or references, and binary
+  parameters that are listed as upper/lower limits within the table are just returned as equalities.)
+* Duncan Lorimer & Elizabeth Ferrara's `table of galactic millisecond pulsars
+  <http://astro.phys.wvu.edu/GalacticMSPs/>`_ (accessed via the `JSON-ified version
+  <https://github.com/astrogewgaw/galmsps>`_ by `Ujjwal Panda <https://github.com/astrogewgaw>`_)
+
+Examples
+--------
+
+Accessing the glitch table can be achieved with the :func:`~psrqpy.utils.get_glitch_catalogue`
+function using:
+
+    >>> from psrqpy.utils import get_glitch_catalogue
+    >>> glitches = get_glitch_catalogue()
+
+The glitches for a single pulsar can be returned with, e.g.:
+
+    >>> crabglitches = get_glitch_catalogue(psr="J0534+2200")
+
+Accessing the globular cluster table can be achieved with the
+:func:`~psrqpy.utils.get_gc_catalogue` function using:
+
+    >>> from psrqpy.utils import get_gc_catalogue
+    >>> gctable = get_gc_catalogue()
+
+The pulsars with a single globular cluster, e.g., 47 Tuc, can the be returned with:
+
+    >>> tucpulsars = gctable.cluster_pulsars("47 Tuc")
+
+Accessing the MSP table can be achieved with the :func:`~psrqpy.utils.get_msp_catalogue` function
+using:
+
+    >>> from psrqpy.utils import get_msp_catalogue
+    >>> msps = get_msp_catalogue()
 
 Differences with the ATNF Pulsar Catalogue
 ==========================================

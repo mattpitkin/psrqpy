@@ -1,0 +1,4 @@
+*.egg-info/
+dist/
+psrqpy/_version.py
+__pycache__/

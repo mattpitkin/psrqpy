@@ -4,24 +4,33 @@ URLs used for queries.
 """
 
 import itertools
-from collections import OrderedDict
 
 
 #: The ATNF pulsar catalogue base URL.
-ATNF_BASE_URL = r'http://www.atnf.csiro.au/people/pulsar/psrcat/'
+ATNF_BASE_URL = r"https://www.atnf.csiro.au/people/pulsar/psrcat/"
 
 #: The name of the tarball containing the entire catalogue database.
-ATNF_TARBALL = ATNF_BASE_URL + r'downloads/psrcat_pkg.tar.gz'
+ATNF_TARBALL = ATNF_BASE_URL + r"downloads/psrcat_pkg.tar.gz"
+
+# The name of the tarball containing the entire catalogue database (allowing version string to
+# be added).
+ATNF_VERSION_TARBALL = ATNF_BASE_URL + r"downloads/psrcat_pkg.v{}.tar.gz"
 
 #: The Jodrell Bank glitch catalogue table URL.
-GLITCH_URL = r'http://www.jb.man.ac.uk/pulsar/glitches/gTable.html'
+GLITCH_URL = r"https://www.jb.man.ac.uk/pulsar/glitches/gTable.html"
+
+#: Paolo Freire's globular cluster pulsar table URL
+GC_URL = r"https://www3.mpifr-bonn.mpg.de/staff/pfreire/GCpsr.txt"
+
+#: Dunc Lorimer's MSP table URL
+MSP_URL = r"http://astro.phys.wvu.edu/GalacticMSPs/GalacticMSPs.txt"
 
 # Pulsar parameters (http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html) that can be
 # queried. For each parameter there is a dictionary giving:
 #  - 'ref': True if the parameter can have an associated reference in the ATNF catalogue
 #  - 'err': True if the parameter can have an associated error value
 #  - 'unit': a string giving the units for the parameter (to be used if generating an astropy table)
-PSR_GENERAL = OrderedDict()
+PSR_GENERAL = dict()
 PSR_GENERAL['NAME'] =     {'ref': True,  'err': False, 'units': None}  # Pulsar name. Default: B name
 PSR_GENERAL['JNAME'] =    {'ref': True,  'err': False, 'units': None}  # Pulsar name (J2000)
 PSR_GENERAL['BNAME'] =    {'ref': True,  'err': False, 'units': None}  # Pulsar Besselian name
@@ -39,8 +48,8 @@ PSR_GENERAL['PMELONG'] =  {'ref': True,  'err': True,  'units': 'mas/yr'}   # Pr
 PSR_GENERAL['PMELAT'] =   {'ref': True,  'err': True,  'units': 'mas/yr'}   # Proper motion in ecliptic lat.
 PSR_GENERAL['GL'] =       {'ref': False, 'err': False, 'units': 'deg'}   # Galactic longitude
 PSR_GENERAL['GB'] =       {'ref': False, 'err': False, 'units': 'deg'}   # Galactic latitude
-PSR_GENERAL['RAJD'] =     {'ref': False, 'err': False, 'units': 'deg'}   # Right ascension (J2000)
-PSR_GENERAL['DECJD'] =    {'ref': False, 'err': False, 'units': 'deg'}   # Declination (J2000)
+PSR_GENERAL['RAJD'] =     {'ref': False, 'err': True,  'units': 'deg'}   # Right ascension (J2000)
+PSR_GENERAL['DECJD'] =    {'ref': False, 'err': True,  'units': 'deg'}   # Declination (J2000)
 PSR_GENERAL['TYPE'] =     {'ref': False, 'err': False, 'units': None}  # Type codes for the pulsar
 PSR_GENERAL['PML'] =      {'ref': False, 'err': False,  'units': 'mas/yr'}  # Proper motion in Galactic long.
 PSR_GENERAL['PMB'] =      {'ref': False, 'err': False,  'units': 'mas/yr'}  # Proper motion in Galactic lat.
@@ -94,7 +103,7 @@ PSR_GENERAL['EPHEM'] =    {'ref': True,  'err': False, 'units': None}
 PSR_GENERAL_PARS = list(PSR_GENERAL.keys())
 
 # timing solution and profile parameters
-PSR_TIMING = OrderedDict()
+PSR_TIMING = dict()
 PSR_TIMING['P0'] =      {'ref': True,  'err': True,  'units': 's'}  # Barycentric period
 # P1: Time derivative of barcycentric period
 PSR_TIMING['P1'] =      {'ref': True,  'err': True,  'units': None}
@@ -141,6 +150,7 @@ PSR_TIMING['S100'] =    {'ref': True,  'err': True,  'units': 'mJy'}  # Mean flu
 PSR_TIMING['S150'] =    {'ref': True,  'err': True,  'units': 'mJy'}  # Mean flux at 150 MHz
 PSR_TIMING['S200'] =    {'ref': True,  'err': True,  'units': 'mJy'}  # Mean flux at 200 MHz
 PSR_TIMING['S300'] =    {'ref': True,  'err': True,  'units': 'mJy'}  # Mean flux at 300 MHz
+PSR_TIMING['S350'] =    {'ref': True,  'err': True,  'units': 'mJy'}  # Mean flux at 350 MHz
 PSR_TIMING['S600'] =    {'ref': True,  'err': True,  'units': 'mJy'}  # Mean flux at 600 MHz
 PSR_TIMING['S700'] =    {'ref': True,  'err': True,  'units': 'mJy'}  # Mean flux at 700 MHz
 PSR_TIMING['S800'] =    {'ref': True,  'err': True,  'units': 'mJy'}  # Mean flux at 800 MHz
@@ -158,7 +168,7 @@ PSR_TIMING['SPINDX'] =  {'ref': True,  'err': True,  'units': None}   # Radio sp
 PSR_TIMING_PARS = list(PSR_TIMING.keys())
 
 # binary system parameters
-PSR_BINARY = OrderedDict()
+PSR_BINARY = dict()
 PSR_BINARY['BINARY'] =   {'ref': True,  'err': False, 'units': None}   # Binary model
 PSR_BINARY['T0'] =       {'ref': True,  'err': True,  'units': 'd'}   # Epoch of periastron (MJD)
 PSR_BINARY['PB'] =       {'ref': True,  'err': True,  'units': 'd'}   # Binary period of pulsar
@@ -241,7 +251,7 @@ PSR_BINARY['MINOMDOT'] = {'ref': False, 'err': False, 'units': 'deg/yr'}
 PSR_BINARY_PARS = list(PSR_BINARY.keys())
 
 # derived parameters
-PSR_DERIVED = OrderedDict()
+PSR_DERIVED = dict()
 PSR_DERIVED['R_LUM'] =   {'ref': False, 'err': False, 'units': 'mJy kpc^2'}   # Radio luminosity at 400 MHz
 PSR_DERIVED['R_LUM14'] = {'ref': False, 'err': False, 'units': 'mJy kpc^2'}   # Radio luminosity at 1400 MHz
 PSR_DERIVED['AGE'] =     {'ref': False, 'err': False, 'units': 'yr'}   # Spin down age
@@ -256,12 +266,13 @@ PSR_DERIVED['P1_I'] =    {'ref': False, 'err': False, 'units': None}
 PSR_DERIVED['AGE_I'] =   {'ref': False, 'err': False, 'units': 'yr'}   # Spin down age from P1_i
 PSR_DERIVED['BSURF_I'] = {'ref': False, 'err': False, 'units': 'G'}   # Surface magnetic dipole from P1_i
 PSR_DERIVED['B_LC'] =    {'ref': False, 'err': False, 'units': 'G'}   # Magnetic field at light cylinder
+PSR_DERIVED['H0_SD'] =   {'ref': False, 'err': False, 'units': None}  # GW spin-down limit
 
 PSR_DERIVED_PARS = list(PSR_DERIVED.keys())
 
 # a list of all allowed parameters for querying
-PSR_ALL = OrderedDict(itertools.chain(PSR_GENERAL.items(), PSR_TIMING.items(),
-                                      PSR_BINARY.items(), PSR_DERIVED.items()))
+PSR_ALL = dict(itertools.chain(PSR_GENERAL.items(), PSR_TIMING.items(),
+                               PSR_BINARY.items(), PSR_DERIVED.items()))
 """: A dictionary of allowed pulsars parameters (e.g., name, position,
 distance...)
 

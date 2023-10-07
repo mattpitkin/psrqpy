@@ -29,20 +29,24 @@ The module can also be installed using `pip` with:
 pip install psrqpy
 ```
 
+or in a [Conda](https://docs.conda.io/en/latest/) environment using:
+
+```
+conda install -c conda-forge psrqpy
+```
+
 ### Requirements
 
 The [requirements](requirements.txt) for installing the code are:
 
- * [`six`](https://six.readthedocs.io/)
  * [`requests`](http://docs.python-requests.org/en/master/)
  * [`beautifulsoup4`](https://www.crummy.com/software/BeautifulSoup/bs4/doc/)
  * [`numpy`](http://www.numpy.org/)
  * [`scipy`](https://www.scipy.org/)
- * [`astropy`](http://www.astropy.org/) (for Python 2 astropy versions before [3.0](http://docs.astropy.org/en/latest/whatsnew/3.0.html#whatsnew-3-0-python3) must be used)
+ * [`astropy`](http://www.astropy.org/)
  * [`pandas`](https://pandas.pydata.org/)
-
-The [`ads`](https://ads.readthedocs.io/en/latest/) module is an optional requirement that is needed to get ADS URLs for references,
-and [`matplotlib`](https://matplotlib.org/) is required for making period-period derivative plots.
+ * [`ads`](https://ads.readthedocs.io/en/latest/)
+ * [`matplotlib`](https://matplotlib.org/)
 
 ## Examples
 
@@ -142,7 +146,7 @@ query.ppdot(showSNRs=True, showtypes='all')
 
 gives
 
-![PPdot](../master/docs/source/images/ppdot.png)
+![PPdot](../main/docs/source/images/ppdot.png)
 
 ## Development and Support
 
@@ -199,9 +203,11 @@ This code is licensed under the [MIT License](http://opensource.org/licenses/MIT
 &copy; Matt Pitkin, 2017
 
 [![PyPI version](https://badge.fury.io/py/psrqpy.svg)](https://badge.fury.io/py/psrqpy)
+[![Anaconda-Server Badge](https://anaconda.org/conda-forge/psrqpy/badges/version.svg)](https://anaconda.org/conda-forge/psrqpy)
 [![version](https://img.shields.io/pypi/pyversions/psrqpy.svg)](https://pypi.org/project/psrqpy/)
-[![Build Status](https://travis-ci.org/mattpitkin/psrqpy.svg?branch=master)](https://travis-ci.org/mattpitkin/psrqpy)
+[![Build Status](https://github.com/mattpitkin/psrqpy/workflows/build/badge.svg)](https://github.com/mattpitkin/psrqpy/actions?query=workflow%3Abuild)
 [![codecov](https://codecov.io/gh/mattpitkin/psrqpy/branch/master/graph/badge.svg)](https://codecov.io/gh/mattpitkin/psrqpy)
 [![Documentation Status](https://readthedocs.org/projects/psrqpy/badge/?version=latest)](http://psrqpy.readthedocs.io/en/latest/?badge=latest)
 [![status](http://joss.theoj.org/papers/711dc5566159f6e9f8ea5d07dbfaf5d2/status.svg)](http://joss.theoj.org/papers/711dc5566159f6e9f8ea5d07dbfaf5d2)
-
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1489692.svg)](https://doi.org/10.5281/zenodo.1489692)
+[![ASCL](https://img.shields.io/badge/ascl-1812.017-blue.svg?colorB=262255)](http://ascl.net/1812.017)

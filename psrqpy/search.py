@@ -4,27 +4,32 @@ The classes defined here are for querying the `ATNF pulsar catalogue
 information.
 """
 
-from __future__ import print_function, division
-
-import warnings
-from collections import OrderedDict
+import os
+import pickle
 import re
-import six
-
-from six.moves import cPickle as pickle
-from six import string_types
+import warnings
 
 import numpy as np
-from astropy.coordinates import SkyCoord, ICRS, BarycentricTrueEcliptic, Galactic
+import astropy
+from astropy.coordinates import SkyCoord, ICRS, Galactic, BarycentricMeanEcliptic
+from astropy.table.column import MaskedColumn, Column
 import astropy.units as aunits
 from astropy.constants import c, GM_sun
 from astropy.table import Table
+from packaging import version
 
-from pandas import DataFrame, Series
+from pandas import concat, DataFrame, Series
 from copy import deepcopy
 
 from .config import ATNF_BASE_URL, PSR_ALL, PSR_ALL_PARS, PSR_TYPE, PSR_ASSOC_TYPE, PSR_BINARY_TYPE
-from .utils import condition, age_pdot, B_field_pdot
+from .utils import CACHEDIR, condition, age_pdot, B_field_pdot, h0_to_q22, q22_to_ellipticity
+
+
+# set default astropy galactocentric frame values
+# (https://docs.astropy.org/en/latest/coordinates/galactocentric.html)
+if version.parse(astropy.__version__) >= version.parse("4.0"):
+    from astropy.coordinates import galactocentric_frame_defaults
+    _ = galactocentric_frame_defaults.set("pre-v4.0")
 
 
 class QueryATNF(object):
@@ -104,6 +109,9 @@ class QueryATNF(object):
         checkupdate (bool): If True then check whether a cached catalogue file
             has an update available, and re-download if there is an update.
             Defaults to False.
+        version (str): the version string (without the leading "v") of the ATNF
+            catalogue version to download. This defaults to "latest" to get the
+            most up-to-date version.
         frompandas (:class:`pandas.DataFrame`): create a new
             :class:`psrqpy.QueryATNF` object from an existing
             :class:`pandas.DataFrame`.
@@ -118,7 +126,8 @@ class QueryATNF(object):
                  include_refs=False, adsref=False, loadfromfile=None,
                  loadquery=None, loadfromdb=None, cache=True,
                  checkupdate=False, circular_boundary=None, coord1=None,
-                 coord2=None, radius=0., frompandas=None, fromtable=None):
+                 coord2=None, radius=0., frompandas=None, fromtable=None,
+                 version="latest"):
         if loadfromfile is not None and loadquery is None:
             loadquery = loadfromfile
         if loadquery:
@@ -152,8 +161,8 @@ class QueryATNF(object):
             self._coord1 = self._coord2 = ''
             self._radius = 0.
         else:
-            if (not isinstance(self._coord1, string_types)
-                    or not isinstance(self._coord2, string_types)):
+            if (not isinstance(self._coord1, str)
+                    or not isinstance(self._coord2, str)):
                 raise ValueError("Circular boundary centre coordinates must "
                                  "be strings")
             if not isinstance(self._radius, float) and not isinstance(self._radius, int):
@@ -185,17 +194,27 @@ class QueryATNF(object):
         # store passed pandas DataFrame
         if isinstance(frompandas, DataFrame):
             self.__dataframe = frompandas.copy()
+
+            # set version to None if not defined
+            if not hasattr(self.__dataframe, 'version'):
+                self.__dataframe.version = None
             return
 
         # store passed astropy Table
         if isinstance(fromtable, Table):
             self.__dataframe = fromtable.to_pandas()
+
+            # set version if available
+            if 'version' in fromtable.meta:
+                self.__dataframe.version = fromtable.meta['version']
+            else:
+                self.__dataframe.version = None
             return
 
         # download and cache (if requested) the database file
         try:
             _ = self.get_catalogue(path_to_db=loadfromdb, cache=cache,
-                                   update=checkupdate)
+                                   update=checkupdate, version=version)
         except IOError:
             raise IOError("Could not get catalogue database file")
 
@@ -254,7 +273,7 @@ class QueryATNF(object):
             self.get_references(useads=useadst)
 
         singleref = False
-        if isinstance(refs, string_types):
+        if isinstance(refs, str):
             singleref = True
             refs = [refs]
 
@@ -264,7 +283,7 @@ class QueryATNF(object):
 
         refstrs = []
         for ref in refs:
-            if isinstance(ref, string_types):
+            if isinstance(ref, str):
                 if ref in self._refs:
                     if useadst:
                         if ref in self._adsrefs:
@@ -291,7 +310,7 @@ class QueryATNF(object):
         return refstrs
 
     def get_catalogue(self, path_to_db=None, cache=True, update=False,
-                      overwrite=True):
+                      overwrite=True, version="latest"):
         """
         Call the :func:`psrqpy.utils.get_catalogue` function to download the
         ATNF Pulsar Catalogue, or load a given catalogue path.
@@ -309,31 +328,48 @@ class QueryATNF(object):
                 catalogue currently contained within the :class:`~psrqpy.QueryATNF`
                 class. If False then a new :class:`~psrqpy.QueryATNF` copy of the
                 catalogue will be returned.
+            version (str): the version string (without the leading "v") of the ATNF
+                catalogue version to download. This defaults to "latest" to get the
+                most up-to-date version.
 
         Returns:
             :class:`psrqpy.QueryATNF`: a table containing the catalogue.
         """
         from .utils import get_catalogue
 
+        cachefile = os.path.join(CACHEDIR, f"query_{version}.pkl")
+
+        if cache and not update and path_to_db is None:
+            # check if cache file exists
+            try:
+                self.load(cachefile, cleardfonly=True)
+                return self
+            except IOError:
+                pass
+
         try:
             dbtable = get_catalogue(path_to_db=path_to_db, cache=cache,
-                                    update=update, pandas=True)
+                                    update=update, pandas=True,
+                                    version=version)
         except Exception as e:
             raise RuntimeError("Problem getting catalogue: {}".format(str(e)))
 
-        if not overwrite:
-            newcatalogue = QueryATNF(params=self.query_params,
-                                     condition=self.condition,
-                                     exactmatch=self.exactmatch,
-                                     sort_attr=self._sort_attr,
-                                     sort_order=self._sort_order,
-                                     psrs=self.psrs,
-                                     include_errs=self._include_errs,
-                                     include_refs=self._include_refs,
-                                     adsref=self._useads, cache=False,
-                                     coord1=self._coord1, coord2=self._coord2,
-                                     radius=self._radius,
-                                     frompandas=dbtable)
+        if not cache:
+            if not overwrite:
+                newcatalogue = QueryATNF(
+                    params=self.query_params,
+                    condition=self.condition,
+                    exactmatch=self.exactmatch,
+                    sort_attr=self._sort_attr,
+                    sort_order=self._sort_order,
+                    psrs=self.psrs,
+                    include_errs=self._include_errs,
+                    include_refs=self._include_refs,
+                    adsref=self._useads, cache=False,
+                    coord1=self._coord1, coord2=self._coord2,
+                    radius=self._radius,
+                    frompandas=dbtable
+                )
             return newcatalogue
 
         # update current catalogue
@@ -346,6 +382,19 @@ class QueryATNF(object):
         # calculate derived parameters
         self.set_derived()
         self.parse_types()
+
+        if cache and path_to_db is None:
+            # save Query to cache file
+            if not os.path.exists(CACHEDIR):
+                try:
+                    os.makedirs(CACHEDIR)
+                except OSError:
+                    if not os.path.exists(CACHEDIR):
+                        raise
+            elif not os.path.isdir(CACHEDIR):
+                raise OSError(f"Query cache directory {CACHEDIR} is not a directory")
+
+            self.save(cachefile)
 
         return self
 
@@ -395,7 +444,9 @@ class QueryATNF(object):
                                      "supplied column")
             else:
                 try:
-                    self.catalogue[colname] = column
+                    version = self.catalogue.version  # retain version information
+                    self.__dataframe = concat([self.catalogue, Series(column, name=name)], axis=1)
+                    self.__dataframe.version = version
                 except Exception as e:
                     raise ValueError("Could not add supplied columns to "
                                      "table: {}".format(str(e)))
@@ -412,7 +463,7 @@ class QueryATNF(object):
         Set the parameter to sort on.
         """
 
-        if not isinstance(value, string_types):
+        if not isinstance(value, str):
             raise ValueError("Sort parameter must be a string")
 
         self._sort_attr = value
@@ -470,11 +521,16 @@ class QueryATNF(object):
                                                 ascending=sortorder)
 
     def __getitem__(self, key):
-        if key not in self.pandas.columns:
-            raise KeyError("Key '{}' not in queried results".format(key))
+        if key in self.pandas.columns:
+            # return astropy table column
+            return self.table[key]
+        else:
+            psrrow = self.get_pulsar(key)
 
-        # return astropy table column
-        return self.table[key]
+            if psrrow is None:
+                raise KeyError("Key '{}' not in queried results".format(key))
+            else:
+                return psrrow
 
     def __getstate__(self):
         """
@@ -524,27 +580,31 @@ class QueryATNF(object):
         """
 
         try:
-            fp = open(fname, 'wb')
-            pickle.dump(self, fp, 2)
-            fp.close()
+            with open(fname, 'wb') as fp:
+                pickle.dump(self, fp, 2)
             self._savefile = fname
         except IOError:
             raise IOError("Error outputing class to pickle file")
 
-    def load(self, fname):
+    def load(self, fname, cleardfonly=False):
         """
         Load a previously saved pickle of this class.
 
         Args:
             fname (str): the filename of the pickled object
+            cleardfonly (bool): set to True to only clear the catalogue
+                DataFrame from the current object, but leave other attributes
+                intact.
         """
 
         try:
-            fp = open(fname, 'rb')
-            tmpdict = pickle.load(fp)
-            fp.close()
-            self.__dict__.clear()  # clear current self
-            self.__dict__.update(tmpdict.__dict__)
+            with open(fname, 'rb') as fp:
+                tmpdict = pickle.load(fp)
+            if not cleardfonly:
+                self.__dict__.clear()  # clear current self
+                self.__dict__.update(tmpdict.__dict__)
+            else:
+                self.__dict__["_QueryATNF__dataframe"] = tmpdict.__dict__["_QueryATNF__dataframe"]
             self._loadfile = fname
         except IOError:
             raise IOError("Error reading in pickle")
@@ -579,7 +639,7 @@ class QueryATNF(object):
         if psrnames is None:
             self._psrs = None
         else:
-            if isinstance(psrnames, string_types):
+            if isinstance(psrnames, str):
                 self._psrs = [psrnames]
             elif isinstance(psrnames, list):
                 self._psrs = psrnames
@@ -662,7 +722,7 @@ class QueryATNF(object):
         return self.__dataframe.empty
 
     def query_table(self, query_params=None, usecondition=True,
-                    useseparation=True):
+                    usepsrs=True, useseparation=True):
         """
         Return an :class:`astropy.table.Table` from the query with new
         parameters or conditions if given.
@@ -676,6 +736,11 @@ class QueryATNF(object):
                 the table. If False no condition will be applied to the
                 returned table. If a string is given then that will be the
                 assumed condition string.
+            usepsrs (bool, str): If True then the list of pulsars parsed to the
+                :class:`psrqpy.QueryATNF`: class will be used when returning
+                the table. If False then all pulsars in the catalogue will be
+                returned. If a string, or list of strings, is given then that
+                will be assumed to be a set of pulsar names to return.
             useseparation (bool): If True and a set of sky coordinates and
                 radius around which to return pulsars was set in the
                 :class:`psrqpy.QueryATNF`: class then only pulsars within the
@@ -690,7 +755,7 @@ class QueryATNF(object):
         if not self.empty:  # convert to Table if DataFrame is not empty
             if query_params is None:
                 query_params = self.columns
-            elif isinstance(query_params, string_types):
+            elif isinstance(query_params, str):
                 query_params = [query_params]
             elif not isinstance(query_params, list):
                 raise TypeError("query_params must be a string or list.")
@@ -710,9 +775,9 @@ class QueryATNF(object):
 
             # return given the condition
             expression = None
-            if usecondition is True and isinstance(self.condition, string_types):
+            if usecondition is True and isinstance(self.condition, str):
                 expression = self.condition
-            elif isinstance(usecondition, string_types):
+            elif isinstance(usecondition, str):
                 expression = usecondition
 
             # sort table
@@ -721,26 +786,61 @@ class QueryATNF(object):
                 # apply conditions
                 dftable = condition(dftable, expression, self._exactmatch)
 
+            # return only requested pulsars
+            if usepsrs and self.psrs is not None:
+                if not isinstance(usepsrs, bool):
+                    # copy original pulsars
+                    tmppsrs = deepcopy(self.psrs)
+
+                    # set new pulsars
+                    self.psrs = usepsrs
+
+                jnames = np.zeros(len(dftable), dtype=bool)
+                if "JNAME" in dftable.columns:
+                    jnames = np.array([psr in self.psrs
+                                      for psr in dftable["JNAME"]])
+
+                bnames = np.zeros(len(dftable), dtype=bool)
+                if "BNAME" in dftable.columns:
+                    bnames = np.array([psr in self.psrs
+                                       for psr in dftable["BNAME"]])
+
+                if np.any(jnames) and np.any(bnames):
+                    allnames = jnames | bnames
+                elif np.any(jnames):
+                    allnames = jnames
+                elif np.any(bnames):
+                    allnames = bnames
+                else:
+                    raise ValueError("No requested pulsars '{}' were "
+                                     "found.".format(self.psrs), UserWarning)
+
+                dftable = dftable[allnames]
+
+                # reset original pulsar query
+                if not isinstance(usepsrs, bool):
+                    self.psrs = tmppsrs
+
             # return only requested parameters and convert to table
             table = Table.from_pandas(dftable[query_params[intab].tolist()])
 
             # add units if known
             for key in PSR_ALL_PARS:
                 if key in table.colnames:
-                    if PSR_ALL[key]['units']:
-                        table.columns[key].unit = PSR_ALL[key]['units']
+                    if PSR_ALL[key]["units"]:
+                        table.columns[key].unit = PSR_ALL[key]["units"]
 
-                    if PSR_ALL[key]['err'] and key+'_ERR' in table.colnames:
-                        table.columns[key+'_ERR'].unit = PSR_ALL[key]['units']
+                    if PSR_ALL[key]["err"] and key+"_ERR" in table.colnames:
+                        table.columns[key+"_ERR"].unit = PSR_ALL[key]["units"]
 
             # add catalogue version to metadata
-            table.meta['version'] = self.get_version
-            table.meta['ATNF Pulsar Catalogue'] = ATNF_BASE_URL
+            table.meta["version"] = self.get_version
+            table.meta["ATNF Pulsar Catalogue"] = ATNF_BASE_URL
 
-            if (useseparation and self._coord is not None and 'RAJ' in
-                    table.colnames and 'DECJ' in table.colnames):
+            if (useseparation and self._coord is not None and "RAJ" in
+                    table.colnames and "DECJ" in table.colnames):
                 # apply sky coordinate constraint
-                catalog = SkyCoord(table['RAJ'], table['DECJ'],
+                catalog = SkyCoord(table["RAJ"], table["DECJ"],
                                    unit=(aunits.hourangle, aunits.deg))
 
                 # get seperations
@@ -774,7 +874,7 @@ class QueryATNF(object):
                 to queried pulsars.
         """
 
-        if not isinstance(expression, string_types) and expression is not None:
+        if not isinstance(expression, str) and expression is not None:
             raise TypeError("Condition must be a string")
 
         self._condition = expression
@@ -854,12 +954,12 @@ class QueryATNF(object):
                 print('No query parameters have been specified')
 
             for p in params:
-                if not isinstance(p, string_types):
+                if not isinstance(p, str):
                     raise TypeError("Non-string value '{}' found in params "
                                     "list".format(p))
 
             self._query_params = [p.upper() for p in params]
-        elif isinstance(params, string_types):
+        elif isinstance(params, str):
             # make sure parameter is all upper case
             self._query_params = [params.upper()]
         elif params is not None:
@@ -920,12 +1020,12 @@ class QueryATNF(object):
 
         # return only requested pulsars
         if self.psrs is not None:
-            jnames = np.zeros(len(dftable), dtype=np.bool)
+            jnames = np.zeros(len(dftable), dtype=bool)
             if 'JNAME' in dftable.columns:
                 jnames = np.array([psr in self.psrs
                                    for psr in dftable['JNAME']])
 
-            bnames = np.zeros(len(dftable), dtype=np.bool)
+            bnames = np.zeros(len(dftable), dtype=bool)
             if 'BNAME' in dftable.columns:
                 bnames = np.array([psr in self.psrs
                                    for psr in dftable['BNAME']])
@@ -1109,6 +1209,7 @@ class QueryATNF(object):
         self.derived_edot_i()      # intrinsic luminosity
         self.derived_flux()        # radio flux
         self.derived_binary()      # derived binary parameters
+        self.derived_gw_h0_spindown_limit()  # derive GW parameters
 
     def define_dist(self):
         """
@@ -1161,9 +1262,10 @@ class QueryATNF(object):
 
         idxpx = np.isfinite(PX) & np.isfinite(PXERR)
 
-        # set distances using parallax if parallax has greater than 3 sigma significance
+        # set distances using parallax if parallax has greater than 3 sigma
+        # significance (and as long as parallax is positive)
         pxsigma = np.zeros(self.catalogue_len)
-        pxsigma[idxpx] = np.abs(PX[idxpx])/PXERR[idxpx]
+        pxsigma[idxpx] = PX[idxpx]/PXERR[idxpx]
 
         # use DIST_A if available
         idxdista = np.isfinite(DIST_A)
@@ -1211,9 +1313,9 @@ class QueryATNF(object):
     def derived_equatorial(self):
         """
         Calculate equatorial coordinates if only ecliptic coordinates are
-        given. Unlike `psrcat` this function does not currently convert
-        errors on ecliptic coordinates into equavalent errors on equatorial
-        coordinates.
+        given. Errors on ecliptical coordinates are converted into
+        equavalent errors on equatorial coordinates using a different
+        algorithm to that used in `psrcat`.
         """
 
         reqpar = ['ELONG', 'ELAT']
@@ -1230,9 +1332,10 @@ class QueryATNF(object):
         idx = np.isfinite(ELONG) & np.isfinite(ELAT)
 
         # get sky coordinates
-        sc = BarycentricTrueEcliptic(ELONG.values[idx]*aunits.deg,
-                                     ELAT.values[idx]*aunits.deg
-                                     ).transform_to(ICRS())
+        sc = BarycentricMeanEcliptic(
+            ELONG.values[idx]*aunits.deg,
+            ELAT.values[idx]*aunits.deg
+        ).transform_to(ICRS())
 
         RAJDnew[idx] = sc.ra.value
         DECJDnew[idx] = sc.dec.value
@@ -1243,6 +1346,42 @@ class QueryATNF(object):
         self.update(DECJDnew, name='DECJD')
         self.update(RAJnew, name='RAJ')
         self.update(DECJnew, name='DECJ')
+
+        reqpar = ['ELONG_ERR', 'ELAT_ERR']
+        if np.all([p in self.columns for p in reqpar]):
+            ELONG_ERR = self.catalogue['ELONG_ERR'].values.copy()
+            ELAT_ERR = self.catalogue['ELAT_ERR'].values.copy()
+            RAJD_ERRnew = np.full(self.catalogue_len, np.nan)
+            DECJD_ERRnew = np.full(self.catalogue_len, np.nan)
+            RAJ_ERRnew = np.full(self.catalogue_len, np.nan)
+            DECJ_ERRnew = np.full(self.catalogue_len, np.nan)
+
+            idxerr = idx & np.isfinite(ELONG_ERR) & np.isfinite(ELAT_ERR)
+
+            # get position angle towards Northern ecliptic pole and rotate
+            # ecliptical error ellipse to equatorial coordinates
+            # (Jean Meeus, Astronomal Algorithms, 2nd edition, p. 100)
+            ecl = 23.4392911 * aunits.deg
+            l, b = ELONG.values[idxerr] * aunits.deg, ELAT.values[idxerr] * aunits.deg
+            el, eb = ELONG_ERR[idxerr], ELAT_ERR[idxerr]
+            elcosb = el * np.cos(b)
+            q = np.arctan2(
+                np.cos(l) * np.tan(ecl),
+                np.sin(b) * np.sin(l) * np.tan(ecl) - np.cos(b)
+            )
+            cq, sq = np.cos(q), np.sin(q)
+            eracosdec, edec = np.abs(elcosb * cq - eb * sq), np.abs(elcosb * sq + eb * cq)
+            era = eracosdec / np.cos(np.deg2rad(DECJDnew[idxerr]))
+
+            RAJD_ERRnew[idxerr] = era
+            DECJD_ERRnew[idxerr] = edec
+            RAJ_ERRnew[idxerr] = 3600 * era / 15
+            DECJ_ERRnew[idxerr] = 3600 * edec
+
+            self.update(RAJD_ERRnew, name='RAJD_ERR')
+            self.update(DECJD_ERRnew, name='DECJD_ERR')
+            self.update(RAJ_ERRnew, name='RAJ_ERR')
+            self.update(DECJ_ERRnew, name='DECJ_ERR')
 
         # set references
         if 'ELONG_REF' in self.columns:
@@ -1266,7 +1405,7 @@ class QueryATNF(object):
 
             idx = idx & np.isfinite(PMELONG) & np.isfinite(PMELAT)
 
-            sc = BarycentricTrueEcliptic(
+            sc = BarycentricMeanEcliptic(
                 ELONG[idx].values*aunits.deg,
                 ELAT[idx].values*aunits.deg,
                 pm_lon_coslat=PMELONG[idx].values*aunits.mas/aunits.yr,
@@ -1283,8 +1422,11 @@ class QueryATNF(object):
         """
         Calculate the ecliptic coordinates, and proper motions, from the
         right ascension and declination if they are not already given.
-        The ecliptic used here is the astropy's `BarycentricTrueEcliptic
-        <http://docs.astropy.org/en/stable/api/astropy.coordinates.BarycentricTrueEcliptic.html>`_,
+        The ecliptic used here is the astropy's `BarycentricMeanEcliptic
+        <http://docs.astropy.org/en/stable/api/astropy.coordinates.BarycentricMeanEcliptic.html>`_
+        (note that this does not include nutation unlike the
+        `BarycentricTrueEcliptic <http://docs.astropy.org/en/stable/api/astropy.coordinates.BarycentricTrueEcliptic.html>`_
+        for which a bug fix was added in `astropy 3.2 <http://docs.astropy.org/en/v3.2.1/changelog.html#id12>`_),
         which may not exactly match that used in `psrcat`.
         """
 
@@ -1303,8 +1445,8 @@ class QueryATNF(object):
         sc = SkyCoord(RAJD[idx].values*aunits.deg,
                       DECJD[idx].values*aunits.deg)
 
-        ELONGnew[idx] = sc.barycentrictrueecliptic.lon.value
-        ELATnew[idx] = sc.barycentrictrueecliptic.lat.value
+        ELONGnew[idx] = sc.barycentricmeanecliptic.lon.value
+        ELATnew[idx] = sc.barycentricmeanecliptic.lat.value
 
         self.update(ELONGnew, name='ELONG')
         self.update(ELATnew, name='ELAT')
@@ -1338,7 +1480,7 @@ class QueryATNF(object):
                 DECJD[idx].values*aunits.deg,
                 pm_ra_cosdec=PMRA[idx].values*aunits.mas/aunits.yr,
                 pm_dec=PMDEC[idx].values*aunits.mas/aunits.yr
-            ).transform_to(BarycentricTrueEcliptic())
+            ).transform_to(BarycentricMeanEcliptic())
 
             PMELONGnew[idx] = sc.pm_lon_coslat.value
             PMELATnew[idx] = sc.pm_lat.value
@@ -1557,7 +1699,9 @@ class QueryATNF(object):
             idxn = idx & (ECCnew != 0.)
             OMnew[idxn] = np.arctan2(EPS1[idxn],
                                      EPS2[idxn])*180./np.pi
-            OMnew = np.mod(OMnew+360., 360.)  # make sure angles are positive
+
+            with np.errstate(invalid='ignore'):
+                OMnew = np.mod(OMnew+360., 360.)  # make sure angles are positive
 
             self.update(OMnew, name='OM')
 
@@ -2022,6 +2166,38 @@ class QueryATNF(object):
         BSURFI = B_field(P0, P1_I)
         self.update(BSURFI, name='BSURF_I')
 
+    def derived_gw_h0_spindown_limit(self):
+        """
+        Calculate the limit on the gravitational-wave emission amplitude at
+        Earth assuming all rotational kinetic energy is lost via
+        gravitational-waves generated from an l=m=2 mass quadrupole (i.e., a
+        braking index of n=5). This uses the intrinsic spin-down values rather
+        than the observed spin-downs.
+        """
+
+        from .utils import gw_h0_spindown_limit, pdot_to_fdot
+
+        if 'P1_I' not in self.columns:
+            self.derived_p1_i()
+
+        if not np.all([p in self.columns for p in ["F0", "P1_I", "P1", "DIST"]]):
+            return
+
+        F0 = self.catalogue["F0"]
+        P1I = np.full(self.catalogue_len, np.nan)
+        idx = np.isfinite(self.catalogue["P1_I"])
+        P1I[idx] = self.catalogue["P1_I"][idx]
+
+        # where P1_I is not present use P1
+        idx = ~idx & np.isfinite(self.catalogue["P1"])
+        P1I[idx] = self.catalogue["P1"][idx]
+
+        F1_I = pdot_to_fdot(P1I, frequency=F0)
+        DIST = self.catalogue["DIST"]
+
+        H0UL = gw_h0_spindown_limit(frequency=F0, fdot=F1_I, distance=DIST)
+        self.update(H0UL, name="H0_SD")
+
     def derived_b_lc(self):
         """
         Calculate the magnetic field strength at the light cylinder.
@@ -2292,19 +2468,42 @@ class QueryATNF(object):
             if par in psr.columns:
                 parval = psr[par]
 
-                if not parval.mask[0]:
+                if type(parval) == MaskedColumn:
+                    # required for astropy versions below v4
+                    if not parval.mask[0]:
+                        variables.append(par)
+                        values.append(parval[0])
+
+                        if par+'_ERR' in psr.columns:
+                            errval = psr[par+'_ERR']
+
+                            if type(errval) == MaskedColumn:
+                                if not errval.mask[0]:
+                                    errors.append(errval[0])
+                                else:
+                                    errors.append(None)
+                            else:
+                                errors.append(errval[0])
+                        else:
+                            errors.append(None)
+                elif type(parval) == Column:
                     variables.append(par)
                     values.append(parval[0])
 
                     if par+'_ERR' in psr.columns:
                         errval = psr[par+'_ERR']
 
-                        if not errval.mask[0]:
-                            errors.append(errval[0])
+                        if type(errval) == MaskedColumn:
+                            if not errval.mask[0]:
+                                errors.append(errval[0])
+                            else:
+                                errors.append(None)
                         else:
-                            errors.append(None)
+                            errors.append(errval[0])
                     else:
                         errors.append(None)
+                else:
+                    raise TypeError("Pulsar contains a non-column type!")
 
         mkl = max([len(kn) for kn in variables])+2  # max key length for output alignment
         vlb = precision + 10  # allow extra space for minus sign/exponents
@@ -2435,12 +2634,12 @@ class QueryATNF(object):
                     raise Exception("No pulsar types in list")
 
                 for p in psrtype:
-                    if not isinstance(p, string_types):
+                    if not isinstance(p, str):
                         raise Exception("Non-string value '{}' found in pulsar type list"
                                         .format(p))
                 self._query_psr_types = psrtype
             else:
-                if isinstance(psrtype, string_types):
+                if isinstance(psrtype, str):
                     self._query_psr_types = [psrtype]
                 else:
                     raise Exception("'psrtype' must be a list or string")
@@ -2463,12 +2662,12 @@ class QueryATNF(object):
                     raise Exception("No pulsar types in list")
 
                 for p in assoc:
-                    if not isinstance(p, string_types):
+                    if not isinstance(p, str):
                         raise Exception("Non-string value '{}' found in associations list"
                                         .format(p))
                 self._query_assocs = assoc
             else:
-                if isinstance(assoc, string_types):
+                if isinstance(assoc, str):
                     self._query_assocs = [assoc]
                 else:
                     raise Exception("'assoc' must be a list or string")
@@ -2491,12 +2690,12 @@ class QueryATNF(object):
                     raise Exception("No pulsar types in list")
 
                 for p in bincomp:
-                    if not isinstance(p, string_types):
+                    if not isinstance(p, str):
                         raise Exception("Non-string value '{}' found in binary "
                                         "companions list".format(p))
                 self._query_bincomps = bincomp
             else:
-                if isinstance(bincomp, string_types):
+                if isinstance(bincomp, str):
                     self._query_bincomps = [bincomp]
                 else:
                     raise Exception("'bincomp' must be a list or string")
@@ -2545,7 +2744,7 @@ class QueryATNF(object):
     def catalogue_len(self):
         """
         The length of the entire catalogue, i.e., the number of pulsars it
-        contains. This should be the same as `catalogue_nrows`.
+        contains. This should be the same as ``catalogue_nrows``.
         """
 
         return len(self.catalogue)
@@ -2578,7 +2777,7 @@ class QueryATNF(object):
               showGCs=False, showSNRs=False, markertypes={}, deathline=True,
               deathmodel='Ip', filldeath=True, filldeathtype={}, showtau=True,
               brakingidx=3, tau=None, showB=True, Bfield=None, pdotlims=None,
-              periodlims=None, usecondition=True, rcparams={}):
+              periodlims=None, usecondition=True, usepsrs=True, rcparams={}):
         """
         Draw a lovely period vs period derivative diagram.
 
@@ -2622,8 +2821,10 @@ class QueryATNF(object):
             periodlims (array_like): the [min, max] period limits to plot with
             pdotlims (array_like): the [min, max] pdot limits to plot with
             usecondition (bool): if True create the P-Pdot diagram only with
-                pulsars that conform the the original query condition values.
+                pulsars that conform to the original query condition values.
                 Defaults to True.
+            usepsrs (bool): if True create the P-Pdot diagram only with pulsars
+                specified in the original query. Defaults to True.
             rcparams (dict): a dictionary of :py:obj:`matplotlib.rcParams`
                 setup parameters for the plot.
 
@@ -2642,6 +2843,7 @@ class QueryATNF(object):
 
         # get table containing all required parameters
         table = self.query_table(usecondition=usecondition,
+                                 usepsrs=usepsrs,
                                  query_params=['P0', 'P1', 'P1_I', 'ASSOC',
                                                'BINARY', 'TYPE'])
 
@@ -2649,7 +2851,7 @@ class QueryATNF(object):
             print("No pulsars found, so no P-Pdot plot has been produced")
             return None
 
-        if isinstance(showtypes, string_types):
+        if isinstance(showtypes, str):
             nshowtypes = [showtypes]
         else:
             nshowtypes = showtypes
@@ -2673,7 +2875,7 @@ class QueryATNF(object):
         rcparams['figure.dpi'] = rcparams['figure.dpi'] if \
             'figure.dpi' in rcparams else 250
         rcparams['text.usetex'] = rcparams['text.usetex'] if \
-            'text.usetex' in rcparams else True
+            'text.usetex' in rcparams else False
         rcparams['axes.linewidth'] = rcparams['axes.linewidth'] if \
             'axes.linewidth' in rcparams else 0.5
         rcparams['axes.grid'] = rcparams['axes.grid'] if \
@@ -2730,7 +2932,7 @@ class QueryATNF(object):
             # use '!=' to find GC indexes
             nongcidxs = np.flatnonzero(
                 np.char.find(np.array(assocs.tolist(),
-                                      dtype=np.str), 'GC:') == -1)
+                                      dtype=str), 'GC:') == -1)
             periods = periods[nongcidxs]
             pdots = pdots[nongcidxs]
             if 'ASSOC' in table.columns:
@@ -2817,22 +3019,25 @@ class QueryATNF(object):
         if showSNRs:
             nshowtypes.append('SNR')
 
-        handles = OrderedDict()
+        handles = dict()
 
         for stype in nshowtypes:
             if stype.upper() in PSR_TYPE + ['GC', 'SNR']:
                 thistype = stype.upper()
                 if thistype == 'BINARY':
                     # for binaries used the 'BINARY' column in the table
-                    typeidx = np.flatnonzero(~binaries.mask)
+                    if type(binaries) == MaskedColumn:
+                        typeidx = np.flatnonzero(~binaries.mask)
+                    else:
+                        typeidx = np.ones(len(binaries))
                 elif thistype in ['GC', 'SNR']:
                     typeidx = np.flatnonzero(
                         np.char.find(np.array(assocs.tolist(),
-                                              dtype=np.str), thistype) != -1)
+                                              dtype=str), thistype) != -1)
                 else:
                     typeidx = np.flatnonzero(
                         np.char.find(np.array(types.tolist(),
-                                              dtype=np.str), thistype) != -1)
+                                              dtype=str), thistype) != -1)
 
                 if len(typeidx) == 0:
                     continue
@@ -2854,7 +3059,7 @@ class QueryATNF(object):
                           numpoints=1)
 
         # add characteristic age lines
-        tlines = OrderedDict()
+        tlines = dict()
         if showtau:
             if tau is None:
                 taus = [1e5, 1e6, 1e7, 1e8, 1e9]  # default characteristic ages
@@ -2875,7 +3080,7 @@ class QueryATNF(object):
                            .format(numv, taupow)] = tline
 
         # add magnetic field lines
-        Blines = OrderedDict()
+        Blines = dict()
         if showB:
             if Bfield is None:
                 Bs = [1e10, 1e11, 1e12, 1e13, 1e14]
@@ -2904,3 +3109,50 @@ class QueryATNF(object):
 
         # return the figure
         return fig
+
+    def gw_mass_quadrupole(self):
+        """
+        Return the :math:`l=m=2` mass quadrupoles based on the spin-down limits
+        for the pulsars in the catalogue using :func:`~psrqpy.utils.h0_to_q22`.
+
+        Returns:
+            :class:`astropy.table.Table`: a table containing ``PSRJ`` names and
+                :math:`Q_{22}` values as a column called ``Q22``.
+        """
+
+        # parameters required to calculate the mass quadrupole
+        requiredpars = ["PSRJ", "H0_SD", "F0", "DIST"]
+
+        table = self.query_table(query_params=requiredpars)
+
+        q22 = h0_to_q22(
+            table["H0_SD"],
+            table["F0"],
+            table["DIST"]
+        )
+
+        idx = np.isfinite(q22)
+        return Table(
+            data=[table["PSRJ"][idx], q22[idx]],
+            names=["PSRJ", "Q22"],
+            units=[None, aunits.kg * aunits.m ** 2],
+        )
+
+    def gw_ellipticity(self):
+        """
+        Return the :math:`l=m=2` mass quadrupoles based on the spin-down limits
+        for the pulsars in the catalogue using
+        :func:`~psrqpy.utils.h0_to_ellipticity`.
+
+        Returns:
+            :class:`astropy.table.Table`: a table containing ``PSRJ`` names and
+                :math:`\\varepsilon` values as a column called ``ELL``.
+        """
+
+        q22 = self.gw_mass_quadrupole()
+        ell = q22_to_ellipticity(q22["Q22"])
+
+        return Table(
+            data=[q22["PSRJ"], ell],
+            names=["PSRJ", "ELL"],
+        )
