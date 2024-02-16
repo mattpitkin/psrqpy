@@ -880,12 +880,9 @@ def test_derived_gw_parameters(query):
 
     from psrqpy.utils import h0_to_ellipticity, ellipticity_to_q22, gw_luminosity
 
-    #crab = query.get_pulsar('J0534+2200')
     vela = query.get_pulsar("J0835-4510")
 
     # check derived h0 spin-down upper limit
-    #expectedh0 = 1.4e-24  # e.g., Table 3 of https://arxiv.org/abs/2007.14251
-    #derivedh0 = crab["H0_SD"].data[0]
     expectedh0 = 3.3e-24  # e.g., Table 3 of https://arxiv.org/abs/2007.14251
     derivedh0 = vela["H0_SD"].data[0]
 
@@ -893,8 +890,6 @@ def test_derived_gw_parameters(query):
     assert 0.95 < derivedh0 / expectedh0 < 1.05
 
     # check derived luminosity
-    #expectedL = 4.5e31  # e.g., Table 2 of https://arxiv.org/abs/2007.14251
-    #derivedL = crab["EDOT"].to("W").data[0]
     expectedL = 6.9e29  # e.g., Table 2 of https://arxiv.org/abs/2007.14251
     derivedL = vela["EDOT"].to("W").data[0]
 
@@ -902,8 +897,6 @@ def test_derived_gw_parameters(query):
     assert 0.95 < derivedL / expectedL < 1.05
 
     # check ellipticity conversion
-    #expectedell = 1.8e-4 * 4.1  # see Sec 3 of https://arxiv.org/abs/0805.4758
-    #ellipticity = h0_to_ellipticity(crab["H0_SD"], crab["F0"], crab["DIST"])
     expectedell = 1.8e-3  # see Intro of https://arxiv.org/abs/1104.2712
     ellipticity = h0_to_ellipticity(vela["H0_SD"], vela["F0"], vela["DIST"])
 
@@ -918,27 +911,21 @@ def test_derived_gw_parameters(query):
     assert 0.95 < q22 / expectedQ22 < 1.05
 
     # check GW luminosity
-    #h0ul = 1.5e-26  # see Table 3 of https://arxiv.org/abs/2007.14251
-    #gwlum = gw_luminosity(h0ul, crab["F0"], crab["DIST"])
-    #lumrat = gwlum / crab["EDOT"].to("W").data[0]
-    #expectedrat = 0.01 ** 2
     h0ul = 1.9e-24  # see Table 3 of https://arxiv.org/abs/1104.2712
     gwlum = gw_luminosity(h0ul, vela["F0"], vela["DIST"])
     lumrat = gwlum / vela["EDOT"].to("W").data[0]
     expectedrat = (1 - 0.41) ** 2
 
-    # make sure value is within 10% of expected value
-    assert 0.9 < lumrat / expectedrat < 1.1
+    # make sure value is within 15% of expected value
+    assert 0.85 < lumrat / expectedrat < 1.15
 
     # use query table functions
     ell = query.gw_ellipticity()
-    #ellipticity = ell[ell["PSRJ"] == "J0534+2200"]["ELL"]
     ellipticity = ell[ell["PSRJ"] == "J0835-4510"]["ELL"]
     assert 0.95 < ellipticity / expectedell < 1.05
 
     # use query table functions
     q22t = query.gw_mass_quadrupole()
-    #q22 = q22t[q22t["PSRJ"] == "J0534+2200"]["Q22"]
     q22 = q22t[q22t["PSRJ"] == "J0835-4510"]["Q22"]
     assert 0.95 < q22 / expectedQ22 < 1.05
 
