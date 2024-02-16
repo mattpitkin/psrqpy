@@ -911,7 +911,7 @@ def test_derived_gw_parameters(query):
     assert 0.95 < ellipticity / expectedell < 1.05
 
     # check ellipticity to q22
-    expectedQ22 = 12.6e32 / 0.021  # see Table 3 of https://arxiv.org/abs/2007.14251
+    expectedQ22 = 91e32 / 0.067  # see Table 3 of https://arxiv.org/abs/2007.14251
     q22 = ellipticity_to_q22(ellipticity)
 
     # make sure value is within 5% of expected value
