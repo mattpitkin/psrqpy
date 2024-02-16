@@ -905,7 +905,7 @@ def test_derived_gw_parameters(query):
     #expectedell = 1.8e-4 * 4.1  # see Sec 3 of https://arxiv.org/abs/0805.4758
     #ellipticity = h0_to_ellipticity(crab["H0_SD"], crab["F0"], crab["DIST"])
     expectedell = 1.8e-3  # see Intro of https://arxiv.org/abs/1104.2712
-    #ellipticity = h0_to_ellipticity(vela["H0_SD"], vela["F0"], vela["DIST"])
+    ellipticity = h0_to_ellipticity(vela["H0_SD"], vela["F0"], vela["DIST"])
 
     # make sure value is within 5% of expected value
     assert 0.95 < ellipticity / expectedell < 1.05
