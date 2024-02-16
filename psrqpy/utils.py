@@ -122,16 +122,18 @@ def get_catalogue(
 
     # loop through lines in dbfile
     for line in dbfile.readlines():
-        if isinstance(line, str):
-            dataline = line.split()
-        else:
-            dataline = line.decode().split()  # Splits on whitespace
+        if isinstance(line, bytes):
+            line = line.decode()
 
-        if dataline[0][0] == commentstring:
-            # get catalogue version (should be in first comment string)
-            if dataline[0] == "#CATALOGUE" and len(dataline) == 2:
-                version = dataline[1]
+        if line.startswith(commentstring):
+            if version is None and "CATALOGUE" in line:
+                # get catalogue version (should be in first comment string)
+                version = line.split()[-1].strip()
+
             continue
+
+        # split on whitespace
+        dataline = line.split()
 
         if dataline[0][0] == breakstring:
             # First break comes at the end of the first object and so forth
@@ -989,7 +991,12 @@ def check_old_references(func):
 
 @check_old_references
 def get_references(
-    useads=False, cache=True, updaterefcache=False, bibtex=False, showfails=False, version="latest"
+    useads=False,
+    cache=True,
+    updaterefcache=False,
+    bibtex=False,
+    showfails=False,
+    version="latest",
 ):
     """
     Return a dictionary of paper
@@ -1032,7 +1039,9 @@ def get_references(
         atnftarball = ATNF_VERSION_TARBALL.format(version)
     # get the tarball
     try:
-        dbtarfile = download_atnf_tarball(atnftarball, usecache=not updaterefcache, version=version)
+        dbtarfile = download_atnf_tarball(
+            atnftarball, usecache=not updaterefcache, version=version
+        )
     except IOError:
         raise IOError("Problem accessing ATNF catalogue tarball")
 
