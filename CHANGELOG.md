@@ -1,5 +1,9 @@
 # Notable changes between versions
 
+## [1.2.8] 2024-02-16
+
+- Fix extracting the ATNF catalogue version number from the database file for v2.0.0 of the catalogue. See [#132](https://github.com/mattpitkin/psrqpy/pull/132).
+
 ## [1.2.7] 2023-05-19
 
 - Fix URL for the Globular Cluster pulsar catalogue, which recently moved to [here](https://www3.mpifr-bonn.mpg.de/staff/pfreire/GCpsr.txt). See [#123](https://github.com/mattpitkin/psrqpy/issues/123).
