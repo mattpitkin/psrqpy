@@ -921,12 +921,12 @@ def test_derived_gw_parameters(query):
 
     # use query table functions
     ell = query.gw_ellipticity()
-    ellipticity = ell[ell["PSRJ"] == "J0835-4510"]["ELL"][0]
+    ellipticity = ell[ell["PSRJ"] == "J0835-4510"]["ELL"]
     assert 0.95 < ellipticity / expectedell < 1.05
 
     # use query table functions
     q22t = query.gw_mass_quadrupole()
-    q22 = q22t[q22t["PSRJ"] == "J0835-4510"]["Q22"][0]
+    q22 = q22t[q22t["PSRJ"] == "J0835-4510"]["Q22"]
     assert 0.95 < q22 / expectedQ22 < 1.05
 
 

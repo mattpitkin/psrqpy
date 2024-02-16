@@ -211,7 +211,6 @@ def get_catalogue(
             psrlist[i]["NAME"] = psr["PSRB"]
             if "PSRB_REF" in psr.keys():
                 psrlist[i]["NAME_REF"] = psr["PSRB_REF"]
-
         else:
             psrlist[i]["NAME"] = psr["PSRJ"]
             if "PSRJ_REF" in psr.keys():
