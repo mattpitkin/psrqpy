@@ -279,6 +279,9 @@ def test_num_pulsars(query):
     Test that the number of pulsars returned is as expected.
     """
 
+    # store all pulsar names
+    psrs = query["PSRJ"].tolist()
+
     query.psrs = 'J9999+9999'  # bad pulsar
 
     # length should be zero
@@ -296,6 +299,10 @@ def test_num_pulsars(query):
 
     # length should be two
     assert len(query) == 2
+    
+    # reset pulsars
+    query.psrs = psrs
+    assert len(query) == len(psrs)
 
 
 def test_num_columns(query):
@@ -1014,3 +1021,4 @@ def test_name(query):
 
     psr = query.get_pulsar("J1906+1854")  # This pulsar only has a JName
     assert psr["NAME"][0] == psr["JNAME"][0]
+
