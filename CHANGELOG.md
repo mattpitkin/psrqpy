@@ -1,5 +1,9 @@
 # Notable changes between versions
 
+## [1.2.9] 2024-04-02
+
+- Update the Galactic MSP table URL. See [#135](https://github.com/mattpitkin/psrqpy/issues/135).
+
 ## [1.2.8] 2024-02-16
 
 - Fix extracting the ATNF catalogue version number from the database file for v2.0.0 of the catalogue. See [#132](https://github.com/mattpitkin/psrqpy/pull/132).
