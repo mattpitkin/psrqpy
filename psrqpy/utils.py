@@ -113,7 +113,7 @@ def get_catalogue(
             raise IOError("Error loading given database file")
 
     breakstring = "@"  # break between each pulsar
-    commentstring = "#"  # specifies line is a comment
+    commentstring = ("#", "WARNING")  # specifies line is a comment
 
     # create list of dictionaries - one for each pulsar
     psrlist = [{}]
