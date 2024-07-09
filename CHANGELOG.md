@@ -1,5 +1,9 @@
 # Notable changes between versions
 
+## [1.2.10] 2024-07-09
+
+- Ignore lines starting with `WARNING` in pulsar catalogue database file. See [#139](https://github.com/mattpitkin/psrqpy/pull/139).
+
 ## [1.2.9] 2024-04-02
 
 - Update the Galactic MSP table URL. See [#135](https://github.com/mattpitkin/psrqpy/issues/135).
