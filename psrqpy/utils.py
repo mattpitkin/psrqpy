@@ -140,6 +140,10 @@ def get_catalogue(
             psrlist.append({})  # New object!
             continue
 
+        if len(dataline) == 1:
+            # line contains a field with no associated value
+            continue
+
         try:
             psrlist[-1][dataline[0]] = float(dataline[1])
         except ValueError:
