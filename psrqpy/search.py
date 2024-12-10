@@ -1,6 +1,6 @@
 """
 The classes defined here are for querying the `ATNF pulsar catalogue
-<http://www.atnf.csiro.au/people/pulsar/psrcat/>`_ and viewing the resulting
+<http://www.atnf.csiro.au/research/pulsar/psrcat/>`_ and viewing the resulting
 information.
 """
 
@@ -35,9 +35,9 @@ if version.parse(astropy.__version__) >= version.parse("4.0"):
 class QueryATNF(object):
     """
     A class to generate a query of the
-    `ATNF pulsar catalogue <http://www.atnf.csiro.au/people/pulsar/psrcat/>`_.
+    `ATNF pulsar catalogue <http://www.atnf.csiro.au/research/pulsar/psrcat/>`_.
     By default, this class will download and cache the latest version of the
-    catalogue database file. The catalogue can be queried for specificpulsar
+    catalogue database file. The catalogue can be queried for specific pulsar
     parameters and for specific named pulsars. Conditions on the parameter can
     be specified. The results will be stored as a :class:`pandas.DataFrame`,
     but can also be accessed as an :class:`astropy.table.Table`.

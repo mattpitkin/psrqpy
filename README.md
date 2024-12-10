@@ -1,6 +1,6 @@
 # PSRQpy
 
-This module aims to provide a python interface for querying the [ATNF pulsar catalogue](http://www.atnf.csiro.au/people/pulsar/psrcat/). It is an unofficial
+This module aims to provide a python interface for querying the [ATNF pulsar catalogue](http://www.atnf.csiro.au/research/pulsar/psrcat/). It is an unofficial
 package and is not endorsed by or affiliated with the ATNF.
 
 Full documentation of the module can be found [here](http://psrqpy.readthedocs.io/).
