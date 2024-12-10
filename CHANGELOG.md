@@ -1,5 +1,10 @@
 # Notable changes between versions
 
+## [1.3.0] 2024-12-10
+
+- Switch to a purely pyproject.toml-based build. See [#144](https://github.com/mattpitkin/psrqpy/pull/144).
+- Fix ATNF catalogue base URL to point to more up-to-date location. See [#143](https://github.com/mattpitkin/psrqpy/pull/143). **IMPORTANT**: older versions of psrqpy will most likely no longer work.
+
 ## [1.2.10] 2024-07-09
 
 - Ignore lines starting with `WARNING` in pulsar catalogue database file. See [#139](https://github.com/mattpitkin/psrqpy/pull/139).
