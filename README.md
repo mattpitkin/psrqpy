@@ -9,21 +9,14 @@ Any comments or suggestions are welcome.
 
 ## Installation
 
-To install the code from source, clone the git repository and run either:
+To install the code from source, clone the git repository and run:
 
 ```
-python setup.py install --user
+pip install .
 ```
 
-to install as a user, or
-
-```
-sudo python setup.py install
-```
-
-to install as root.
-
-The module can also be installed using `pip` with:
+The module can also be installed from the [PyPI repository](https://pypi.org/project/psrqpy/) using
+`pip` with:
 
 ```
 pip install psrqpy
@@ -37,7 +30,7 @@ conda install -c conda-forge psrqpy
 
 ### Requirements
 
-The [requirements](requirements.txt) for installing the code are:
+The requirements for installing the code are:
 
  * [`requests`](http://docs.python-requests.org/en/master/)
  * [`beautifulsoup4`](https://www.crummy.com/software/BeautifulSoup/bs4/doc/)

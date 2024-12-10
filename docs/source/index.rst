@@ -26,12 +26,11 @@ Installation
 ============
 
 This package can be installed using ``pip`` via ``pip install psrqpy`` or ``conda`` using ``conda install -c conda-forge psrqpy``. Alternatively
-the source code can be obtained from `github <https://github.com/mattpitkin/psrqpy>`_, and installed using::
+the source code can be clone from `github <https://github.com/mattpitkin/psrqpy>`_, and installed by running::
 
-    python setup.py install
+    pip install .
 
-with ``sudo`` if wanted to install system wide, and with the ``--user`` flag
-if just installing for an individual user.
+in the repository directory.
 
 Requirements
 ------------
