@@ -12,7 +12,7 @@ The psrqpy package
 
 .. automodule:: psrqpy
 
-This package provides a way to directly query the `ATNF Pulsar Catalogue <http://www.atnf.csiro.au/people/pulsar/psrcat/>`_ [1]_ using Python. It does this by
+This package provides a way to directly query the `ATNF Pulsar Catalogue <http://www.atnf.csiro.au/research/pulsar/psrcat/>`_ [1]_ using Python. It does this by
 downloading and parsing the full catalogue database, which itself is cached and can
 be reused. It is primarily aimed at astronomers wanting access to the latest pulsar
 information via a script, rather than through the standard web interface.
@@ -222,7 +222,7 @@ We can also get the whole ephemeris for the Crab with
 
 .. note::
     This style of ephemeris is not completely equivalent to the pulsar ephemerides returned by
-    `the ATNF Pulsar Catalogue <http://www.atnf.csiro.au/people/pulsar/psrcat/psrcat_help.html#boundary>`_.
+    `the ATNF Pulsar Catalogue <http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_help.html#boundary>`_.
 
 **Query pulsars within a circular boundary**
 

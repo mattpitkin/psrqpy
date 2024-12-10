@@ -43,7 +43,7 @@ def get_catalogue(
     """
     This function will attempt to download and cache the entire ATNF Pulsar
     Catalogue database `tarball
-    <http://www.atnf.csiro.au/people/pulsar/psrcat/downloads/psrcat_pkg.tar.gz>`_,
+    <http://www.atnf.csiro.au/research/pulsar/psrcat/downloads/psrcat_pkg.tar.gz>`_,
     or read in database file from a provided path. The database will be
     converted into an :class:`astropy.table.Table` or
     :class:`pandas.DataFrame`. This was originally based on the method in the
