@@ -7,7 +7,7 @@ import itertools
 
 
 #: The ATNF pulsar catalogue base URL.
-ATNF_BASE_URL = r"https://www.atnf.csiro.au/people/pulsar/psrcat/"
+ATNF_BASE_URL = r"https://www.atnf.csiro.au/research/pulsar/psrcat/"
 
 #: The name of the tarball containing the entire catalogue database.
 ATNF_TARBALL = ATNF_BASE_URL + r"downloads/psrcat_pkg.tar.gz"
