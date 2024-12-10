@@ -1,10 +1,76 @@
 [build-system]
 requires = [
-    "setuptools>=45",
-    "setuptools_scm>=6.2",
+    "setuptools>=61",
+    "setuptools_scm[toml]>=6.2",
     "wheel",
 ]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "psrqpy"
+description = "A Python module for querying the ATNF pulsar catalogue"
+authors = [
+    { name = "Matthew Pitkin", email = "matthew.pitkin@ligo.org" },
+]
+license = { text = "MIT" }
+readme = "README.md"
+
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Astronomy",
+]
+
+requires-python = ">=3.8, <4"
+dependencies = [
+    "ads",
+    "appdirs",
+    "astropy>=3.2",
+    "beautifulsoup4",
+    "matplotlib",
+    "numpy>=1.16",
+    "packaging",
+    "pandas > 0.21",
+    "requests",
+    "scipy",
+]
+
+dynamic = [
+    "version",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest >= 3.9.1",
+    "pytest-cov",
+    "pytest-socket",
+]
+docs = [
+    "autodoc",
+    "recommonmark",
+    "sphinx >= 2.0",
+    "sphinx_rtd_theme",
+]
+
+[project.urls]
+"Source Code" = "https://github.com/mattpitkin/psrqpy"
+"Documentation" = "https://psrqpy.readthedocs.io/"
+
+[tool.setuptools]
+license-files = [ "LICENSE" ]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = [
+    "psrqpy*",
+]
 
 [tool.setuptools_scm]
 write_to = "psrqpy/_version.py"
