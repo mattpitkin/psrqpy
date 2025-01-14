@@ -2516,23 +2516,20 @@ class QueryATNF(object):
             if isinstance(varval, float):
                 if varval.is_integer():
                     precstr = '{0:.0f}'  # print out an integer
-                else:
-                    precstr = '{{0:.{}f}}'.format(precision)  # print out float
-
-                if abs(varval) < 1e-6 or abs(varval) > 1e6:
+                elif abs(varval) < 1e-6 or abs(varval) > 1e6:
                     # print out float in scientific notation
                     precstr = '{{0:.{}e}}'.format(precision)
+                else:
+                    precstr = '{{0:.{}f}}'.format(precision)  # print out float
 
                 if varerr is not None:
                     if varerr.is_integer():
                         precstre = '{0:.0f}'  # print out an integer
-                else:
-                    precstre = '{{0:.{}f}}'.format(precision)  # print out float
-
-                if varerr is not None:
-                    if abs(varerr) < 1e-6 or abs(varerr) > 1e6:
+                    elif abs(varerr) < 1e-6 or abs(varerr) > 1e6:
                         # print out float in scientific notation
                         precstre = '{{0:.{}e}}'.format(precision)
+                    else:
+                        precstre = '{{0:.{}f}}'.format(precision)  # print out float
 
                 outputdic['value'] = precstr.format(varval)
                 outputdic['error'] = precstre.format(varerr) if varerr is not None else ''
