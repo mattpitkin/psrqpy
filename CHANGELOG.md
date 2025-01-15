@@ -1,5 +1,9 @@
 # Notable changes between versions
 
+## [1.3.1] 2025-01-15
+
+- Update value, error formatting logic. See [#145](https://github.com/mattpitkin/psrqpy/pull/145).
+
 ## [1.3.0] 2024-12-10
 
 - Switch to a purely pyproject.toml-based build. See [#144](https://github.com/mattpitkin/psrqpy/pull/144).
