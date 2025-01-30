@@ -258,7 +258,7 @@ PSR_DERIVED['AGE'] =     {'ref': False, 'err': False, 'units': 'yr'}   # Spin do
 PSR_DERIVED['BSURF'] =   {'ref': False, 'err': False, 'units': 'G'}   # Surface magnetic flux density
 PSR_DERIVED['EDOT'] =    {'ref': False, 'err': False, 'units': 'erg/s'}   # Spin down energy loss rate
 PSR_DERIVED['EDOTD2'] =  {'ref': False, 'err': False, 'units': 'erg s^-1/kpc^2'}   # Energy flux at the Sun
-PSR_DERIVED['PMTOT'] =   {'ref': False, 'err': False,  'units': 'mas/yr'}   # Total proper motion
+PSR_DERIVED['PMTOT'] =   {'ref': False, 'err': True,  'units': 'mas/yr'}   # Total proper motion
 # VTRANS: Transverse velocity - based on DIST
 PSR_DERIVED['VTRANS'] =  {'ref': False, 'err': False, 'units': 'km/s'}
 # P1_I: Period derivative corrected for Shklovskii effect
