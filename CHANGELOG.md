@@ -1,5 +1,9 @@
 # Notable changes between versions
 
+## [1.3.2] 2025-01-31
+
+- Allow `PMTOT_ERR` value to be extracted in astropy `table` version of catalogue. See [#147](https://github.com/mattpitkin/psrqpy/pull/147).
+
 ## [1.3.1] 2025-01-15
 
 - Update value, error formatting logic. See [#145](https://github.com/mattpitkin/psrqpy/pull/145).
