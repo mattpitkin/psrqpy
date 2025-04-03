@@ -1016,6 +1016,10 @@ def get_references(
     >>> import psrqpy
     >>> psrqpy.QueryATNF(checkupdate=True)
 
+    TODO: this need to be rewritten to use the webpage http://www.atnf.csiro.au/research/pulsar/psrcat/psrcat_ref.html
+    which contains the most recent reference in a bibTeX form. ``The psrcat_ref``
+    file no longer contains the most up-to-date references.
+
     Args:
         useads (bool): boolean to set whether to use the python mod:`ads`
             module to get the NASA ADS URL for the references.
