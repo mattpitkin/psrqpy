@@ -1039,6 +1039,46 @@ def get_references(
         dict: a dictionary of references.
     """
 
+    try:
+        refpage = requests.get(f"{ATNF_BASE_URL}/psrcat_ref.html")
+        refpage.raise_for_status()
+    except Exception as e:
+        raise RuntimeError("Error downloading pulsar catalogue references: {}".format(str(e)))
+
+    # parse HTML
+    try:
+        soup = BeautifulSoup(refpage.content, "html.parser")
+    except Exception as e:
+        warnings.warn(
+            "Count not parse the reference page: {}".format(str(e)), UserWarning
+        )
+        return None
+
+    # extract all bibTeX entries
+    bibtex = ""
+    for pre in soup.find_all("pre"):
+        if pre.text.strip().startswith("@"):
+            bibtex += pre.text
+
+    import bibtexparser
+
+    # parse bibTeX
+    library = bibtexparser.parse_string(bibtex)
+
+    refdic = {}
+    adsrefs = {}
+    for entry in library.entries:
+        # use v1 reference as the key
+        if "v1ref" in entry:
+            key = entry["v1ref"]
+        else:
+            key = entry.key
+
+        refdic[key] = entry.raw
+
+        if "adsurl" in entry:
+            adsrefs[key] = entry["adsurl"]
+
     import json
 
     if version == "latest":
