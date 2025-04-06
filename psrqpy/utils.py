@@ -993,8 +993,9 @@ def check_old_references(func):
     return wrapper_check_old_references
 
 
-@check_old_references
+#@check_old_references
 def get_references(
+    format="bibtex",
     useads=False,
     cache=True,
     updaterefcache=False,
@@ -1021,6 +1022,10 @@ def get_references(
     file no longer contains the most up-to-date references.
 
     Args:
+        format (str): set the output format. By default this is "bibtex",
+            i.e., references are returned as a dictionary if bibTeX strings,
+            "bibtex". To return a mod:`bibtexparser` ``BibDatabase`` object,
+            this can be "bibtexparser".
         useads (bool): boolean to set whether to use the python mod:`ads`
             module to get the NASA ADS URL for the references.
         cache (bool): use cached, or cache, the reference bundled with the
@@ -1065,51 +1070,25 @@ def get_references(
     # parse bibTeX
     library = bibtexparser.parse_string(bibtex)
 
-    refdic = {}
+    bibdic = {}  # dictionary of bibTeX references
     adsrefs = {}
+
     for entry in library.entries:
-        # use v1 reference as the key
         if "v1ref" in entry:
+            # use v1 reference as the key
             key = entry["v1ref"]
         else:
             key = entry.key
 
-        refdic[key] = entry.raw
+        bibdic[key] = entry.raw
 
         if "adsurl" in entry:
             adsrefs[key] = entry["adsurl"]
 
-    import json
+    # get keys with no ADS URL
+    no_ads_keys = set(bibdic.keys()).difference(set(adsrefs.keys()))
 
-    if version == "latest":
-        atnftarball = ATNF_TARBALL
-    else:
-        atnftarball = ATNF_VERSION_TARBALL.format(version)
-    # get the tarball
-    try:
-        dbtarfile = download_atnf_tarball(
-            atnftarball, usecache=not updaterefcache, version=version
-        )
-    except IOError:
-        raise IOError("Problem accessing ATNF catalogue tarball")
-
-    try:
-        # open tarball
-        pulsargz = tarfile.open(dbtarfile, mode="r:gz")
-
-        # extract the references
-        reffile = pulsargz.extractfile("psrcat_tar/psrcat_ref")
-    except IOError:
-        raise IOError("Problem extracting the database file")
-
-    refdic = {
-        line.split()[0]: " ".join(line.split()[2:])
-        for line in reffile.read().decode("utf-8").strip().split("***")
-        if len(line) > 0
-    }
-
-    reffile.close()
-    pulsargz.close()  # close tar file
+    return bibdic
 
     # if not requiring ADS references just return the current dictionary
     if not useads:
