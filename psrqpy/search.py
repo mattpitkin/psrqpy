@@ -2947,6 +2947,7 @@ class QueryATNF(object):
 
         # get limits
         if periodlims is None:
+            # TODO: change the default limits to not round to nearest factor of 10, which excludes some recent slow pulsars
             periodlims = [10**np.floor(np.min(np.log10(periods))),
                           10.*int(np.ceil(np.max(pdots)/10.))]
         if pdotlims is None:
