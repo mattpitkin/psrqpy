@@ -133,7 +133,7 @@ just three lines of code, e.g.:
 
 ```python
 from psrqpy import QueryATNF
-query = QueryATNF(params=['P0', 'P1', 'ASSOC', 'BINARY', 'TYPE', 'P1_I'])
+query = QueryATNF()
 query.ppdot(showSNRs=True, showtypes='all')
 ```
 
