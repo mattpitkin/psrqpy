@@ -1088,235 +1088,182 @@ def get_references(
     # get keys with no ADS URL
     no_ads_keys = set(bibdic.keys()).difference(set(adsrefs.keys()))
 
-    return bibdic
+    if useads:
+        # use ADS to attempt to get key information
+        
+        import ads
+        from ads import APIResponseError
 
-    # if not requiring ADS references just return the current dictionary
-    if not useads:
-        return refdic
-    else:
-        try:
-            import ads
-            from ads.exceptions import APIResponseError
-        except ImportError:
-            warnings.warn(
-                "Could not import ADS module, so no ADS information "
-                "will be included",
-                UserWarning,
-            )
-            return refdic, None
+        # loop over references
+        j = 0
+        bibcodes = {}
+        failures = []
+        for key in no_ads_keys:
+            j = j + 1
 
-    # try getting cached references
-    if not cache:
-        adsrefs = {}
-    else:
-        cachefile = os.path.join(CACHEDIR, "ads_cache")
+            refstring = bibdic[key]
 
-        # check if cached ADS refs list exists (using dummy URL)
-        if os.path.exists(cachefile) and not updaterefcache:
-            try:
-                fp = open(cachefile, "r")
-            except IOError:
-                warnings.warn(
-                    "Could not load ADS URL cache for references", UserWarning
-                )
-                return refdic, None
+            # check if IAU Circular or PhD thesis
+            iaucirc = True if "IAU Circ" in refstring else False
+            thesis = True if "PhD thesis" in refstring else False
 
-            cachedrefs = json.load(fp)
-            fp.close()
+            sepauthors = ""
 
-            adsrefs = None
-            adsbibtex = None
-            failures = None
-            if "urls" in cachedrefs:
-                adsrefs = cachedrefs["urls"]
-            if bibtex and "bibtex" in cachedrefs:
-                adsbibtex = cachedrefs["bibtex"]
-            if showfails and "failures" in cacherefs:
-                failures = cachedrefs["failures"]
+            # check for arXiv identifier
+            arxivid = None
+            if "arXiv:" in refstring or "ArXiv:" in refstring:
+                for searchterm in [
+                    r"[Aa]rXiv:[0-9]{4}.[0-9]*",
+                    r"[Aa]rXiv:astro-ph/[0-9]{7}",
+                ]:
+                    match = re.search(searchterm, refstring)
 
-            if bibtex:
-                if failures is None:
-                    return refdic, adsrefs, adsbibtex
-                else:
-                    return refdic, adsrefs, adsbibtex, failures
-            else:
-                if failures is None:
-                    return refdic, adsrefs
-                else:
-                    return refdic, adsrefs, failures
-        else:
-            adsrefs = {}
-
-    # loop over references
-    j = 0
-    bibcodes = {}
-    failures = []
-    for reftag in refdic:
-        j = j + 1
-
-        refstring = refdic[reftag]
-
-        # check if IAU Circular or PhD thesis
-        iaucirc = True if "IAU Circ" in refstring else False
-        thesis = True if "PhD thesis" in refstring else False
-
-        sepauthors = ""
-
-        # check for arXiv identifier
-        arxivid = None
-        if "arXiv:" in refstring or "ArXiv:" in refstring:
-            for searchterm in [
-                r"[Aa]rXiv:[0-9]{4}.[0-9]*",
-                r"[Aa]rXiv:astro-ph/[0-9]{7}",
-            ]:
-                match = re.search(searchterm, refstring)
-
-                if match is not None:
-                    arxivid = match.group().lower()
-                    break
-        else:
-            if iaucirc:
-                # get circular number (value after IAU Circ. No.)
-                spl = re.split(r"([0-9]{4})", refstring)
-                noidx = 1
-                for val in spl:
-                    if "IAU Circ" in val:
+                    if match is not None:
+                        arxivid = match.group().lower()
                         break
-                    noidx += 1
-                volume = spl[noidx]
             else:
-                # do splitting on the year (allows between 1000-2999)
-                spl = re.split(r"([1-2][0-9]{3})", refstring)
+                if iaucirc:
+                    # get circular number (value after IAU Circ. No.)
+                    spl = re.split(r"([0-9]{4})", refstring)
+                    noidx = 1
+                    for val in spl:
+                        if "IAU Circ" in val:
+                            break
+                        noidx += 1
+                    volume = spl[noidx]
+                else:
+                    # do splitting on the year (allows between 1000-2999)
+                    spl = re.split(r"([1-2][0-9]{3})", refstring)
 
-                if len(spl) < 2:
-                    # no authors + year, so ignore!
-                    failures.append(reftag)
-                    continue
+                    if len(spl) < 2:
+                        # no authors + year, so ignore!
+                        failures.append(reftag)
+                        continue
 
-                year = spl[1] if len(spl[1]) == 4 else None
+                    year = spl[1] if len(spl[1]) == 4 else None
 
-                try:
-                    int(year)
-                except (ValueError, TypeError):
-                    # "year" is not an integer
-                    failures.append(reftag)
-                    continue
+                    try:
+                        int(year)
+                    except (ValueError, TypeError):
+                        # "year" is not an integer
+                        failures.append(reftag)
+                        continue
 
-                # get the authors (remove line breaks/extra spaces and final full-stop)
-                authors = spl[0].strip().strip(".")
+                    # get the authors (remove line breaks/extra spaces and final full-stop)
+                    authors = spl[0].strip().strip(".")
 
-                # remove " Jr." from any author names (as it causes issues!)
-                authors = authors.replace(" Jr.", "")
+                    # remove " Jr." from any author names (as it causes issues!)
+                    authors = authors.replace(" Jr.", "")
 
-                # replace ampersands/and with ".," for separation
-                authors = authors.replace(" &", ".,").replace(" and", ".,")
+                    # replace ampersands/and with ".," for separation
+                    authors = authors.replace(" &", ".,").replace(" and", ".,")
 
-                # separate out authors
-                sepauthors = [
-                    auth.lstrip()
-                    for auth in authors.split(".,")
-                    if len(auth.strip()) > 0 and "et al" not in auth
-                ]
-
-                # remove any "'s for umlauts in author names
-                sepauthors = [a.replace(r'"', "") for a in sepauthors]
-
-                if len(sepauthors) == 0:
-                    # no authors were parsed
-                    failures.append(reftag)
-                    continue
-
-            if not thesis and not iaucirc:
-                volume = None
-                page = None
-                if len(spl) > 2:
-                    # join the remaining values and split on ","
-                    extrainfo = [
-                        info
-                        for info in ("".join(spl[2:])).lstrip(".").split(",")
-                        if len(info.strip()) > 0
+                    # separate out authors
+                    sepauthors = [
+                        auth.lstrip()
+                        for auth in authors.split(".,")
+                        if len(auth.strip()) > 0 and "et al" not in auth
                     ]
 
-                    # get the journal volume (assumed to be second from last)
-                    try:
-                        # in case volume contains issue number in brackets perform split
-                        volume = int(extrainfo[-2].strip().split("(")[0])
-                    except (IndexError, TypeError, ValueError):
-                        # could not get the volume
-                        pass
+                    # remove any "'s for umlauts in author names
+                    sepauthors = [a.replace(r'"', "") for a in sepauthors]
 
-                    # get the page if given (assumed to be th last value)
-                    try:
-                        testpage = re.sub(
-                            r"[\+\-\.]", "", extrainfo[-1].strip().split("-")[0]
+                    if len(sepauthors) == 0:
+                        # no authors were parsed
+                        failures.append(reftag)
+                        continue
+
+                if not thesis and not iaucirc:
+                    volume = None
+                    page = None
+                    if len(spl) > 2:
+                        # join the remaining values and split on ","
+                        extrainfo = [
+                            info
+                            for info in ("".join(spl[2:])).lstrip(".").split(",")
+                            if len(info.strip()) > 0
+                        ]
+
+                        # get the journal volume (assumed to be second from last)
+                        try:
+                            # in case volume contains issue number in brackets perform split
+                            volume = int(extrainfo[-2].strip().split("(")[0])
+                        except (IndexError, TypeError, ValueError):
+                            # could not get the volume
+                            pass
+
+                        # get the page if given (assumed to be th last value)
+                        try:
+                            testpage = re.sub(
+                                r"[\+\-\.]", "", extrainfo[-1].strip().split("-")[0]
+                            )
+                            if not testpage.startswith(
+                                "eaao"
+                            ):  # Science Advances page string
+                                if (
+                                    testpage[0].upper() in ["L", "A", "E"]
+                                    or testpage[0:4] == ""
+                                ):  # e.g. for ApJL, A&A, PASA
+                                    _ = int(testpage[1:])
+                                elif testpage[-1].upper() == "P":  # e.g., for early MNRAS
+                                    _ = int(testpage[:-1])
+                                else:
+                                    _ = int(testpage)
+                            page = testpage
+                        except (IndexError, TypeError, ValueError):
+                            # could not get the page
+                            pass
+
+                    if volume is None or page is None:
+                        failures.append(reftag)
+                        continue
+
+            # generate the query string
+            if arxivid is None:
+                if not thesis:
+                    if iaucirc:
+                        myquery = 'bibstem:"IAUC" volume:"{}"'.format(volume)
+                    else:
+                        # default query without authors
+                        myquery = "year:{} AND volume:{} AND page:{}".format(
+                            year, volume, page
                         )
-                        if not testpage.startswith(
-                            "eaao"
-                        ):  # Science Advances page string
-                            if (
-                                testpage[0].upper() in ["L", "A", "E"]
-                                or testpage[0:4] == ""
-                            ):  # e.g. for ApJL, A&A, PASA
-                                _ = int(testpage[1:])
-                            elif testpage[-1].upper() == "P":  # e.g., for early MNRAS
-                                _ = int(testpage[:-1])
-                            else:
-                                _ = int(testpage)
-                        page = testpage
-                    except (IndexError, TypeError, ValueError):
-                        # could not get the page
-                        pass
 
-                if volume is None or page is None:
-                    failures.append(reftag)
-                    continue
-
-        # generate the query string
-        if arxivid is None:
-            if not thesis:
-                if iaucirc:
-                    myquery = 'bibstem:"IAUC" volume:"{}"'.format(volume)
+                        # add author if given
+                        if len(sepauthors) > 0:
+                            # check if authors have spaces in last names (a few cases due to formating of some accented names),
+                            # if so try next author...
+                            for k, thisauthor in enumerate(sepauthors):
+                                if len(thisauthor.split(",")[0].split()) == 1:
+                                    myquery += ' AND author:"{}{}"'.format(
+                                        "^" if k == 0 else "", thisauthor
+                                    )
+                                    break
                 else:
-                    # default query without authors
-                    myquery = "year:{} AND volume:{} AND page:{}".format(
-                        year, volume, page
+                    myquery = 'year: {} AND author:"^{}" AND bibstem:"PhDT"'.format(
+                        year, sepauthors[0]
                     )
-
-                    # add author if given
-                    if len(sepauthors) > 0:
-                        # check if authors have spaces in last names (a few cases due to formating of some accented names),
-                        # if so try next author...
-                        for k, thisauthor in enumerate(sepauthors):
-                            if len(thisauthor.split(",")[0].split()) == 1:
-                                myquery += ' AND author:"{}{}"'.format(
-                                    "^" if k == 0 else "", thisauthor
-                                )
-                                break
             else:
-                myquery = 'year: {} AND author:"^{}" AND bibstem:"PhDT"'.format(
-                    year, sepauthors[0]
+                myquery = arxivid
+
+            try:
+                article = ads.SearchQuery(q=myquery)
+            except APIResponseError:
+                failures.append(reftag)
+                warnings.warn(
+                    "Could not get reference information, so no ADS "
+                    "information for {} will be included".format(reftag),
+                    UserWarning,
                 )
-        else:
-            myquery = arxivid
+                continue
 
-        try:
-            article = ads.SearchQuery(q=myquery)
-        except APIResponseError:
-            failures.append(reftag)
-            warnings.warn(
-                "Could not get reference information, so no ADS "
-                "information for {} will be included".format(reftag),
-                UserWarning,
-            )
-            continue
+            for paper in article:
+                bibcodes[reftag] = paper.bibcode
+                adsrefs[reftag] = ADS_URL.format(bibcodes[reftag])
 
-        for paper in article:
-            bibcodes[reftag] = paper.bibcode
-            adsrefs[reftag] = ADS_URL.format(bibcodes[reftag])
-
-        # check if paper bibcode was found
-        if reftag not in bibcodes:
-            failures.append(reftag)
+            # check if paper bibcode was found
+            if reftag not in bibcodes:
+                failures.append(reftag)
 
     if bibtex:
         # use ExportQuery to get bibtex
