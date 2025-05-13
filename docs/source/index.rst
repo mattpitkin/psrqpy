@@ -264,7 +264,7 @@ You can generate a *lovely* period vs. period derivative diagram based on the la
 using the :func:`~psrqpy.search.ppdot` function in just three lines of code:
 
     >>> from psrqpy import QueryATNF
-    >>> query = QueryATNF(params=['P0', 'P1', 'ASSOC', 'BINARY', 'TYPE', 'P1_I'])
+    >>> query = QueryATNF()
     >>> query.ppdot(showSNRs=True, showtypes='all')
 
 where this shows all pulsar types and pulsars in supernova remnants, to give
