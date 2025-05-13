@@ -2210,7 +2210,7 @@ def death_line(logP, linemodel="Ip", rho6=1.0):
     )
 
 
-def label_line(ax, line, label, color="k", fs=14, frachoffset=0.1):
+def label_line(ax, line, label, color="k", fs=14, frachoffset=0.1, zorder=1):
     """
     Add an annotation to the given line with appropriate placement and
     rotation.
@@ -2229,6 +2229,7 @@ def label_line(ax, line, label, color="k", fs=14, frachoffset=0.1):
         frachoffset (float): a number between 0 and 1 giving the fractional
             offset of the label text along the x-axis. Defaults to 0.1, i.e.,
             10%.
+        zorder (float): The z-order for added the text.
 
     Returns:
         :class:`matplotlib.text.Text`: an object containing the label
@@ -2271,7 +2272,7 @@ def label_line(ax, line, label, color="k", fs=14, frachoffset=0.1):
         textcoords="offset points",
         size=fs,
         color=color,
-        zorder=1,
+        zorder=zorder,
         horizontalalignment="left",
         verticalalignment="center_baseline",
     )
