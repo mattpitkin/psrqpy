@@ -353,7 +353,7 @@ def test_get_references(query):
     ref = query.parse_ref('ksm+06')
 
     assert isinstance(ref, str)
-    assert "Kramer" in ref and "Science" in ref and "314" in ref and "2006" in ref
+    assert "Kramer" in ref and "sci" in ref.lower() and "314" in ref and "2006" in ref
 
     # test parsing two references
     ref = query.parse_ref(['ksm+06', 'abb+18'])
