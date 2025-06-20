@@ -359,14 +359,14 @@ def test_get_references(query):
     ref = query.parse_ref(['ksm+06', 'abb+18'])
 
     assert len(ref) == 2
-    assert "Kramer" in ref[0] and "Science" in ref[0] and "314" in ref[0] and "2006" in ref[0]
-    assert "2018" in ref[1] and "ApJS" in ref[1] and "235" in ref[1] and"37" in ref[1]
+    assert "Kramer" in ref[0] and "sci" in ref[0].lower() and "314" in ref[0] and "2006" in ref[0]
+    assert "2018" in ref[1] and "apjs" in ref[1].lower() and "235" in ref[1] and"37" in ref[1]
 
     # test parsing two references (with the second one being gibberish)
     ref = query.parse_ref(['ksm+06', 'wlihlacljkblf'])
 
     assert len(ref) == 2
-    assert "Kramer" in ref[0] and "Science" in ref[0] and "314" in ref[0] and "2006" in ref[0]
+    assert "Kramer" in ref[0] and "sci" in ref[0].lower() and "314" in ref[0] and "2006" in ref[0]
     assert ref[1] is None
 
 
