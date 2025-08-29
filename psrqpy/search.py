@@ -3036,36 +3036,19 @@ class QueryATNF(object):
                 nshowtypes[nshowtypes.index(stype)] = "AXP"
 
         # set plot parameters
-        rcparams["figure.figsize"] = (
-            rcparams["figure.figsize"] if "figure.figsize" in rcparams else (9, 9.5)
+        rcparams.setdefault("figure.figsize", (9, 9.5))
+        rcparams.setdefault("figure.dpi", 250)
+        rcparams.setdefault("text.usetex", False)
+        rcparams.setdefault("axes.linewidth", 0.5)
+        rcparams.setdefault("axes.grid", False)
+        rcparams.setdefault("font.family", "sans-serif")
+        rcparams.setdefault(
+            "font.sans-serif",
+            "TeX Gyre Adventor, Helvetica, Computer Modern Sans serif"
         )
-        rcparams["figure.dpi"] = (
-            rcparams["figure.dpi"] if "figure.dpi" in rcparams else 250
-        )
-        rcparams["text.usetex"] = (
-            rcparams["text.usetex"] if "text.usetex" in rcparams else False
-        )
-        rcparams["axes.linewidth"] = (
-            rcparams["axes.linewidth"] if "axes.linewidth" in rcparams else 0.5
-        )
-        rcparams["axes.grid"] = (
-            rcparams["axes.grid"] if "axes.grid" in rcparams else False
-        )
-        rcparams["font.family"] = (
-            rcparams["font.family"] if "font.family" in rcparams else "sans-serif"
-        )
-        rcparams["font.sans-serif"] = (
-            rcparams["font.sans-serif"]
-            if "font.sans-serif" in rcparams
-            else "TeX Gyre Adventor, Helvetica, Computer Modern Sans serif"
-        )
-        rcparams["font.size"] = rcparams["font.size"] if "font.size" in rcparams else 20
-        rcparams["legend.fontsize"] = (
-            rcparams["legend.fontsize"] if "legend.fontsize" in rcparams else 16
-        )
-        rcparams["legend.frameon"] = (
-            rcparams["legend.frameon"] if "legend.frameon" in rcparams else False
-        )
+        rcparams.setdefault("font.size", 20)
+        rcparams.setdefault("legend.fontsize", 16)
+        rcparams.setdefault("legend.frameon", False)
 
         mpl.rcParams.update(rcparams)
 
