@@ -3036,36 +3036,19 @@ class QueryATNF(object):
                 nshowtypes[nshowtypes.index(stype)] = "AXP"
 
         # set plot parameters
-        rcparams["figure.figsize"] = (
-            rcparams["figure.figsize"] if "figure.figsize" in rcparams else (9, 9.5)
+        rcparams.setdefault("figure.figsize", (9, 9.5))
+        rcparams.setdefault("figure.dpi", 250)
+        rcparams.setdefault("text.usetex", False)
+        rcparams.setdefault("axes.linewidth", 0.5)
+        rcparams.setdefault("axes.grid", False)
+        rcparams.setdefault("font.family", "sans-serif")
+        rcparams.setdefault(
+            "font.sans-serif",
+            "TeX Gyre Adventor, Helvetica, Computer Modern Sans serif"
         )
-        rcparams["figure.dpi"] = (
-            rcparams["figure.dpi"] if "figure.dpi" in rcparams else 250
-        )
-        rcparams["text.usetex"] = (
-            rcparams["text.usetex"] if "text.usetex" in rcparams else False
-        )
-        rcparams["axes.linewidth"] = (
-            rcparams["axes.linewidth"] if "axes.linewidth" in rcparams else 0.5
-        )
-        rcparams["axes.grid"] = (
-            rcparams["axes.grid"] if "axes.grid" in rcparams else False
-        )
-        rcparams["font.family"] = (
-            rcparams["font.family"] if "font.family" in rcparams else "sans-serif"
-        )
-        rcparams["font.sans-serif"] = (
-            rcparams["font.sans-serif"]
-            if "font.sans-serif" in rcparams
-            else "TeX Gyre Adventor, Helvetica, Computer Modern Sans serif"
-        )
-        rcparams["font.size"] = rcparams["font.size"] if "font.size" in rcparams else 20
-        rcparams["legend.fontsize"] = (
-            rcparams["legend.fontsize"] if "legend.fontsize" in rcparams else 16
-        )
-        rcparams["legend.frameon"] = (
-            rcparams["legend.frameon"] if "legend.frameon" in rcparams else False
-        )
+        rcparams.setdefault("font.size", 20)
+        rcparams.setdefault("legend.fontsize", 16)
+        rcparams.setdefault("legend.frameon", False)
 
         mpl.rcParams.update(rcparams)
 
@@ -3144,20 +3127,10 @@ class QueryATNF(object):
                 if not filldeathtype:
                     filldeathtype = {}
 
-                filldeathtype["linestyle"] = (
-                    filldeathtype["linestyle"] if "linestyle" in filldeathtype else "-"
-                )
-                filldeathtype["alpha"] = (
-                    filldeathtype["alpha"] if "alpha" in filldeathtype else 0.15
-                )
-                filldeathtype["facecolor"] = (
-                    filldeathtype["facecolor"]
-                    if "facecolor" in filldeathtype
-                    else "darkorange"
-                )
-                filldeathtype["hatch"] = (
-                    filldeathtype["hatch"] if "hatch" in filldeathtype else ""
-                )
+                filldeathtype.setdefault("linestyle", "-")
+                filldeathtype.setdefault("alpha", 0.15)
+                filldeathtype.setdefault("facecolor", "darkorange")
+                filldeathtype.setdefault("hatch", "")
                 ax.fill_between(periodlims, deathpdots, pdotlims[0], **filldeathtype)
 
         # add markers for each pulsar type
@@ -3165,46 +3138,14 @@ class QueryATNF(object):
             markertypes = {}
 
         # check if markers have been defined by the user or not
-        markertypes["AXP"] = (
-            {"marker": "s", "markeredgecolor": "red"}
-            if "AXP" not in markertypes
-            else markertypes["AXP"]
-        )
-        markertypes["BINARY"] = (
-            {"marker": "o", "markeredgecolor": "grey"}
-            if "BINARY" not in markertypes
-            else markertypes["BINARY"]
-        )
-        markertypes["HE"] = (
-            {"marker": "D", "markeredgecolor": "orange"}
-            if "HE" not in markertypes
-            else markertypes["HE"]
-        )
-        markertypes["RRAT"] = (
-            {"marker": "h", "markeredgecolor": "green"}
-            if "RRAT" not in markertypes
-            else markertypes["RRAT"]
-        )
-        markertypes["NRAD"] = (
-            {"marker": "v", "markeredgecolor": "blue"}
-            if "NRAD" not in markertypes
-            else markertypes["NRAD"]
-        )
-        markertypes["XINS"] = (
-            {"marker": "^", "markeredgecolor": "magenta"}
-            if "XINS" not in markertypes
-            else markertypes["XINS"]
-        )
-        markertypes["GC"] = (
-            {"marker": "8", "markeredgecolor": "cyan"}
-            if "GC" not in markertypes
-            else markertypes["GC"]
-        )
-        markertypes["SNR"] = (
-            {"marker": "*", "markeredgecolor": "darkorchid"}
-            if "SNR" not in markertypes
-            else markertypes["SNR"]
-        )
+        markertypes.setdefault("AXP", {"marker": "s", "markeredgecolor": "red"})
+        markertypes.setdefault("BINARY", {"marker": "o", "markeredgecolor": "grey"})
+        markertypes.setdefault("HE", {"marker": "D", "markeredgecolor": "orange"})
+        markertypes.setdefault("RRAT", {"marker": "h", "markeredgecolor": "green"})
+        markertypes.setdefault("NRAD", {"marker": "v", "markeredgecolor": "blue"})
+        markertypes.setdefault("XINS", {"marker": "^", "markeredgecolor": "magenta"})
+        markertypes.setdefault("GC", {"marker": "8", "markeredgecolor": "cyan"})
+        markertypes.setdefault("SNR", {"marker": "*", "markeredgecolor": "darkorchid"})
 
         # legend strings for different types
         typelegstring = {}
@@ -3251,10 +3192,8 @@ class QueryATNF(object):
                     continue
 
                 # default to empty markers with no lines between them
-                if "markerfacecolor" not in markertypes[thistype]:
-                    markertypes[thistype]["markerfacecolor"] = "none"
-                if "linestyle" not in markertypes[thistype]:
-                    markertypes[thistype]["linestyle"] = "none"
+                markertypes[thistype].setdefault("markerfacecolor", "none")
+                markertypes[thistype].setdefault("linestyle", "none")
                 (typehandle,) = ax.loglog(
                     periods[typeidx],
                     pdots[typeidx],
