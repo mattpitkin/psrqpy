@@ -3,11 +3,23 @@ Test script.
 """
 
 import pytest
-from psrqpy import QueryATNF
+from .. import QueryATNF
 import numpy as np
 from pandas import Series
 import pytest_socket
+import requests
 from astropy.table.column import MaskedColumn
+
+from ..config import GC_URL, GLITCH_URL, MSP_URL
+
+
+def bad_connection(url: str):
+    try:
+        _ = requests.get(url, verify=False)
+    except requests.exceptions.ConnectionError:
+        return True
+
+    return False
 
 
 def sf_scale(value):
@@ -442,6 +454,7 @@ def test_ppdot_diagram(query):
     assert isinstance(fig, Figure)
 
 
+@pytest.mark.skipif(bad_connection(GLITCH_URL), reason="Cannot access glitch table URL.")
 def test_glitch_table():
     """
     Try downloading the glitch table for the Crab.
@@ -454,6 +467,7 @@ def test_glitch_table():
     assert len(table) > 1
 
 
+@pytest.mark.skipif(bad_connection(GC_URL), reason="Cannot access GC table URL.")
 def test_gc_table():
     """
     Try downloading the globular cluster pulsar table.
@@ -470,6 +484,7 @@ def test_gc_table():
     assert "J0023-7204C" in table.cluster_pulsars("47Tuc")["Pulsar"]
 
 
+@pytest.mark.skipif(bad_connection(MSP_URL), reason="Cannot access MSP table URL.")
 def test_msp_table(query):
     """
     Try downloading the MSP table.
