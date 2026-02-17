@@ -92,7 +92,7 @@ def test_crab_date_fields(query):
     """
 
     crab = query.get_pulsar('J0534+2200')
-    assert int(crab['DATE'][0]) == 1969
+    assert int(crab['DATE'][0]) == 1968
     assert int(crab['POSEPOCH_REF_YEAR'][0]) == 2023
 
 

@@ -712,20 +712,45 @@ class QueryATNF(object):
                 "POSEPOCH_REF"
             ].apply(_ref_year_from_ref)
 
-        if "TYPE_REF" in self.columns:
-            discovery_years = self.__dataframe["TYPE_REF"].apply(_ref_year_min)
-            if "DATE" not in self.columns:
-                self.__dataframe["DATE"] = discovery_years
-            else:
-                if "POSEPOCH_REF_YEAR" in self.columns:
-                    mask = self.__dataframe["DATE"].isna() | (
-                        self.__dataframe["DATE"]
-                        == self.__dataframe["POSEPOCH_REF_YEAR"]
-                    )
-                else:
-                    mask = self.__dataframe["DATE"].isna()
-                if mask.any():
-                    self.__dataframe.loc[mask, "DATE"] = discovery_years[mask]
+        psrj_years = None
+        psrb_years = None
+        if "PSRJ_REF" in self.columns:
+            psrj_years = self.__dataframe["PSRJ_REF"].apply(_ref_year_min)
+        if "PSRB_REF" in self.columns:
+            psrb_years = self.__dataframe["PSRB_REF"].apply(_ref_year_min)
+
+        if psrj_years is None and psrb_years is None:
+            return
+
+        if psrb_years is None:
+            discovery_years = psrj_years
+        elif psrj_years is None:
+            discovery_years = psrb_years
+        else:
+            discovery_years = psrb_years.copy()
+            mask = discovery_years.isna()
+            discovery_years[mask] = psrj_years[mask]
+            mask_both = (~psrb_years.isna()) & (~psrj_years.isna())
+            if mask_both.any():
+                discovery_years[mask_both] = np.minimum(
+                    psrb_years[mask_both], psrj_years[mask_both]
+                )
+
+        has_year = discovery_years.notna()
+
+        if "DATE" not in self.columns:
+            self.__dataframe["DATE"] = discovery_years
+            return
+
+        if has_year.any():
+            self.__dataframe.loc[has_year, "DATE"] = discovery_years[has_year]
+
+        if "POSEPOCH_REF_YEAR" in self.columns:
+            clear_mask = (~has_year) & (
+                self.__dataframe["DATE"] == self.__dataframe["POSEPOCH_REF_YEAR"]
+            )
+            if clear_mask.any():
+                self.__dataframe.loc[clear_mask, "DATE"] = np.nan
 
     def as_array(self):
         """
