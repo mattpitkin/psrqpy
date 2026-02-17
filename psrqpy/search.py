@@ -39,6 +39,45 @@ from .utils import (
 )
 
 
+def _extract_ref_years(refstr):
+    if refstr is None:
+        return []
+    if isinstance(refstr, float) and np.isnan(refstr):
+        return []
+    reftext = str(refstr).strip()
+    if not reftext or reftext == "--" or reftext.lower() == "nan":
+        return []
+
+    years = []
+    for token in re.split(r"[,\s]+", reftext):
+        token = token.strip("[]()")
+        if not token:
+            continue
+        match = re.search(r"(\d{2})(?!.*\d)", token)
+        if match:
+            year = int(match.group(0))
+            if year > 65:
+                year += 1900
+            else:
+                year += 2000
+            years.append(year)
+    return years
+
+
+def _ref_year_from_ref(refstr):
+    years = _extract_ref_years(refstr)
+    if not years:
+        return np.nan
+    return years[0]
+
+
+def _ref_year_min(refstr):
+    years = _extract_ref_years(refstr)
+    if not years:
+        return np.nan
+    return min(years)
+
+
 # set default astropy galactocentric frame values
 # (https://docs.astropy.org/en/latest/coordinates/galactocentric.html)
 if version.parse(astropy.__version__) >= version.parse("4.0"):
@@ -429,6 +468,7 @@ class QueryATNF(object):
         # calculate derived parameters
         self.set_derived()
         self.parse_types()
+        self._ensure_date_fields()
 
         if cache and path_to_db is None:
             # save Query to cache file
@@ -662,8 +702,30 @@ class QueryATNF(object):
                     "_QueryATNF__dataframe"
                 ]
             self._loadfile = fname
+            self._ensure_date_fields()
         except IOError:
             raise IOError("Error reading in pickle")
+
+    def _ensure_date_fields(self):
+        if "POSEPOCH_REF_YEAR" not in self.columns and "POSEPOCH_REF" in self.columns:
+            self.__dataframe["POSEPOCH_REF_YEAR"] = self.__dataframe[
+                "POSEPOCH_REF"
+            ].apply(_ref_year_from_ref)
+
+        if "TYPE_REF" in self.columns:
+            discovery_years = self.__dataframe["TYPE_REF"].apply(_ref_year_min)
+            if "DATE" not in self.columns:
+                self.__dataframe["DATE"] = discovery_years
+            else:
+                if "POSEPOCH_REF_YEAR" in self.columns:
+                    mask = self.__dataframe["DATE"].isna() | (
+                        self.__dataframe["DATE"]
+                        == self.__dataframe["POSEPOCH_REF_YEAR"]
+                    )
+                else:
+                    mask = self.__dataframe["DATE"].isna()
+                if mask.any():
+                    self.__dataframe.loc[mask, "DATE"] = discovery_years[mask]
 
     def as_array(self):
         """
