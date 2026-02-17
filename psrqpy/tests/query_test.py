@@ -174,7 +174,7 @@ def test_save_load_file(tmp_path, query):
     """
 
     # test exception handling
-    testfilebad = '/jkshfdjfd/jkgsdfjkj/kgskfd.jhfd'
+    testfilebad = '/jkshfdjfd/jkgsdfjkj/kgskfs.jhfd'
 
     with pytest.raises(IOError):
         query.save(testfilebad)
