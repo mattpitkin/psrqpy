@@ -80,6 +80,7 @@ PSR_GENERAL['SURVEY'] =   {'ref': False, 'err': False, 'units': None}   # Survey
 # OSURVEY: Surveys that detected the pulsar, encoded as bits in integer
 PSR_GENERAL['OSURVEY'] =  {'ref': False, 'err': False, 'units': None}
 PSR_GENERAL['DATE'] =     {'ref': False, 'err': False, 'units': 'yr'}   # Date of discovery publication
+PSR_GENERAL['POSEPOCH_REF_YEAR'] = {'ref': False, 'err': False, 'units': 'yr'}  # Derived year from POSEPOCH_REF
 # NGLT: Number of glitches observed for the pulsar
 PSR_GENERAL['NGLT'] =     {'ref': False, 'err': False, 'units': None}
 # GLEP: Epoch of glitch (MJD)

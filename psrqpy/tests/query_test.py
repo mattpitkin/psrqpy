@@ -86,6 +86,16 @@ def test_crab(query):
     assert query.get_pulsar('B0531+21')['F0_REF'][0] is not None
 
 
+def test_crab_date_fields(query):
+    """
+    Test that the Crab discovery date and POSEPOCH reference year are preserved.
+    """
+
+    crab = query.get_pulsar('J0534+2200')
+    assert int(crab['DATE'][0]) == 1968
+    assert int(crab['POSEPOCH_REF_YEAR'][0]) == 2023
+
+
 def test_catalogue_shape(query):
     """
     Test the catalogue for shape consistency
@@ -164,7 +174,7 @@ def test_save_load_file(tmp_path, query):
     """
 
     # test exception handling
-    testfilebad = '/jkshfdjfd/jkgsdfjkj/kgskfd.jhfd'
+    testfilebad = '/jkshfdjfd/jkgsdfjkj/kgskfs.jhfd'
 
     with pytest.raises(IOError):
         query.save(testfilebad)
@@ -1037,4 +1047,3 @@ def test_name(query):
 
     psr = query.get_pulsar("J1906+1854")  # This pulsar only has a JName
     assert psr["NAME"][0] == psr["JNAME"][0]
-

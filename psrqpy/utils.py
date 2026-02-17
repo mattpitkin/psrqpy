@@ -283,7 +283,7 @@ def get_catalogue(
             if "PEPOCH_REF" in psr.keys():
                 psrlist[i]["POSEPOCH_REF"] = psrlist[i]["PEPOCH_REF"]
 
-        # derive the 'DATE' parameter from the 'POSEPOCH' reference
+        # derive the 'POSEPOCH_REF_YEAR' parameter from the 'POSEPOCH' reference
         # implementation based upon the psrcat v1.66 CLI (definePosEpoch.c:214-242)
         if "POSEPOCH_REF" in psr.keys():
             try:
@@ -294,7 +294,7 @@ def get_catalogue(
                     refyear += 1900
                 else:
                     refyear += 2000
-                psrlist[i]["DATE"] = refyear
+                psrlist[i]["POSEPOCH_REF_YEAR"] = refyear
             except (AttributeError, TypeError):
                 pass
 
