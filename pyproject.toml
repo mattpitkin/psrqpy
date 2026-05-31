@@ -47,6 +47,10 @@ dynamic = [
 ]
 
 [project.optional-dependencies]
+ne2025 = [
+    "mpmath",
+    "mwprop >= 2.0.4",
+]
 test = [
     "pytest >= 3.9.1",
     "pytest-cov",

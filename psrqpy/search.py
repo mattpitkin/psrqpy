@@ -21,6 +21,11 @@ from packaging import version
 from pandas import concat, DataFrame, Series
 from copy import deepcopy
 
+try:
+    from mwprop.nemod.NE2025 import ne2025
+except (ImportError, ModuleNotFoundError):
+    ne2025 = None
+
 from .config import (
     ATNF_BASE_URL,
     PSR_ALL,
@@ -150,6 +155,12 @@ class QueryATNF(object):
             Defaults to True.
         include_refs (bool): Set if wanting to include references tags in the
             output tables. Defaults to False.
+        include_ne2025_dist (bool): Set if wanting to include the dispersion
+            measure distance calculated with the NE2025 galactic electron
+            density model. This requires the ``mwprop`` package to be
+            installed, which can be installed with psrqpy using
+            ``pip install psrqpy[mwprop]``. The distances will be stored in the
+            ``DIST_DM_NE2025`` column of the resulting table. Default is False.
         adsref (bool): Set if wanting to use an :class:`ads.search.SearchQuery`
             to get reference information. Defaults to False.
         loadfromdb (str): Load a pulsar database file from a given path rather
@@ -187,6 +198,7 @@ class QueryATNF(object):
         psrs=None,
         include_errs=True,
         include_refs=False,
+        include_ne2025_dist=False,
         adsref=False,
         loadfromfile=None,
         loadquery=None,
@@ -210,6 +222,7 @@ class QueryATNF(object):
         self.__dataframe = DataFrame()
         self.include_errs = include_errs
         self._include_refs = include_refs
+        self.include_ne2025_dist = include_ne2025_dist
         self._savefile = None  # file to save class to
         self._loadfile = None  # file class loaded from
         self.condition = condition
@@ -1357,6 +1370,7 @@ class QueryATNF(object):
         self.derived_ecliptic()  # derive the ecliptic coordinates if not given
         self.derived_equatorial()  # derive equatorial coords from ecliptic
         self.define_galactic()  # define the galactic coordinates
+        self.derived_ne2025_dist()  # get the NE2025 model DM distance
         self.derived_p0()  # derive P0 from F0 if not given
         self.derived_f0()  # derive F0 from P0 if not given
         self.derived_p1()  # derive P1 from F1 if not given
@@ -1789,6 +1803,39 @@ class QueryATNF(object):
 
                 self.update(PMB, name="PMB")
                 self.update(PML, name="PML")
+
+    def derived_ne2025_dist(self):
+        """
+        Calculate the NE2025 distance using the mwprop package.
+        """
+
+        if self.include_ne2025_dist:
+            if ne2025 is not None:
+                DIST_NE202 = np.full(self.catalogue_len, np.nan)
+
+                GL = self.catalogue["GL"].values.copy()
+                GB = self.catalogue["GB"].values.copy()
+                DM = self.catalogue["DM"].values.copy()
+
+                idx = np.isfinite(GL) & np.isfinite(GB) & np.isfinite(DM)
+
+                for i in range(self.catalogue_len):
+                    if idx[i]:
+                        DIST_NE202[i] = ne2025(
+                            ldeg=GL[i],
+                            bdeg=GB[i],
+                            dmd=DM[i],
+                            ndir=1,
+                            classic=False,
+                            dmd_only=True
+                        )[1]["DIST"]
+
+                    self.update(DIST_NE202, name="DIST_DM_NE2025")
+            else:
+                raise RuntimeError(
+                    "The mwprop package must be installed to calculated "
+                    "NE2025 model DM distances."
+                )
 
     def derived_binary(self):
         """
