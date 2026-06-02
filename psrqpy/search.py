@@ -1717,24 +1717,16 @@ class QueryATNF(object):
         if not np.all([p in self.columns for p in reqpars]):
             return
 
-        # get distance if required
-        if "DIST" not in self.columns:
-            self.define_dist()
-
-            if "DIST" not in self.columns:
-                return
-
         RAJD = self.catalogue["RAJD"].values.copy()
         DECJD = self.catalogue["DECJD"].values.copy()
-        DIST = self.catalogue["DIST"].values.copy()
 
         GL = np.full(self.catalogue_len, np.nan)
         GB = np.full(self.catalogue_len, np.nan)
-        idx = np.isfinite(RAJD) & np.isfinite(DECJD) & np.isfinite(DIST)
+        idx = np.isfinite(RAJD) & np.isfinite(DECJD)
 
         # get sky coordinates
         sc = SkyCoord(
-            RAJD[idx] * aunits.deg, DECJD[idx] * aunits.deg, DIST[idx] * aunits.kpc
+            RAJD[idx] * aunits.deg, DECJD[idx] * aunits.deg,
         )
 
         GL[idx] = sc.galactic.l.value
@@ -1743,22 +1735,6 @@ class QueryATNF(object):
         # set galactic longitude and latitude
         self.update(GL, name="GL")
         self.update(GB, name="GB")
-
-        XX = np.full(self.catalogue_len, np.nan)
-        YY = np.full(self.catalogue_len, np.nan)
-        ZZ = np.full(self.catalogue_len, np.nan)
-
-        # set galactocentric cartesian position (these seem to have a
-        # different orientation (rotated 90 deg anticlockwise) to that
-        # defined in the ATNF catalogue, and using a slightly different
-        # distance to the galactic centre 8.3 kpc in astropy and 8.5 in psrcat)
-        XX[idx] = sc.galactocentric.cartesian.x.value
-        YY[idx] = sc.galactocentric.cartesian.y.value
-        ZZ[idx] = sc.galactocentric.cartesian.z.value
-
-        self.update(XX, name="XX")
-        self.update(YY, name="YY")
-        self.update(ZZ, name="ZZ")
 
         # set DMSINB
         if "DM" in self.columns:
@@ -1787,13 +1763,11 @@ class QueryATNF(object):
                     & np.isfinite(PMDEC)
                     & np.isfinite(RAJD)
                     & np.isfinite(DECJD)
-                    & np.isfinite(DIST)
                 )
 
                 sc = ICRS(
                     RAJD[idx] * aunits.deg,
                     DECJD[idx] * aunits.deg,
-                    distance=DIST[idx] * aunits.kpc,
                     pm_ra_cosdec=PMRA[idx] * aunits.mas / aunits.yr,
                     pm_dec=PMDEC[idx] * aunits.mas / aunits.yr,
                 ).transform_to(Galactic())
@@ -1803,6 +1777,38 @@ class QueryATNF(object):
 
                 self.update(PMB, name="PMB")
                 self.update(PML, name="PML")
+
+        # set galactocentric cartesian position (these seem to have a
+        # different orientation (rotated 90 deg anticlockwise) to that
+        # defined in the ATNF catalogue, and using a slightly different
+        # distance to the galactic centre 8.3 kpc in astropy and 8.5 in psrcat)
+        if "DIST" not in self.columns:
+            self.define_dist()
+
+            if "DIST" not in self.columns:
+                return
+
+        DIST = self.catalogue["DIST"].values.copy()
+
+        idx = np.isfinite(RAJD) & np.isfinite(DECJD) & np.isfinite(DIST)
+
+        # get sky coordinates
+        sc = SkyCoord(
+            RAJD[idx] * aunits.deg, DECJD[idx] * aunits.deg, DIST[idx] * aunits.kpc
+        )
+
+        XX = np.full(self.catalogue_len, np.nan)
+        YY = np.full(self.catalogue_len, np.nan)
+        ZZ = np.full(self.catalogue_len, np.nan)
+
+        
+        XX[idx] = sc.galactocentric.cartesian.x.value
+        YY[idx] = sc.galactocentric.cartesian.y.value
+        ZZ[idx] = sc.galactocentric.cartesian.z.value
+
+        self.update(XX, name="XX")
+        self.update(YY, name="YY")
+        self.update(ZZ, name="ZZ")
 
     def derived_ne2025_dist(self):
         """
