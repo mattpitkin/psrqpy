@@ -272,6 +272,45 @@ where this shows all pulsar types and pulsars in supernova remnants, to give
 .. figure::  images/ppdot.png
    :align:   center
 
+**Get NE2025-based dispersion measure distances**
+
+If you have the [mwprop](https://github.com/stella-ocker/mwprop) package installed, you can get the
+catalogue query to calculate distances using the NE2025 galactic electron density model [3]_. To do
+this you can pass ``include_ne2025_dist=True`` to the :class:`~psrqpy.search.QueryATNF`, e.g.,
+
+    >>> from psrqpy import QueryATNF
+    >>> query = QueryATNF(include_ne2025_dist=True)
+    >>> print(query["DIST_DM_NE2025"])
+    DIST_DM_NE2025  
+         kpc        
+    ------------------
+    10.158574237387178
+    0.8294858337310532
+                   ...
+    3.4829212891009083
+    4.5300691033635845
+    2.7614797743676056
+    4.443376225000849
+    3.1993232117433923
+    0.6787086608411386
+    0.7798821180249944
+    0.9122525310693017
+    2.1446210875429115
+    1.7403323671707112
+    Length = 4393 rows
+
+This will add a ``DIST_DM_NE2025`` column to the resulting catalogue. To use this as the default
+distance, you can set the keyword ``default_dist="DIST_DM_NE2025"``, otherwise the YMW16 model's
+dispersion measure distance (as extracted from the ATNF catalogue) will be used.
+
+.. note::
+    If you have already cached a local version of the catalogue, you will need to use include
+    ``checkupdate=True`` in the query call to update with the new distances, i.e.,
+
+        >>> query = QueryATNF(include_ne2025_dist=True, checkupdate=True)
+
+    The catalogue will take longer to generate (on the order of minutes) while the distances are
+    calculated.
 
 Additional catalogues
 =====================
@@ -417,3 +456,5 @@ References
 
 .. [2] `Harrison, Lyne & Anderson <https://ui.adsabs.harvard.edu/?#abs/1993MNRAS.261..113H>`_,
  *MNRAS*, **261**, 113-124 (1993)
+
+.. [3] Ocker & Cordes, *ApJ*, **1002**, 3 (2026), `arXiv:2602.11838 <https://arxiv.org/abs/2602.11838>`_
