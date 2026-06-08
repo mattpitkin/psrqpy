@@ -4,6 +4,7 @@ The classes defined here are for querying the `ATNF pulsar catalogue
 information.
 """
 
+import multiprocessing as mp
 import os
 import pickle
 import re
@@ -22,9 +23,28 @@ from pandas import concat, DataFrame, Series
 from copy import deepcopy
 
 try:
-    from mwprop.nemod.NE2025 import ne2025
+    from mwprop.nemod.dmdsm import dmdsm_dm2d
+
+    def get_ne2025_distance(i, gl, gb, dm):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=UserWarning)
+        
+            dist = dmdsm_dm2d(
+                l=np.deg2rad(gl),
+                b=np.deg2rad(gb),
+                dm_target=dm,
+                Nsmin=10,
+                dm2d_only=True,
+                plotting=False,
+                verbose=False,
+                do_analysis=False,
+                debug=False,
+            )[1]
+        
+        return i, dist
+
 except (ImportError, ModuleNotFoundError):
-    ne2025 = None
+    get_ne2025_distance = None
 
 from .config import (
     ATNF_BASE_URL,
@@ -1464,7 +1484,7 @@ class QueryATNF(object):
 
         # calculate the NE2025 distance using the mwprop package
         if self.include_ne2025_dist:
-            if ne2025 is not None:
+            if callable(get_ne2025_distance):
                 reqpars = ["GL", "GB", "DM"]
                 if not np.all([p in self.columns for p in reqpars]):
                     return
@@ -1477,18 +1497,14 @@ class QueryATNF(object):
 
                 idx = np.isfinite(GL) & np.isfinite(GB) & np.isfinite(DM)
 
-                for i in range(self.catalogue_len):
-                    if idx[i]:
-                        DIST_NE2025[i] = ne2025(
-                            ldeg=GL[i],
-                            bdeg=GB[i],
-                            dmd=DM[i],
-                            ndir=1,
-                            classic=False,
-                            dmd_only=True
-                        )[1]["DIST"]
+                dparams = [(i, GL[i], GB[i], DM[i]) for i in range(self.catalogue_len) if idx[i]]
 
-                    self.update(DIST_NE2025, name="DIST_DM_NE2025")
+                # initialize pool
+                with mp.Pool(processes=mp.cpu_count()) as pool:
+                    for i, dist_value in pool.starmap(get_ne2025_distance, dparams):
+                        DIST_NE2025[i] = dist_value
+
+                self.update(DIST_NE2025, name="DIST_DM_NE2025")
 
                 if self.default_dist == "DIST_DM_NE2025":
                     DEFAULT_DIST = DIST_NE2025.copy()
