@@ -280,12 +280,11 @@ In addition to returning a querying the ATNF Pulsar Catalogue, psrqpy can also
 download and parse:
 
 * the `Jodrell Bank pulsar glitch table <http://www.jb.man.ac.uk/pulsar/glitches/gTable.html>`_
-* Paolo Freire's `table of pulsars in globular clusters <http://www.naic.edu/~pfreire/GCpsr.txt>`_
+* Paolo Freire's `table of pulsars in globular clusters <https://www3.mpifr-bonn.mpg.de/staff/pfreire/GCpsr.txt">`_
   (note that the downloaded table does not include accompanying notes or references, and binary
   parameters that are listed as upper/lower limits within the table are just returned as equalities.)
 * Duncan Lorimer & Elizabeth Ferrara's `table of galactic millisecond pulsars
-  <http://astro.phys.wvu.edu/GalacticMSPs/>`_ (accessed via the `JSON-ified version
-  <https://github.com/astrogewgaw/galmsps>`_ by `Ujjwal Panda <https://github.com/astrogewgaw>`_)
+  <http://astro.phys.wvu.edu/GalacticMSPs/>`_.
 
 Examples
 --------
