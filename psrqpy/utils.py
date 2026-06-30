@@ -556,10 +556,10 @@ def get_glitch_catalogue(psr=None):
 def get_gc_catalogue():
     """
     Download and parse Paolo Freire's table of pulsars in globular clusters
-    from http://www.naic.edu/~pfreire/GCpsr.txt. This will be returned as a
-    :class:`astropy.table.Table`, but with some additional methods to extract
-    information for individual clusters. If the webpage returned an error
-    ``None`` is returned.
+    from https://www3.mpifr-bonn.mpg.de/staff/pfreire/GCpsr.txt". This will be
+    returned as a :class:`astropy.table.Table`, but with some additional
+    methods to extract information for individual clusters. If the webpage
+    returned an error ``None`` is returned.
 
     The additional methods of the returned :class:`~astropy.table.Table` are:
 

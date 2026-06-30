@@ -4,6 +4,7 @@ The classes defined here are for querying the `ATNF pulsar catalogue
 information.
 """
 
+import multiprocessing as mp
 import os
 import pickle
 import re
@@ -20,6 +21,30 @@ from packaging import version
 
 from pandas import concat, DataFrame, Series
 from copy import deepcopy
+
+try:
+    from mwprop.nemod.dmdsm import dmdsm_dm2d
+
+    def get_ne2025_distance(i, gl, gb, dm):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=UserWarning)
+        
+            dist = dmdsm_dm2d(
+                l=np.deg2rad(gl),
+                b=np.deg2rad(gb),
+                dm_target=dm,
+                Nsmin=10,
+                dm2d_only=True,
+                plotting=False,
+                verbose=False,
+                do_analysis=False,
+                debug=False,
+            )[1]
+        
+        return i, dist
+
+except (ImportError, ModuleNotFoundError):
+    get_ne2025_distance = None
 
 from .config import (
     ATNF_BASE_URL,
@@ -150,6 +175,21 @@ class QueryATNF(object):
             Defaults to True.
         include_refs (bool): Set if wanting to include references tags in the
             output tables. Defaults to False.
+        include_ne2025_dist (bool): Set if wanting to include the dispersion
+            measure distance calculated with the NE2025 galactic electron
+            density model. This requires the ``mwprop`` package to be
+            installed, which can be installed with psrqpy using
+            ``pip install psrqpy[mwprop]``. The distances will be stored in the
+            ``DIST_DM_NE2025`` column of the resulting table. Note that this
+            will considerably slow down generation of the catalogue (although
+            not if using a cached version) and will output some ``mwprop``
+            warnings. Default is False.
+        default_dist (str): Set the distance estimate value to use as the
+            default distance given by the ``"DIST"`` column. This defaults to
+            use ``DIST_DM``, but other allowable values are ``DIST_A``,
+            ``DIST_AMN``, ``DIST_AMX``, ``DIST_DM1``, or ``DIST_DM_NE2025``
+            (if ``include_ne2025_dist=True``). Values other that these will be
+            ignored and ``DIST_DM`` will be used in that case.
         adsref (bool): Set if wanting to use an :class:`ads.search.SearchQuery`
             to get reference information. Defaults to False.
         loadfromdb (str): Load a pulsar database file from a given path rather
@@ -187,6 +227,8 @@ class QueryATNF(object):
         psrs=None,
         include_errs=True,
         include_refs=False,
+        include_ne2025_dist=False,
+        default_dist="DIST_DM",
         adsref=False,
         loadfromfile=None,
         loadquery=None,
@@ -210,6 +252,8 @@ class QueryATNF(object):
         self.__dataframe = DataFrame()
         self.include_errs = include_errs
         self._include_refs = include_refs
+        self.include_ne2025_dist = include_ne2025_dist
+        self.default_dist = str(default_dist).upper()
         self._savefile = None  # file to save class to
         self._loadfile = None  # file class loaded from
         self.condition = condition
@@ -1353,10 +1397,11 @@ class QueryATNF(object):
         `code <http://www.atnf.csiro.au/research/pulsar/psrcat/download.html>`_.
         """
 
-        self.define_dist()  # define the DIST and DIST1 parameters
         self.derived_ecliptic()  # derive the ecliptic coordinates if not given
         self.derived_equatorial()  # derive equatorial coords from ecliptic
         self.define_galactic()  # define the galactic coordinates
+        self.define_dist()  # define the DIST and DIST1 parameters
+        self.derived_cartesian()  # derive x, y, z cartesian position
         self.derived_p0()  # derive P0 from F0 if not given
         self.derived_f0()  # derive F0 from P0 if not given
         self.derived_p1()  # derive P1 from F1 if not given
@@ -1395,33 +1440,85 @@ class QueryATNF(object):
         else:
             PXERR = np.full(self.catalogue_len, np.nan)
 
+        DEFAULT_DIST = None
+
         if "DIST_A" in self.columns:
             DIST_A = self.catalogue["DIST_A"]
+
+            if self.default_dist == "DIST_A":
+                DEFAULT_DIST = DIST_A.copy()
         else:
             DIST_A = np.full(self.catalogue_len, np.nan)
 
         if "DIST_AMN" in self.columns:
             DIST_AMN = self.catalogue["DIST_AMN"]
+
+            if self.default_dist == "DIST_AMN":
+                DEFAULT_DIST = DIST_AMN.copy()
         else:
             DIST_AMN = np.full(self.catalogue_len, np.nan)
 
         if "DIST_AMX" in self.columns:
             DIST_AMX = self.catalogue["DIST_AMX"]
+
+            if self.default_dist == "DIST_AMX":
+                DEFAULT_DIST = DIST_AMX.copy()
         else:
             DIST_AMX = np.full(self.catalogue_len, np.nan)
 
         if "DIST_DM" in self.columns:
             DIST_DM = self.catalogue["DIST_DM"]
+
+            if self.default_dist == "DIST_DM":
+                DEFAULT_DIST = DIST_DM.copy()
         else:
             DIST_DM = np.full(self.catalogue_len, np.nan)
 
         if "DIST_DM1" in self.columns:
             DIST_DM1 = self.catalogue["DIST_DM1"]
+
+            if self.default_dist == "DIST_DM1":
+                DEFAULT_DIST = DIST_DM1.copy()
         else:
             DIST_DM1 = np.full(self.catalogue_len, np.nan)
 
+        # calculate the NE2025 distance using the mwprop package
+        if self.include_ne2025_dist:
+            if callable(get_ne2025_distance):
+                reqpars = ["GL", "GB", "DM"]
+                if not np.all([p in self.columns for p in reqpars]):
+                    return
+                
+                DIST_NE2025 = np.full(self.catalogue_len, np.nan)
+
+                GL = self.catalogue["GL"].values.copy()
+                GB = self.catalogue["GB"].values.copy()
+                DM = self.catalogue["DM"].values.copy()
+
+                idx = np.isfinite(GL) & np.isfinite(GB) & np.isfinite(DM)
+
+                dparams = [(i, GL[i], GB[i], DM[i]) for i in range(self.catalogue_len) if idx[i]]
+
+                # initialize pool
+                with mp.Pool(processes=mp.cpu_count()) as pool:
+                    for i, dist_value in pool.starmap(get_ne2025_distance, dparams):
+                        DIST_NE2025[i] = dist_value
+
+                self.update(DIST_NE2025, name="DIST_DM_NE2025")
+
+                if self.default_dist == "DIST_DM_NE2025":
+                    DEFAULT_DIST = DIST_NE2025.copy()
+            else:
+                raise RuntimeError(
+                    "The mwprop package must be installed to calculated "
+                    "NE2025 model DM distances."
+                )
+
         # DIST defaults to DM distance
-        DIST = DIST_DM.copy()
+        if DEFAULT_DIST is not None:
+            DIST = DEFAULT_DIST.copy()
+        else:
+            DIST = DIST_DM.copy()
 
         # DIST1 defaults to DM1 distance
         DIST1 = DIST_DM1.copy()
@@ -1671,7 +1768,7 @@ class QueryATNF(object):
 
     def define_galactic(self):
         """
-        Calculate the galactic longitude, latitude and position.
+        Calculate the galactic longitude and latitude and position.
 
         .. note::
             The cartesian galactic coordinates returned by this function *do
@@ -1695,7 +1792,7 @@ class QueryATNF(object):
             of `Harrison, Lyne & Anderson (1993) <https://ui.adsabs.harvard.edu/?#abs/1993MNRAS.261..113H>`_.
         """
 
-        galpars = ["GL", "GB", "ZZ", "XX", "YY", "DMSINB"]
+        galpars = ["GL", "GB", "DMSINB"]
         if np.all([p in self.columns for p in galpars]):
             return
 
@@ -1703,24 +1800,16 @@ class QueryATNF(object):
         if not np.all([p in self.columns for p in reqpars]):
             return
 
-        # get distance if required
-        if "DIST" not in self.columns:
-            self.define_dist()
-
-            if "DIST" not in self.columns:
-                return
-
         RAJD = self.catalogue["RAJD"].values.copy()
         DECJD = self.catalogue["DECJD"].values.copy()
-        DIST = self.catalogue["DIST"].values.copy()
 
         GL = np.full(self.catalogue_len, np.nan)
         GB = np.full(self.catalogue_len, np.nan)
-        idx = np.isfinite(RAJD) & np.isfinite(DECJD) & np.isfinite(DIST)
+        idx = np.isfinite(RAJD) & np.isfinite(DECJD)
 
         # get sky coordinates
         sc = SkyCoord(
-            RAJD[idx] * aunits.deg, DECJD[idx] * aunits.deg, DIST[idx] * aunits.kpc
+            RAJD[idx] * aunits.deg, DECJD[idx] * aunits.deg,
         )
 
         GL[idx] = sc.galactic.l.value
@@ -1729,22 +1818,6 @@ class QueryATNF(object):
         # set galactic longitude and latitude
         self.update(GL, name="GL")
         self.update(GB, name="GB")
-
-        XX = np.full(self.catalogue_len, np.nan)
-        YY = np.full(self.catalogue_len, np.nan)
-        ZZ = np.full(self.catalogue_len, np.nan)
-
-        # set galactocentric cartesian position (these seem to have a
-        # different orientation (rotated 90 deg anticlockwise) to that
-        # defined in the ATNF catalogue, and using a slightly different
-        # distance to the galactic centre 8.3 kpc in astropy and 8.5 in psrcat)
-        XX[idx] = sc.galactocentric.cartesian.x.value
-        YY[idx] = sc.galactocentric.cartesian.y.value
-        ZZ[idx] = sc.galactocentric.cartesian.z.value
-
-        self.update(XX, name="XX")
-        self.update(YY, name="YY")
-        self.update(ZZ, name="ZZ")
 
         # set DMSINB
         if "DM" in self.columns:
@@ -1773,13 +1846,11 @@ class QueryATNF(object):
                     & np.isfinite(PMDEC)
                     & np.isfinite(RAJD)
                     & np.isfinite(DECJD)
-                    & np.isfinite(DIST)
                 )
 
                 sc = ICRS(
                     RAJD[idx] * aunits.deg,
                     DECJD[idx] * aunits.deg,
-                    distance=DIST[idx] * aunits.kpc,
                     pm_ra_cosdec=PMRA[idx] * aunits.mas / aunits.yr,
                     pm_dec=PMDEC[idx] * aunits.mas / aunits.yr,
                 ).transform_to(Galactic())
@@ -1789,6 +1860,73 @@ class QueryATNF(object):
 
                 self.update(PMB, name="PMB")
                 self.update(PML, name="PML")
+
+    def derived_cartesian(self):
+        """
+        Calculate the galactic cartersian position.
+
+        .. note::
+            The cartesian galactic coordinates returned by this function *do
+            not* match those returned by the ATNF Pulsar Catalogue and the
+            ``psrcat`` software. They are defined using the conventions in the
+            :class:`astropy.coordinates.Galactocentric` class. This uses a
+            Galactic centre distance of 8.3 kpc compared to 8.5 kpc in
+            ``psrcat`` and rotated 90 degrees anticlockwise compared to
+            ``psrcat``.
+
+            The Galactic coordinate proper motions returned by this function
+            *do not* match those returned by the ATNF Pulsar Catalogue and the
+            ``psrcat`` software. The values returned here convert the observed
+            proper motions in right ascension and declination (or elliptic
+            longitude and latitude) into equivalent values in the Galactic
+            coordinate system (via the :class:`astropy.coordinates.Galactic`
+            class). However, the values returned by the ATNF Pulsar Catalogue
+            and the ``psrcat`` software are in the Galactic cooridinate system,
+            but additionally have the local solar system velocity and Galactic
+            rotation of the pulsar removed from them as described in Section 3
+            of `Harrison, Lyne & Anderson (1993) <https://ui.adsabs.harvard.edu/?#abs/1993MNRAS.261..113H>`_.
+        """
+
+        cartpars = ["XX", "YY", "ZZ"]
+        if np.all([p in self.columns for p in cartpars]):
+            return
+
+        reqpars = ["RAJD", "DECJD"]
+        if not np.all([p in self.columns for p in reqpars]):
+            return
+
+        # set galactocentric cartesian position (these seem to have a
+        # different orientation (rotated 90 deg anticlockwise) to that
+        # defined in the ATNF catalogue, and using a slightly different
+        # distance to the galactic centre 8.3 kpc in astropy and 8.5 in psrcat)
+        if "DIST" not in self.columns:
+            self.define_dist()
+
+            if "DIST" not in self.columns:
+                return
+        
+        RAJD = self.catalogue["RAJD"].values.copy()
+        DECJD = self.catalogue["DECJD"].values.copy()
+        DIST = self.catalogue["DIST"].values.copy()
+
+        idx = np.isfinite(RAJD) & np.isfinite(DECJD) & np.isfinite(DIST)
+
+        # get sky coordinates
+        sc = SkyCoord(
+            RAJD[idx] * aunits.deg, DECJD[idx] * aunits.deg, DIST[idx] * aunits.kpc
+        )
+
+        XX = np.full(self.catalogue_len, np.nan)
+        YY = np.full(self.catalogue_len, np.nan)
+        ZZ = np.full(self.catalogue_len, np.nan)
+
+        XX[idx] = sc.galactocentric.cartesian.x.value
+        YY[idx] = sc.galactocentric.cartesian.y.value
+        ZZ[idx] = sc.galactocentric.cartesian.z.value
+
+        self.update(XX, name="XX")
+        self.update(YY, name="YY")
+        self.update(ZZ, name="ZZ")
 
     def derived_binary(self):
         """
