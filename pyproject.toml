@@ -34,6 +34,7 @@ dependencies = [
     "appdirs",
     "astropy>=3.2",
     "beautifulsoup4",
+    "bibtexparser>=2.0.0b",
     "matplotlib",
     "numpy>=1.16",
     "packaging",
