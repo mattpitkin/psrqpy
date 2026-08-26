@@ -63,8 +63,8 @@ PSR_GENERAL['DIST_DM1'] = {'ref': True,  'err': False, 'units': 'kpc'}
 PSR_GENERAL['DIST1'] =    {'ref': False, 'err': False, 'units': 'kpc'}
 # DIST_DM_NE2025: Estimate of the pulsar distance using the NE2025 DM-based distance
 PSR_GENERAL['DIST_DM_NE2025'] = {'ref': False, 'err': False, 'units': 'kpc'}
-# DIST_AMN: Lower limit on independent distance estimate (NOTE: 'error' column is always zero)
-PSR_GENERAL['DIST_AMN'] = {'ref': True,  'err': True,  'units': 'kpc'}
+# DIST_AMN: Lower limit on independent distance estimate
+PSR_GENERAL['DIST_AMN'] = {'ref': True,  'err': False,  'units': 'kpc'}
 # DIST_AMX: Upper limit on independent distance estimate
 PSR_GENERAL['DIST_AMX'] = {'ref': True,  'err': False, 'units': 'kpc'}
 # DIST_A: Independent distance estimate
