@@ -1,5 +1,10 @@
 # Notable changes between versions
 
+## [1.3.3] 2026-08-26
+
+- Add ability to calculate distances with NE2025 model. See [#167](https://github.com/mattpitkin/psrqpy/pull/167).
+- Derive discovery date from PSR references. See [#165](https://github.com/mattpitkin/psrqpy/pull/165).
+
 ## [1.3.2] 2025-01-31
 
 - Allow `PMTOT_ERR` value to be extracted in astropy `table` version of catalogue. See [#147](https://github.com/mattpitkin/psrqpy/pull/147).
