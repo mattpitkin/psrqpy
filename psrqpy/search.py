@@ -1540,7 +1540,7 @@ class QueryATNF(object):
         DIST1[idxdista] = DIST_A[idxdista]
 
         # indexes of parallaxes with greater than 3 sigma significance
-        idxpxgt3 = (pxsigma > 3.0) & ~np.isfinite(DIST_A)
+        idxpxgt3 = (pxsigma > 3.0) & ~idxdista
 
         DIST[idxpxgt3] = (ONEAU / ONEPC) * (60.0 * 60.0 * 180) / (PX[idxpxgt3] * np.pi)
         DIST1[idxpxgt3] = (ONEAU / ONEPC) * (60.0 * 60.0 * 180) / (PX[idxpxgt3] * np.pi)
