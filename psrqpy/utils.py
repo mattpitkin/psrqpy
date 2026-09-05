@@ -1395,7 +1395,7 @@ def condition(table, expression, exactMatch=False):
     Returns:
         :class:`astropy.table.Table` or :class:`pandas.DataFrame`: the table of
         values conforming to the input condition. Depending on the type of
-        input table the returned table will either be a
+        input table the returned table will either be an
         :class:`astropy.table.Table` or :class:`pandas.DataFrame`.
 
     Example:
@@ -1459,6 +1459,7 @@ def condition(table, expression, exactMatch=False):
     # parse through tokens and replace as required
     ntokens = len(tokens)
     newtokens = []
+    local_dict = {}
     i = 0
     while i < ntokens:
         if tokens[i] in [r"&&", r"AND", r"and"]:
@@ -1495,10 +1496,11 @@ def condition(table, expression, exactMatch=False):
                             r'(ASSOC == "{}")'.format(tokens[i + 2].upper())
                         )
                     else:
-                        assoc = np.array(
+                        varname = "assoc_{}".format(i)
+                        local_dict[varname] = np.array(
                             [tokens[i + 2] in str(a) for a in table["ASSOC"]]
                         )
-                        newtokens.append(r"(@assoc)")
+                        newtokens.append("(@{})".format(varname))
                         i += 1
                 elif tokens[i].upper() == "TYPE":
                     if tokens[i + 2].upper() == "BINARY":
@@ -1508,8 +1510,9 @@ def condition(table, expression, exactMatch=False):
                                 UserWarning,
                             )
                         else:
-                            binary = ~tab["BINARY"].isna()
-                            newtokens.append(r"(@binary)")
+                            varname = "binary_{}".format(i)
+                            local_dict[varname] = ~tab["BINARY"].isna()
+                            newtokens.append("(@{})".format(varname))
                             i += 1
                     else:
                         if "TYPE" not in tab.keys():
@@ -1522,10 +1525,11 @@ def condition(table, expression, exactMatch=False):
                                 r'(TYPE == "{}")'.format(tokens[i + 2].upper())
                             )
                         else:
-                            ttype = np.array(
+                            varname = "ttype_{}".format(i)
+                            local_dict[varname] = np.array(
                                 [tokens[i + 2] in str(a) for a in table["TYPE"]]
                             )
-                            newtokens.append(r"(@ttype)")
+                            newtokens.append("(@{})".format(varname))
                             i += 1
                 elif tokens[i].upper() == "BINCOMP":
                     if "BINCOMP" not in tab.columns:
@@ -1538,10 +1542,11 @@ def condition(table, expression, exactMatch=False):
                             r'(BINCOMP == "{}")'.format(tokens[i + 2].upper())
                         )
                     else:
-                        bincomp = np.array(
+                        varname = "bincomp_{}".format(i)
+                        local_dict[varname] = np.array(
                             [tokens[i + 2] in str(a) for a in table["BINCOMP"]]
                         )
-                        newtokens.append(r"(@bincomp)")
+                        newtokens.append("(@{})".format(varname))
                         i += 1
                 elif tokens[i].upper() == "SURVEY":
                     if "SURVEY" not in tab.columns:
@@ -1554,10 +1559,11 @@ def condition(table, expression, exactMatch=False):
                             r'(SURVEY == "{}")'.format(tokens[i + 2].upper())
                         )
                     else:
-                        survey = np.array(
+                        varname = "survey_{}".format(i)
+                        local_dict[varname] = np.array(
                             [tokens[i + 2] in str(a) for a in table["SURVEY"]]
                         )
-                        newtokens.append(r"(@survey)")
+                        newtokens.append("(@{})".format(varname))
                         i += 1
                 elif tokens[i].upper() == "DISCOVERY":
                     if "SURVEY" not in tab.columns:
@@ -1580,7 +1586,10 @@ def condition(table, expression, exactMatch=False):
                                     for a in table["SURVEY"]
                                 ]
                             )
-                        newtokens.append(r"(@discovery)")
+
+                        varname = "discovery_{}".format(i)
+                        local_dict[varname] = discovery
+                        newtokens.append("(@{})".format(varname))
                         i += 1
                 elif tokens[i].upper() == "EXIST":
                     if tokens[i + 2].upper() not in tab.columns:
@@ -1592,8 +1601,9 @@ def condition(table, expression, exactMatch=False):
                         tab = DataFrame(columns=tab.columns)
                         break
                     else:
-                        exists = ~tab[tokens[i + 2].upper()].isna()
-                        newtokens.append(r"(@exists)")
+                        varname = "exists_{}".format(i)
+                        local_dict[varname] = ~tab[tokens[i + 2].upper()].isna()
+                        newtokens.append("(@{})".format(varname))
                         i += 1
                 elif tokens[i].upper() == "ERROR":
                     if tokens[i + 2].upper() + "_ERR" not in tab.columns:
@@ -1612,7 +1622,7 @@ def condition(table, expression, exactMatch=False):
 
     # evaluate the expression
     try:
-        newtab = tab.query("".join(newtokens))
+        newtab = tab.query("".join(newtokens), local_dict=local_dict)
     except RuntimeError:
         raise RuntimeError("Could not parse the query")
 
@@ -1626,7 +1636,6 @@ def condition(table, expression, exactMatch=False):
             newtab[key] = newtab[key].astype(table[key].dtype)
 
     return newtab
-
 
 def characteristic_age(period, pdot, braking_idx=3.0):
     """
